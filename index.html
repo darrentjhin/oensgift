@@ -1646,7 +1646,7 @@ function dlgDraw(){
     setFont(8);
     const tagW=Math.min(tw(page.name)+10, bw-12);   // never let the name tag exceed the box
     rrect(bx+8,by-9,tagW,13,4,'#1d2336'); rrect(bx+9,by-8,tagW-2,11,3,'#4a73c0');
-    text(page.name,bx+13,by-6,'#fff',8);
+    fitText(page.name,bx+13,by-6,'#fff',8,tagW-10);  // shrink so the name never spills past its tag
   }
   // revealed text (clipped to the box as a safety net so it can never spill out)
   g.save(); g.beginPath(); g.rect(bx+8,by+4,bw-16,bh-8); g.clip();
@@ -3381,20 +3381,21 @@ function drawFightMenu(by){
   text('TYPE/',ix+10,by+25,'#283048',8); text(mv.type,ix+10,by+35,'#3a78c8',8);
 }
 function drawBattleMsg(by){
-  uiBox(4,by,VW-8,46);
+  const mby=by-4;                                  // taller box: 3 lines of text never clip the frame
+  uiBox(4,mby,VW-8,50);
   if(!battle.msg) return;
-  const lines=wrap(battle.msg, VW-44, 8);   // stable wrap of the full line; reveal by count below
-  g.save(); g.beginPath(); g.rect(8,by+4,VW-16,38); g.clip();
+  const lines=wrap(battle.msg, VW-44, 8);          // stable wrap of the full line; reveal by count below
+  g.save(); g.beginPath(); g.rect(8,mby+4,VW-16,42); g.clip();
   let count=battle.msgReveal|0;
   for(let i=0;i<lines.length && i<3;i++){
     const show=lines[i].slice(0, Math.max(0,count));
-    text(show,14,by+12+i*12,'#283048',8);
+    text(show,14,mby+13+i*12,'#283048',8);
     count-=lines[i].length; if(count<0) count=0;
   }
   g.restore();
   const done=battle.msgReveal>=battle.msg.length;
   if(done && battle.msgCb && !battle.drainGate && battle.msgAuto===0 && Math.floor(anim/34)%2){
-    poly([[VW-18,by+34],[VW-12,by+34],[VW-15,by+38]],'#4a73c0');
+    poly([[VW-18,mby+42],[VW-12,mby+42],[VW-15,mby+46]],'#4a73c0');
   }
 }
 function battleDraw(){
