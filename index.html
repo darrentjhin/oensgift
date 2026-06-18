@@ -12,11 +12,34 @@
     box-shadow:0 0 0 4px #1a1a2e,0 0 40px rgba(0,0,0,.7);background:#000;}
   #hint{position:fixed;bottom:6px;left:0;right:0;text-align:center;color:#5a5a78;
     font-size:11px;letter-spacing:1px;pointer-events:none;}
+  /* on-screen touch controls (mobile only; toggled on by JS) */
+  #touch{position:fixed;inset:0;display:none;z-index:50;pointer-events:none;touch-action:none;
+    -webkit-user-select:none;user-select:none;font-family:"Courier New",monospace;}
+  #touch .btn{position:absolute;pointer-events:auto;display:flex;align-items:center;justify-content:center;
+    color:#eef0fb;background:rgba(28,30,52,.42);border:2px solid rgba(180,190,230,.45);border-radius:12px;
+    font-weight:bold;-webkit-tap-highlight-color:transparent;backdrop-filter:blur(2px);}
+  #touch .btn.on{background:rgba(96,124,206,.62);border-color:rgba(220,228,255,.8);}
+  #touch .dpad{position:absolute;left:20px;bottom:26px;width:156px;height:156px;}
+  #touch .dpad .btn{width:50px;height:50px;font-size:22px;}
+  #tc-up{left:53px;top:0;} #tc-down{left:53px;top:106px;} #tc-left{left:0;top:53px;} #tc-right{left:106px;top:53px;}
+  #tc-a{right:26px;bottom:48px;width:78px;height:78px;border-radius:50%;font-size:28px;
+    background:rgba(208,82,72,.5);border-color:rgba(255,184,174,.6);}
+  #tc-menu{right:30px;bottom:150px;width:66px;height:40px;font-size:14px;border-radius:10px;}
 </style>
 </head>
 <body>
 <div id="wrap"><canvas id="screen" width="256" height="192"></canvas></div>
 <div id="hint">WASD / Arrows = move &nbsp;·&nbsp; Space / Enter = action &nbsp;·&nbsp; Esc = menu &nbsp;·&nbsp; M = mute</div>
+<div id="touch">
+  <div class="dpad">
+    <div class="btn" id="tc-up">▲</div>
+    <div class="btn" id="tc-left">◀</div>
+    <div class="btn" id="tc-right">▶</div>
+    <div class="btn" id="tc-down">▼</div>
+  </div>
+  <div class="btn" id="tc-a">A</div>
+  <div class="btn" id="tc-menu">MENU</div>
+</div>
 <script>
 "use strict";
 /* =========================================================================
@@ -213,6 +236,26 @@ cv.addEventListener('pointerdown', (ev)=>{
   // dialogue, cutscenes, intro pages, story videos, cinema, credits: a click = SPACE (advance / skip)
   pressed['ok']=true;
 });
+
+// ---------- on-screen touch controls (mobile) ----------
+function bindTouchBtn(el, key){
+  const down=(e)=>{ e.preventDefault(); if(!keys[key]) pressed[key]=true; keys[key]=true; el.classList.add('on');
+    if(typeof audio!=='undefined' && !audio.started) audio.start(); };
+  const up=(e)=>{ e.preventDefault(); keys[key]=false; el.classList.remove('on'); };
+  el.addEventListener('pointerdown',down);
+  el.addEventListener('pointerup',up);
+  el.addEventListener('pointercancel',up);
+  el.addEventListener('pointerleave',up);
+  el.addEventListener('contextmenu',e=>e.preventDefault());
+}
+(function setupTouchControls(){
+  const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints>0);
+  const root=document.getElementById('touch'); if(!root || !isTouch) return;
+  root.style.display='block';
+  const hint=document.getElementById('hint'); if(hint) hint.style.display='none';
+  const map={ 'tc-up':'up','tc-down':'down','tc-left':'left','tc-right':'right','tc-a':'ok','tc-menu':'menu' };
+  for(const id in map){ const b=document.getElementById(id); if(b) bindTouchBtn(b, map[id]); }
+})();
 
 // ---------- helpers ----------
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
@@ -2778,6 +2821,16 @@ const ENEMY={
   rayquaza:{lv:32,hp:52,atk:13,type:'Dragon',moves:['Bite','Swift','Quick Attack']},
   mewtwo:{lv:35,hp:50,atk:14,type:'Psychic',moves:['Swift','Bite','Psy Pulse']},
 };
+// type effectiveness (only the matchups that can occur with the player's moves vs in-game foes)
+const TYPE_CHART = {
+  Normal:   { Ghost:0, Rock:0.5, Steel:0.5 },
+  Dark:     { Psychic:2, Ghost:2, Dark:0.5, Fighting:0.5 },
+  Electric: { Flying:2, Water:2, Electric:0.5, Grass:0.5, Dragon:0.5 },
+  Fire:     { Grass:2, Ice:2, Bug:2, Steel:2, Fire:0.5, Water:0.5, Rock:0.5, Dragon:0.5 },
+  Poison:   { Grass:2, Poison:0.5, Ghost:0.5 },
+  Flying:   { Grass:2, Fighting:2, Bug:2, Electric:0.5, Rock:0.5 },
+};
+function typeMult(atkType, defType){ const r=TYPE_CHART[atkType]; return (r && r[defType]!=null) ? r[defType] : 1; }
 // status / stat-lowering moves: shown as a message, deal NO damage (used by the bosses)
 const STATUS_MOVES={'Tail Whip':"Eevee's Defense fell!", 'Supersonic':'Eevee became confused!', 'Screech':"Eevee's Defense harshly fell!", 'Astonish':'Eevee flinched!', 'Smog':'Eevee was hit by toxic gas!',
   'Leer':"foe's sharp glare cut your Attack!", 'Growl':"the menacing growl lowered your Attack!", 'Intimidate':"the intimidating glare dropped your Attack!", 'Glare':"the cold glare lowered your Defense!"};
@@ -2924,12 +2977,19 @@ function doPlayerMove(){
   if(mv.pp<=0){ bMsg('There\'s no PP left for that move!', ()=>showFight(), 0); return; }
   mv.pp--;
   const e=curEnemy();
-  const {dmg,crit}=calcDmg(mv.pow, battle.player.lv);
+  let {dmg,crit}=calcDmg(mv.pow, battle.player.lv);
+  const mult=typeMult(mv.type, e.type);          // type effectiveness on the player's attack
+  dmg=Math.max(1, Math.round(dmg*mult));
+  const superEff=mult>1;
+  const eff = mult>1.5 ? 'It\'s super effective!' : (mult===0 ? 'It doesn\'t affect '+e.name+'...' : (mult<1 ? 'It\'s not very effective...' : ''));
   bMsg(battle.player.name+' used '+mv.name+'!', ()=>{
     playMoveFx(mv.name, 'player',
-      ()=>{ audio.sfx(crit?'hitSuper':'hit'); applyDamageToEnemy(dmg); battleImpact(battle.EX, battle.EY, crit); addDmgFloat(battle.EX, battle.EY-14, dmg, crit, false); },
-      ()=>{ waitDrain(()=>{ const after=()=>{ if(e.hp<=0) enemyFaint(); else setTimeoutBattle(880, doEnemyTurn); };
-        if(crit) bMsg('A critical hit!', after, 0); else setTimeoutBattle(740, after); }); }
+      ()=>{ audio.sfx(crit||superEff?'hitSuper':'hit'); applyDamageToEnemy(dmg); battleImpact(battle.EX, battle.EY, crit||superEff); addDmgFloat(battle.EX, battle.EY-14, dmg, crit||superEff, false); },
+      ()=>{ waitDrain(()=>{
+        const after=()=>{ if(e.hp<=0) enemyFaint(); else setTimeoutBattle(880, doEnemyTurn); };
+        const showEff=()=>{ if(eff) bMsg(eff, after, 0); else setTimeoutBattle(740, after); };
+        if(crit) bMsg('A critical hit!', showEff, 0); else setTimeoutBattle(eff?420:740, showEff);
+      }); }
     );
   }, 1300);
 }
@@ -3075,9 +3135,11 @@ function dblPlayMoveFx(moveName, atk, def, onHit, onDone){
 function dblAct(atk, def, move, after){
   if(!atk.alive){ after(); return; }
   if(!def || !def.alive){ const pool=atk.isAlly?battle.foes:battle.allies; def=pool.find(c=>c.alive); if(!def){ after(); return; } }
-  let dmg, crit=false, moveName;
+  let dmg, crit=false, moveName, superEff=false;
   if(atk.isAlly){ const mv=(typeof move==='object')?move:{name:move,pow:(MOVES[move]?MOVES[move].pow:50)};
-    const r=calcDmg(mv.pow, atk.lv); dmg=r.dmg; crit=r.crit; moveName=mv.name; }
+    const r=calcDmg(mv.pow, atk.lv); dmg=r.dmg; crit=r.crit; moveName=mv.name;
+    const mt=(typeof move==='object'&&move.type)?move.type : ((MOVES[moveName]&&MOVES[moveName].type)||'Normal');
+    const mult=typeMult(mt, def.type); dmg=Math.max(1,Math.round(dmg*mult)); superEff=mult>1; }
   else { moveName=move; const r=0.85+Math.random()*0.3; dmg=Math.max(2,Math.round((atk.atk+atk.lv*0.3)*r*1.3)); }
   const fdef=def;
   // bosses only intimidate / lower stats — their moves deal NO damage
@@ -3089,7 +3151,7 @@ function dblAct(atk, def, move, after){
   }
   bMsg((atk.owner?atk.owner+'’s ':'')+atk.name+' used '+moveName+'!', ()=>{
     dblPlayMoveFx(moveName, atk, fdef,
-      ()=>{ audio.sfx(crit?'hitSuper':'hit'); fdef.hp=Math.max(0,fdef.hp-dmg); fdef.blink=420; fdef.shake=320; battleImpact(fdef.x,fdef.y,crit); },
+      ()=>{ audio.sfx(crit||superEff?'hitSuper':'hit'); fdef.hp=Math.max(0,fdef.hp-dmg); fdef.blink=420; fdef.shake=320; battleImpact(fdef.x,fdef.y,crit||superEff); addDmgFloat(fdef.x, fdef.y-12, dmg, crit||superEff, fdef.isAlly); },
       ()=>{ dblWaitDrain(()=>{
         if(fdef.hp<=0){
           if(fdef.isPlayer){ fdef.hp=Math.max(10,Math.round(fdef.max*0.25)); fdef.faint=0;
@@ -3207,6 +3269,7 @@ function dblDraw(){
   if(battle.foes[1].shown) drawHPBar(8,40, battle.foes[1].name, battle.foes[1].lv, battle.foes[1].hpShow, battle.foes[1].max, false);
   if(battle.allies[0].shown) drawHPBar(VW-118,78, battle.allies[0].name, battle.allies[0].lv, battle.allies[0].hpShow, battle.allies[0].max, true);
   if(battle.allies[1].shown) drawHPBar(VW-118,108, battle.allies[1].name, battle.allies[1].lv, battle.allies[1].hpShow, battle.allies[1].max, true);
+  drawFloaters();
   if(battle.phase==='targetsel'){ const f=battle.foes[battle.tgt]; if(f){ const yy=f.y-24+Math.sin(anim/8)*2; poly([[f.x-5,yy],[f.x+5,yy],[f.x,yy+6]],'#e23b3b'); } }
   const by=VH-50;
   if(battle.phase==='mainmenu') drawMainMenu(by);
@@ -3705,6 +3768,37 @@ function pauseUpdate(){
 }
 
 /* =========================================================================
+   BOOT / LOADING SPLASH — covers first-load asset pop-in, fades into the title
+   ========================================================================= */
+const boot = { active:true, t:0, fade:0, min:1100, fontsReady:true };
+if(typeof document!=='undefined' && document.fonts && document.fonts.ready){
+  boot.fontsReady=false; document.fonts.ready.then(()=>{ boot.fontsReady=true; }).catch(()=>{ boot.fontsReady=true; });
+}
+function bootProgress(){ const keys=Object.keys(ASSETS.scene); if(!keys.length) return 1;
+  let n=0; for(const k of keys){ if(ASSETS._img['scene:'+k]) n++; } return n/keys.length; }
+function bootUpdate(dt){
+  boot.t+=dt;
+  const titleReady = !!ASSETS._img['scene:town'] || boot.t>4000;   // wait for the title backdrop (capped)
+  if(boot.t>boot.min && boot.fontsReady && titleReady){ boot.fade+=dt/450; if(boot.fade>=1) boot.active=false; }
+}
+function bootDraw(){
+  const a=clamp(1-boot.fade,0,1); if(a<=0) return;
+  g.globalAlpha=a;
+  const grd=g.createLinearGradient(0,0,0,VH); grd.addColorStop(0,'#14101f'); grd.addColorStop(1,'#241a3a');
+  g.fillStyle=grd; g.fillRect(0,0,VW,VH);
+  for(let i=0;i<26;i++){ const sx=(i*53)%VW, sy=(i*37)%(VH-30); if((Math.floor(anim/24)+i)%4) rect(sx,sy,1,1,'rgba(170,160,220,.55)'); }
+  g.textAlign='center';
+  textShadow('POKéMON', VW/2, VH/2-20, '#f6d62e','#7a4a08', 16);
+  textShadow('The Three Stolen Lights', VW/2, VH/2-2, '#e8e0ff','#2a1a44', 9);
+  const bw=120, bx=(VW-bw)/2, byy=VH/2+16;
+  rrect(bx,byy,bw,6,3,'rgba(255,255,255,.16)');
+  const p=clamp(Math.max(boot.t/boot.min, bootProgress()),0,1);
+  if(p>0) rrect(bx,byy,Math.max(6,bw*p),6,3,'#9fd0f0');
+  if(Math.floor(anim/24)%2) text('Loading…', VW/2, byy+17, '#bfb8e0', 8);
+  g.textAlign='left'; g.globalAlpha=1;
+}
+
+/* =========================================================================
    MAIN LOOP
    ========================================================================= */
 let last=performance.now();
@@ -3720,6 +3814,8 @@ function update(dt){
   updateParticles();
   // global entity animation
   for(const e of game.entities) updateEntity(e,dt);
+
+  if(boot.active){ bootUpdate(dt); if(boot.fade<=0){ clearPressed(); } }  // swallow input until the splash starts fading
 
   if(game.paused){ pauseUpdate(); return; }
 
@@ -3785,6 +3881,8 @@ function render(){
   // autosave toast (top-right, fades)
   if(game.savedT>0){ game.savedT--; const a=Math.min(1,game.savedT/30); g.globalAlpha=a;
     rrect(VW-66,6,60,14,3,'rgba(20,28,44,.82)'); text('✓ Saved',VW-60,16,'#bfe6c8',8); g.globalAlpha=1; }
+  // first-load splash on top of everything, crossfading into the title
+  if(boot.active) bootDraw();
 }
 
 audio.track='warm';
