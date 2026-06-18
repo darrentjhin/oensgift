@@ -3568,8 +3568,11 @@ function titleDraw(){
   textShadow('The Three Stolen Lights',VW/2,52,'#f8f8f0','#2a2a4a',10);
   // three lights
   const ph=(Math.sin(anim/20)+1)/2;
-  drawMon('jolteon',VW/2-44,96,12); drawMon('flareon',VW/2,96,12); drawMon('sylveon',VW/2+44,96,12);
-  spawnHeartsAuto(VW/2+44,90);
+  // three lights — painted hi-res sprites (R>=16 uses the PNGs, not the small procedural fallback)
+  const bob=Math.sin(anim/22)*1.6, R=19;
+  const trio=[['jolteon',VW/2-54,bob],['flareon',VW/2,-bob],['sylveon',VW/2+54,bob]];
+  for(const m of trio){ ellipse(m[1],118,14,3.6,'rgba(20,14,30,.30)'); drawMon(m[0],m[1],98+m[2],R); }
+  spawnHeartsAuto(VW/2+54,92);
   if(saveSystem.hasSave()){
     const opts=['New Game','Continue'];
     for(let i=0;i<2;i++){ const ox=VW/2-40+i*70, sel=game.titleSel===i;
