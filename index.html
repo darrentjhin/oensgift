@@ -31,6 +31,17 @@ const MAX_BACKING = 6400;            // cap backing-store width (headroom for 4K
 const TEXT_SLOW = 0.12;              // slower, more readable reveal
 const BATTLE_PACE = 1.45;            // global battle slow-down (effects + beats)
 const TEXT_FAST = 0.5;               // ~30 chars/sec while Space is held/pressed
+// player-facing accessibility/feel settings (persisted in localStorage)
+const TEXT_SPEED_MUL = [0.6, 1, 2.0];          // Slow / Normal / Fast multipliers on TEXT_SLOW
+const TEXT_SPEED_LABEL = ['Slow','Normal','Fast'];
+const settings = { textSpeed:1, shake:true };  // textSpeed = index into the arrays above
+try{ const s=JSON.parse(localStorage.getItem('poke3lights_settings')||'{}');
+  if(typeof s.textSpeed==='number') settings.textSpeed=clampInt(s.textSpeed,0,2);
+  if(typeof s.shake==='boolean') settings.shake=s.shake; }catch(e){}
+function clampInt(v,a,b){ v=v|0; return v<a?a:v>b?b:v; }
+function saveSettings(){ try{ localStorage.setItem('poke3lights_settings', JSON.stringify(settings)); }catch(e){} }
+function textRevealStep(){ return TEXT_SLOW*TEXT_SPEED_MUL[settings.textSpeed]; }
+function shakeAmt(){ return settings.shake?1:0; }
 const cv = document.getElementById('screen');
 const g = cv.getContext('2d', { alpha:false });
 function fitScreen(){
@@ -197,6 +208,10 @@ cv.addEventListener('pointerdown', (ev)=>{
   }
   if(game.state==='minigame'){ miniClick(mx,my); return; }
   if(game.state==='riddle'){ riddleClick(mx,my); return; }
+  if(game.paused) return;                          // pause menu stays keyboard-driven
+  if(game.state==='battle'){ battlePointer(mx,my); return; }
+  // dialogue, cutscenes, intro pages, story videos, cinema, credits: a click = SPACE (advance / skip)
+  pressed['ok']=true;
 });
 
 // ---------- helpers ----------
@@ -1609,7 +1624,7 @@ function dlgUpdate(){
   if(!dlg.active) return;
   const page=dlg.pages[dlg.pi];
   const full = page.lines.join('\n').length;
-  if(dlg.reveal < full){ const before=dlg.reveal|0; dlg.reveal += dlg.fast?TEXT_FAST:TEXT_SLOW;
+  if(dlg.reveal < full){ const before=dlg.reveal|0; dlg.reveal += dlg.fast?TEXT_FAST:textRevealStep();
     if((dlg.reveal|0)>before && ((dlg.reveal|0)%6)===0) audio.note(620,0.025,'square',0.07); }
   if(consume('ok')){
     if(dlg.reveal < full){ dlg.fast=true; }     // press Space to speed this box to ~30/sec
@@ -1813,7 +1828,7 @@ function drawWorld(){
   const m=game.map; if(!m) return;
   rect(0,0,VW,VH,'#0c0e18');   // frame colour behind any margins
   let ox=-Math.round(game.cam.x), oy=-Math.round(game.cam.y);
-  if(game.shake>0){ ox += (Math.random()*2-1)*2|0; oy += (Math.random()*2-1)*2|0; }
+  if(game.shake>0 && settings.shake){ ox += (Math.random()*2-1)*2|0; oy += (Math.random()*2-1)*2|0; }
   // tiles
   const x0=Math.floor(game.cam.x/TS), x1=Math.ceil((game.cam.x+VW)/TS);
   const y0=Math.floor(game.cam.y/TS), y1=Math.ceil((game.cam.y+VH)/TS);
@@ -1860,6 +1875,8 @@ function enterMap(name, tx, ty, dir){
   game.player = placeEntity(newEntity({id:'player',kind:'char',sub:'oen',tx:sp.x,ty:sp.y,dir:sp.dir,solid:true}));
   game.state='play';
   setupScene(name);
+  // silent autosave once the area has settled into normal play (never mid-story-cutscene)
+  if(game.state==='play' && F && Object.keys(F).length){ saveSystem.save(); game.savedT=80; }
 }
 
 // Scene setup: spawn NPCs/objects per flags, and trigger cutscenes
@@ -2804,6 +2821,7 @@ function startBattle(cfg, onWin, onLose){
   battle.foeAtk=0; battle.scripted=!!cfg.scripted; battle.transformed=false; battle.transT=0;
   battle.mewAtk=0; battle.bonded=false;
   battle.double=false;
+  battle.floaters=[];
   game.state='battle';
   audio.sfx('battlestart'); audio.play(cfg.music||'battle');
   if(cfg.double) startDoubleBattle(cfg);
@@ -2829,11 +2847,50 @@ function applyDamageToEnemy(dmg){ const e=curEnemy(); e.hp=Math.max(0,e.hp-dmg);
 function applyDamageToPlayer(dmg){ battle.player.hp=Math.max(0,battle.player.hp-dmg); battle.pBlink=420; battle.pShake=320; }
 // punchy impact feedback on a landed hit: flash, screen shake, expanding ring, spark burst
 function battleImpact(x,y,crit){
-  battle.hitFlash=crit?1:0.75; battle.hitX=x; battle.hitY=y; battle.hitCrit=!!crit; battle.hitShake=crit?300:190;
+  battle.hitFlash=crit?1:0.75; battle.hitX=x; battle.hitY=y; battle.hitCrit=!!crit; battle.hitShake=(crit?300:190)*shakeAmt();
   battle.burst=1; battle.burstX=x; battle.burstY=y;
   spawnSpark(x,y, crit?20:13, crit?'#ffffff':'#ffe070');
   for(let i=0;i<(crit?11:6);i++){ const a=Math.random()*6.28, sp=1.6+Math.random()*2.6;
     game.particles.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:15+Math.random()*12,t:0,col:crit?'#fff':'#ffd24a'}); }
+}
+// floating damage numbers — frame-aged (no dt needed), drawn unshaken over the sprites
+function addDmgFloat(x,y,dmg,crit,toPlayer){
+  if(!battle.floaters) battle.floaters=[];
+  battle.floaters.push({x:x+(Math.random()*8-4), y, a0:anim, dmg:Math.max(0,dmg|0), crit:!!crit, toPlayer:!!toPlayer});
+}
+function drawFloaters(){
+  if(!battle.floaters || !battle.floaters.length) return;
+  g.textAlign='center';
+  for(let i=battle.floaters.length-1;i>=0;i--){ const f=battle.floaters[i]; const age=anim-f.a0;
+    if(age>54){ battle.floaters.splice(i,1); continue; }
+    const t=age/54, yo=-age*0.55, al=t<0.7?1:1-(t-0.7)/0.3;
+    g.globalAlpha=clamp(al,0,1);
+    const px=f.crit?13:10, col=f.toPlayer?'#ff8a7a':(f.crit?'#ffe14a':'#ffffff'), sh=f.toPlayer?'#5a1410':'#3a2a08';
+    if(f.crit) textShadow('CRITICAL!', f.x, f.y+yo-px+1, '#fff7a0','#5a3a08',6);
+    textShadow('-'+f.dmg, f.x, f.y+yo, col, sh, px);
+  }
+  g.globalAlpha=1; g.textAlign='left';
+}
+// translate a battle-screen click into the same selection+confirm the keyboard would make
+function battlePointer(mx,my){
+  const by=VH-50, p=battle.phase;
+  if(p==='mainmenu'){
+    if(mx<157) return;                                   // left "What will…" box, not a command
+    const col=mx<195?0:1, row=my<by+21?0:1;
+    battle.mainSel=clampInt(row*2+col,0,3); pressed['ok']=true; return;
+  }
+  if(p==='fightmenu'){
+    if(mx>=183){ pressed['menu']=true; return; }          // right info box = back
+    const moves = battle.double ? (battle.allies[0]&&battle.allies[0].moves) : battle.player.moves;
+    const col=mx<86?0:1, row=my<by+21?0:1, idx=row*2+col;
+    if(moves && idx<moves.length && moves[idx]){ battle.moveSel=idx; pressed['ok']=true; }
+    return;
+  }
+  if(p==='targetsel'){
+    let best=-1,bd=1e9; battle.foes.forEach((f,i)=>{ if(f.alive){ const d=Math.abs(f.x-mx)+Math.abs(f.y-my); if(d<bd){bd=d;best=i;} } });
+    if(best>=0 && bd<60) battle.tgt=best; pressed['ok']=true; return;
+  }
+  if(p==='msg') pressed['ok']=true;                        // advance / fast-forward text
 }
 function waitDrain(cb){ battle.phase='drainwait'; battle.afterDrain=cb; }
 function setTimeoutBattle(ms, cb){ battle.phase='pause'; battle.pauseT=ms; battle.pauseCb=cb; }  // dramatic beat
@@ -2870,7 +2927,7 @@ function doPlayerMove(){
   const {dmg,crit}=calcDmg(mv.pow, battle.player.lv);
   bMsg(battle.player.name+' used '+mv.name+'!', ()=>{
     playMoveFx(mv.name, 'player',
-      ()=>{ audio.sfx(crit?'hitSuper':'hit'); applyDamageToEnemy(dmg); battleImpact(battle.EX, battle.EY, crit); },
+      ()=>{ audio.sfx(crit?'hitSuper':'hit'); applyDamageToEnemy(dmg); battleImpact(battle.EX, battle.EY, crit); addDmgFloat(battle.EX, battle.EY-14, dmg, crit, false); },
       ()=>{ waitDrain(()=>{ const after=()=>{ if(e.hp<=0) enemyFaint(); else setTimeoutBattle(880, doEnemyTurn); };
         if(crit) bMsg('A critical hit!', after, 0); else setTimeoutBattle(740, after); }); }
     );
@@ -2904,7 +2961,7 @@ function enemyAttack(){
     let dmg = Math.max(2, Math.round((e.atk + e.lv*0.3)*r*1.35));
     if(mode==='bond'||mode==='lose') dmg = Math.max(dmg, battle.player.hp);   // drops Eevee to 0
     playMoveFx(mvName, 'enemy',
-      ()=>{ audio.sfx(mode!=='normal'?'hitSuper':'hit'); applyDamageToPlayer(dmg); battleImpact(battle.PX, battle.PY, mode!=='normal'); },
+      ()=>{ audio.sfx(mode!=='normal'?'hitSuper':'hit'); applyDamageToPlayer(dmg); battleImpact(battle.PX, battle.PY, mode!=='normal'); addDmgFloat(battle.PX, battle.PY-14, dmg, mode!=='normal', true); },
       ()=>{ waitDrain(()=>{
         if(mode==='bond'){ doBondHeal(); return; }
         if(mode==='lose'){ bMsg('Even with Sylveon\'s strength, Eevee gave everything it had... and fell.', ()=>loseBattle(), 0); return; }
@@ -3085,7 +3142,7 @@ function dblUpdate(dt){
   if(p==='pause'){ battle.pauseT-=dt; if(battle.pauseT<=0){ const cb=battle.pauseCb; battle.pauseCb=null; if(cb)cb(); } return; }
   if(p==='moveanim'){ return; }
   if(p==='msg'){
-    if(battle.msgReveal<battle.msg.length){ const b=battle.msgReveal|0; battle.msgReveal+=battle.msgFast?TEXT_FAST:TEXT_SLOW;
+    if(battle.msgReveal<battle.msg.length){ const b=battle.msgReveal|0; battle.msgReveal+=battle.msgFast?TEXT_FAST:textRevealStep();
       if((battle.msgReveal|0)>b && ((battle.msgReveal|0)%6===0)) audio.note(640,0.025,'square',0.06); }
     const done=battle.msgReveal>=battle.msg.length;
     if(battle.msgAuto>0){ if(done){ battle.msgAutoT+=dt; if(battle.msgAutoT>=battle.msgAuto){ const cb=battle.msgCb; battle.msgCb=null; if(cb)cb(); } } if(consume('ok')&&!done) battle.msgFast=true; }
@@ -3207,7 +3264,7 @@ function battleUpdate(dt){
   if(battle.phase==='pause'){ battle.pauseT-=dt; if(battle.pauseT<=0){ const cb=battle.pauseCb; battle.pauseCb=null; if(cb) cb(); } return; }
   if(battle.phase==='moveanim'){ return; }   // timing handled in battleAnim
   if(battle.phase==='msg'){
-    if(battle.msgReveal<battle.msg.length){ const b=battle.msgReveal|0; battle.msgReveal+=battle.msgFast?TEXT_FAST:TEXT_SLOW;
+    if(battle.msgReveal<battle.msg.length){ const b=battle.msgReveal|0; battle.msgReveal+=battle.msgFast?TEXT_FAST:textRevealStep();
       if((battle.msgReveal|0)>b && ((battle.msgReveal|0)%6===0)) audio.note(640,0.025,'square',0.06); }
     const done=battle.msgReveal>=battle.msg.length;
     if(battle.msgAuto>0){
@@ -3344,7 +3401,7 @@ function battleDraw(){
   if(battle.double){ dblDraw(); return; }
   const boss=!!battle.cfg.sylveonHelp || battle.scripted || battle.cfg.music==='boss' || battle.cfg.kind==='rook';
   // cinematic screen shake during the evolution
-  let sjx=0,sjy=0; if(battle.phase==='transform' && battle.transT<900){ const k=(1-battle.transT/900); sjx=(Math.random()*2-1)*4*k; sjy=(Math.random()*2-1)*4*k; }
+  let sjx=0,sjy=0; if(battle.phase==='transform' && battle.transT<900){ const k=(1-battle.transT/900)*shakeAmt(); sjx=(Math.random()*2-1)*4*k; sjy=(Math.random()*2-1)*4*k; }
   if(battle.hitShake>0){ const k=clamp(battle.hitShake/190,0,1); sjx+=(Math.random()*2-1)*3.4*k; sjy+=(Math.random()*2-1)*3.4*k; }
   g.save(); g.translate(sjx,sjy);
   const fieldKey = game.mapName==='station'?'bg_station' : game.mapName==='warehouse'?'bg_warehouse' : 'bg_field';
@@ -3395,6 +3452,7 @@ function battleDraw(){
   else drawBattleMsg(by);
   if(battle.startFx>0){ g.globalAlpha=clamp(battle.startFx,0,1)*0.8*(Math.sin(anim*0.55)*0.5+0.5); g.fillStyle='#fff'; g.fillRect(0,0,VW,VH); g.globalAlpha=1; }
   g.restore();
+  drawFloaters();
 }
 function drawTransformOverlay(){
   const t=battle.transT, cx=battle.PX, cy=battle.PY-2;
@@ -3601,33 +3659,47 @@ function restoreGame(state){
    PAUSE MENU
    ========================================================================= */
 const pause = { sel:0, msg:'', msgT:0 };
+const PAUSE_ITEMS=6;
+function pauseBtns(){ return ['Resume','Save Game','Text Speed: '+TEXT_SPEED_LABEL[settings.textSpeed],
+  'Screen Shake: '+(settings.shake?'On':'Off'), audio.muted?'Unmute':'Mute','Title']; }
 function pauseDraw(){
   drawWorld(); drawObjectiveHUD();
   g.fillStyle='rgba(10,8,16,.8)'; g.fillRect(0,0,VW,VH);
-  const bw=180, bh=120, bx=(VW-bw)/2, by=(VH-bh)/2;
+  const bw=196, bh=152, bx=(VW-bw)/2, by=(VH-bh)/2;
   uiBox(bx,by,bw,bh);
-  g.textAlign='center'; textShadow('PAUSED',VW/2,by+12,'#283048','#aac',11); g.textAlign='left';
-  const btns=['Resume','Save Game',audio.muted?'Unmute':'Mute','Title'];
-  const by0=by+32, bh0=20, gap=3;
+  g.textAlign='center'; textShadow('PAUSED',VW/2,by+13,'#283048','#aac',11); g.textAlign='left';
+  const btns=pauseBtns();
+  const by0=by+34, bh0=16, gap=3;
   for(let i=0;i<btns.length;i++){
     const byi=by0+i*(bh0+gap);
-    if(i===pause.sel){ poly([[bx+8,byi+3],[bx+8,byi+bh0-3],[bx+12,byi+bh0/2]],'#e23b3b'); }
-    text(btns[i], bx+20, byi+5, '#283048', 8);
+    if(i===pause.sel){ poly([[bx+8,byi+1],[bx+8,byi+9],[bx+13,byi+5]],'#e23b3b');
+      rrect(bx+16,byi-4,bw-24,15,3,'rgba(74,115,192,.14)'); }
+    const adj=(i===2||i===3);
+    text((i===pause.sel&&adj?'◂ ':'')+btns[i], bx+20, byi+6, i===pause.sel?'#16203a':'#445', 8);
   }
-  if(pause.msg){ pause.msgT--; const alph=Math.min(1,pause.msgT/60); g.globalAlpha=alph;
-    g.fillStyle='rgba(32,48,72,.95)'; rrect(bx+8,by+8,bw-16,16,4,'rgba(32,48,72,.95)');
-    g.globalAlpha=alph*0.9; text(pause.msg,bx+18,by+11,'#fff',8); g.globalAlpha=1;
+  if(pause.msg && pause.msgT>0){ pause.msgT--; const alph=Math.min(1,pause.msgT/60); g.globalAlpha=alph;
+    rrect(bx+8,by+bh-20,bw-16,15,4,'rgba(32,48,72,.96)');
+    g.globalAlpha=alph; g.textAlign='center'; text(pause.msg,VW/2,by+bh-10,'#fff',8); g.textAlign='left'; g.globalAlpha=1;
   }
 }
 function pauseUpdate(){
+  if(consume('menu')){ game.paused=false; clearPressed(); return; }
   if(consume('up') && pause.sel>0){ pause.sel--; audio.sfx('cursor'); }
-  else if(consume('down') && pause.sel<3){ pause.sel++; audio.sfx('cursor'); }
-  else if(consume('ok') || consume('menu')){
+  else if(consume('down') && pause.sel<PAUSE_ITEMS-1){ pause.sel++; audio.sfx('cursor'); }
+  else { const left=consume('left'), right=consume('right');
+    if(left||right){
+      if(pause.sel===2){ settings.textSpeed=clampInt(settings.textSpeed+(right?1:-1),0,2); saveSettings(); audio.sfx('cursor'); }
+      else if(pause.sel===3){ settings.shake=!settings.shake; saveSettings(); audio.sfx('cursor'); }
+    }
+  }
+  if(consume('ok')){
     audio.sfx('confirm');
-    if(pause.sel===0||consume('menu')){ game.paused=false; clearPressed(); }
-    else if(pause.sel===1){ pause.msg=saveSystem.save(); pause.msgT=100; audio.sfx('confirm'); }
-    else if(pause.sel===2){ audio.toggleMute(); pause.msg=audio.muted?'Sound off':'Sound on'; pause.msgT=60; }
-    else if(pause.sel===3){ game.paused=false; resetToTitle(); }
+    if(pause.sel===0){ game.paused=false; clearPressed(); }
+    else if(pause.sel===1){ pause.msg=saveSystem.save(); pause.msgT=100; }
+    else if(pause.sel===2){ settings.textSpeed=(settings.textSpeed+1)%3; saveSettings(); pause.msg='Text speed: '+TEXT_SPEED_LABEL[settings.textSpeed]; pause.msgT=80; }
+    else if(pause.sel===3){ settings.shake=!settings.shake; saveSettings(); pause.msg='Screen shake: '+(settings.shake?'On':'Off'); pause.msgT=80; }
+    else if(pause.sel===4){ audio.toggleMute(); pause.msg=audio.muted?'Sound off':'Sound on'; pause.msgT=60; }
+    else if(pause.sel===5){ game.paused=false; resetToTitle(); }
   }
 }
 
@@ -3709,6 +3781,9 @@ function render(){
   if(game.fade>0){ g.globalAlpha=game.fade; g.fillStyle='#000'; g.fillRect(0,0,VW,VH); g.globalAlpha=1; }
   // mute indicator
   if(audio.muted){ text('[mute]',VW-32,VH-11,'#888',8); }
+  // autosave toast (top-right, fades)
+  if(game.savedT>0){ game.savedT--; const a=Math.min(1,game.savedT/30); g.globalAlpha=a;
+    rrect(VW-66,6,60,14,3,'rgba(20,28,44,.82)'); text('✓ Saved',VW-60,16,'#bfe6c8',8); g.globalAlpha=1; }
 }
 
 audio.track='warm';
