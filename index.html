@@ -644,127 +644,270 @@ function mSylveon(x,y,R){
   ellipse(x-R*0.3,y+R*0.92,R*0.18,R*0.12,cr); ellipse(x+R*0.3,y+R*0.92,R*0.18,R*0.12,cr);
 }
 function mRattata(x,y,R){
-  const p=C.purple, cr=C.cream;
-  ellipse(x-R*0.7,y+R*0.3,R*0.6,R*0.18,p); // tail-ish base
-  ellipse(x,y+R*0.4,R*0.7,R*0.55,p);
-  ellipse(x,y+R*0.5,R*0.5,R*0.3,cr);
-  ellipse(x,y-R*0.2,R*0.55,R*0.5,p);
-  tri([x-R*0.5,y-R*0.4],[x-R*0.05,y-R*0.4],[x-R*0.55,y-R*1.0],p);
-  tri([x+R*0.5,y-R*0.4],[x+R*0.05,y-R*0.4],[x+R*0.55,y-R*1.0],p);
-  eyeSpark(x-R*0.22,y-R*0.25,R*0.12); eyeSpark(x+R*0.22,y-R*0.25,R*0.12);
-  rect(x-R*0.12,y+R*0.02,R*0.1,R*0.25,'#fff'); // tooth
-  circle(x,y-R*0.02,R*0.06,'#1a1420');
+  const p=C.purple, pd=C.dpurple, cr=C.cream;
+  // long thin curling tail
+  g.fillStyle=pd; g.beginPath();
+  g.moveTo(x-R*0.55,y+R*0.6); g.quadraticCurveTo(x-R*1.35,y+R*0.45,x-R*1.2,y-R*0.2);
+  g.quadraticCurveTo(x-R*1.12,y-R*0.62,x-R*0.7,y-R*0.55);
+  g.quadraticCurveTo(x-R*0.98,y-R*0.38,x-R*1.0,y-R*0.1);
+  g.quadraticCurveTo(x-R*1.05,y+R*0.32,x-R*0.5,y+R*0.5);
+  g.closePath(); g.fill();
+  // haunch / body
+  ellipse(x,y+R*0.45,R*0.78,R*0.62,p);
+  ellipse(x+R*0.05,y+R*0.56,R*0.5,R*0.34,cr); // cream belly
+  // head
+  ellipse(x,y-R*0.22,R*0.62,R*0.56,p);
+  // big rounded ears
+  ellipse(x-R*0.44,y-R*0.74,R*0.3,R*0.44,p); ellipse(x+R*0.44,y-R*0.74,R*0.3,R*0.44,p);
+  ellipse(x-R*0.44,y-R*0.7,R*0.15,R*0.27,pd); ellipse(x+R*0.44,y-R*0.7,R*0.15,R*0.27,pd);
+  // pale muzzle
+  ellipse(x,y-R*0.02,R*0.34,R*0.26,cr);
+  // eyes + nose
+  eyeSpark(x-R*0.27,y-R*0.3,R*0.13); eyeSpark(x+R*0.27,y-R*0.3,R*0.13);
+  circle(x,y+R*0.02,R*0.07,'#1a1420');
+  // big buck teeth
+  rect(x-R*0.13,y+R*0.1,R*0.11,R*0.26,'#fff'); rect(x+R*0.02,y+R*0.1,R*0.11,R*0.26,'#fff');
+  // whiskers
+  g.strokeStyle=pd; g.lineWidth=0.8; g.beginPath();
+  g.moveTo(x-R*0.22,y+R*0.02); g.lineTo(x-R*0.9,y-R*0.1);
+  g.moveTo(x-R*0.22,y+R*0.1); g.lineTo(x-R*0.9,y+R*0.12);
+  g.moveTo(x+R*0.22,y+R*0.02); g.lineTo(x+R*0.9,y-R*0.1);
+  g.moveTo(x+R*0.22,y+R*0.1); g.lineTo(x+R*0.9,y+R*0.12); g.stroke(); g.lineWidth=1;
+  // feet
+  ellipse(x-R*0.3,y+R*0.98,R*0.2,R*0.12,pd); ellipse(x+R*0.3,y+R*0.98,R*0.2,R*0.12,pd);
 }
 function mZubat(x,y,R){
-  const b=C.blue, p=C.dpurple;
-  // wings
-  poly([[x,y],[x-R*1.3,y-R*0.4],[x-R*0.9,y+R*0.4],[x-R*0.3,y+R*0.3]],p);
-  poly([[x,y],[x+R*1.3,y-R*0.4],[x+R*0.9,y+R*0.4],[x+R*0.3,y+R*0.3]],p);
-  ellipse(x,y,R*0.55,R*0.5,b);
-  // ears
-  tri([x-R*0.3,y-R*0.3],[x-R*0.0,y-R*0.3],[x-R*0.35,y-R*0.9],b);
-  tri([x+R*0.3,y-R*0.3],[x+R*0.0,y-R*0.3],[x+R*0.35,y-R*0.9],b);
-  // mouth fangs
-  poly([[x-R*0.3,y+R*0.2],[x+R*0.3,y+R*0.2],[x,y+R*0.6]],'#fff');
+  const b=C.blue, bd=C.dblue, m=C.purple;
+  // wings (purple membrane) with scalloped lower edge
+  g.fillStyle=m; g.beginPath();
+  g.moveTo(x-R*0.3,y-R*0.15); g.lineTo(x-R*1.45,y-R*0.35);
+  g.quadraticCurveTo(x-R*1.1,y+R*0.1,x-R*0.95,y+R*0.45);
+  g.quadraticCurveTo(x-R*0.78,y+R*0.18,x-R*0.62,y+R*0.45);
+  g.quadraticCurveTo(x-R*0.48,y+R*0.18,x-R*0.3,y+R*0.4); g.closePath(); g.fill();
+  g.beginPath();
+  g.moveTo(x+R*0.3,y-R*0.15); g.lineTo(x+R*1.45,y-R*0.35);
+  g.quadraticCurveTo(x+R*1.1,y+R*0.1,x+R*0.95,y+R*0.45);
+  g.quadraticCurveTo(x+R*0.78,y+R*0.18,x+R*0.62,y+R*0.45);
+  g.quadraticCurveTo(x+R*0.48,y+R*0.18,x+R*0.3,y+R*0.4); g.closePath(); g.fill();
+  // wing arm bones (blue)
+  g.strokeStyle=bd; g.lineWidth=R*0.1; g.beginPath();
+  g.moveTo(x-R*0.3,y-R*0.1); g.lineTo(x-R*1.4,y-R*0.32);
+  g.moveTo(x+R*0.3,y-R*0.1); g.lineTo(x+R*1.4,y-R*0.32); g.stroke(); g.lineWidth=1;
+  // body
+  ellipse(x,y+R*0.05,R*0.5,R*0.5,b);
+  // tall pointed ears
+  poly([[x-R*0.32,y-R*0.3],[x-R*0.02,y-R*0.32],[x-R*0.28,y-R*1.0]],b);
+  poly([[x+R*0.32,y-R*0.3],[x+R*0.02,y-R*0.32],[x+R*0.28,y-R*1.0]],b);
+  poly([[x-R*0.26,y-R*0.36],[x-R*0.1,y-R*0.36],[x-R*0.24,y-R*0.82]],bd);
+  poly([[x+R*0.26,y-R*0.36],[x+R*0.1,y-R*0.36],[x+R*0.24,y-R*0.82]],bd);
+  // wide open mouth (Zubat is eyeless)
+  ellipse(x,y+R*0.2,R*0.32,R*0.26,'#3a1a4a');
+  // fangs: two upper, two lower
+  poly([[x-R*0.22,y-R*0.02],[x-R*0.1,y-R*0.02],[x-R*0.16,y+R*0.18]],'#fff');
+  poly([[x+R*0.22,y-R*0.02],[x+R*0.1,y-R*0.02],[x+R*0.16,y+R*0.18]],'#fff');
+  poly([[x-R*0.16,y+R*0.42],[x-R*0.04,y+R*0.42],[x-R*0.1,y+R*0.24]],'#fff');
+  poly([[x+R*0.16,y+R*0.42],[x+R*0.04,y+R*0.42],[x+R*0.1,y+R*0.24]],'#fff');
 }
 function mMagnemite(x,y,R){
-  circle(x,y,R*0.6,C.gray); circle(x,y,R*0.5,C.metal);
-  // eye
-  circle(x,y-R*0.05,R*0.28,'#fff'); circle(x,y,R*0.12,'#1a1420');
-  // screw top
-  rect(x-R*0.06,y-R*0.95,R*0.12,R*0.35,C.dgray);
-  // magnets
-  rect(x-R*0.95,y-R*0.1,R*0.3,R*0.5,C.gray); rect(x-R*0.95,y-R*0.1,R*0.3,R*0.2,C.red);
-  rect(x+R*0.65,y-R*0.1,R*0.3,R*0.5,C.gray); rect(x+R*0.65,y-R*0.1,R*0.3,R*0.2,C.blue);
-  audioSpark(x,y,R);
+  const gy=C.gray, mt=C.metal, dg=C.dgray;
+  // left U-magnet (horseshoe, opens outward) — red N / blue S tips
+  rrect(x-R*1.25,y-R*0.58,R*0.5,R*0.3,2,gy);   // top prong
+  rrect(x-R*1.25,y+R*0.05,R*0.5,R*0.3,2,gy);   // bottom prong
+  rect(x-R*0.9,y-R*0.58,R*0.18,R*0.93,gy);     // bend (body side)
+  rect(x-R*1.25,y-R*0.58,R*0.13,R*0.3,C.red);
+  rect(x-R*1.25,y+R*0.05,R*0.13,R*0.3,C.blue);
+  // right U-magnet
+  rrect(x+R*0.75,y-R*0.58,R*0.5,R*0.3,2,gy);
+  rrect(x+R*0.75,y+R*0.05,R*0.5,R*0.3,2,gy);
+  rect(x+R*0.72,y-R*0.58,R*0.18,R*0.93,gy);
+  rect(x+R*1.12,y-R*0.58,R*0.13,R*0.3,C.red);
+  rect(x+R*1.12,y+R*0.05,R*0.13,R*0.3,C.blue);
+  // metal body sphere
+  circle(x,y,R*0.62,gy); circle(x-R*0.12,y-R*0.12,R*0.5,mt);
+  circle(x-R*0.24,y-R*0.24,R*0.16,'#c8ccd6'); // highlight
+  // screw on top
+  rect(x-R*0.05,y-R*0.92,R*0.1,R*0.32,dg);
+  circle(x,y-R*0.92,R*0.15,'#c0c4cc');
+  rect(x-R*0.13,y-R*0.96,R*0.26,R*0.05,dg); rect(x-R*0.025,y-R*1.05,R*0.05,R*0.26,dg);
+  // single big eye
+  circle(x,y-R*0.02,R*0.3,'#fff');
+  circle(x+R*0.03,y+R*0.02,R*0.14,'#1a1420');
+  circle(x-R*0.04,y-R*0.06,R*0.05,'#fff');
+  // angry brow
+  g.strokeStyle=dg; g.lineWidth=R*0.08; g.beginPath();
+  g.moveTo(x-R*0.26,y-R*0.34); g.lineTo(x+R*0.26,y-R*0.34); g.stroke(); g.lineWidth=1;
 }
 function audioSpark(x,y,R){ /* tiny sparkle */ rect(x+R*0.4,y-R*0.7,1,1,'#fff'); rect(x-R*0.5,y-R*0.5,1,1,'#fff'); }
 function mVoltorb(x,y,R){
-  circle(x,y,R*0.7,'#fff');
-  g.save(); g.beginPath(); g.arc(x,y,R*0.7,Math.PI,0); g.closePath(); g.clip();
-  circle(x,y,R*0.7,C.red); g.restore();
-  rect(x-R*0.7,y-1,R*1.4,2,'#1a1420');
-  circle(x,y,R*0.16,'#fff'); circle(x,y,R*0.16,'#fff');
-  eyeSpark(x-R*0.28,y-R*0.18,R*0.1); eyeSpark(x+R*0.28,y-R*0.18,R*0.1);
+  // white lower hemisphere
+  circle(x,y,R*0.72,'#f0f0f4');
+  // red upper hemisphere
+  g.save(); g.beginPath(); g.rect(x-R*0.8,y-R*0.8,R*1.6,R*0.8); g.clip();
+  circle(x,y,R*0.72,C.red);
+  circle(x-R*0.26,y-R*0.26,R*0.36,'#e85a5a'); // sheen
+  g.restore();
+  // equator band
+  rect(x-R*0.72,y-R*0.09,R*1.44,R*0.18,'#1a1420');
+  // outline
+  g.strokeStyle='rgba(0,0,0,.35)'; g.lineWidth=1; g.beginPath(); g.arc(x,y,R*0.72,0,7); g.stroke();
+  // angry eyes (set in the red half)
+  ellipse(x-R*0.3,y-R*0.34,R*0.16,R*0.2,'#fff'); ellipse(x+R*0.3,y-R*0.34,R*0.16,R*0.2,'#fff');
+  circle(x-R*0.3,y-R*0.3,R*0.09,'#1a1420'); circle(x+R*0.3,y-R*0.3,R*0.09,'#1a1420');
+  // angled brows
+  g.strokeStyle='#1a1420'; g.lineWidth=R*0.1; g.lineCap='round'; g.beginPath();
+  g.moveTo(x-R*0.52,y-R*0.52); g.lineTo(x-R*0.16,y-R*0.36);
+  g.moveTo(x+R*0.52,y-R*0.52); g.lineTo(x+R*0.16,y-R*0.36); g.stroke();
+  g.lineWidth=1; g.lineCap='butt';
 }
 function mKoffing(x,y,R){
-  const p=C.dpurple, l=C.purple;
-  circle(x,y,R*0.65,p); circle(x-R*0.15,y-R*0.15,R*0.3,l);
-  // spots/skulls
-  circle(x-R*0.3,y+R*0.3,R*0.12,'#d0c0e0'); circle(x+R*0.3,y+R*0.25,R*0.1,'#d0c0e0');
-  eyeSpark(x-R*0.2,y-R*0.05,R*0.12); eyeSpark(x+R*0.2,y-R*0.05,R*0.12);
-  rect(x-R*0.2,y+R*0.25,R*0.4,2,'#1a1420');
-  // gas puffs
-  ellipse(x-R*0.7,y-R*0.6,R*0.18,R*0.12,'#b8a8d8'); ellipse(x+R*0.7,y-R*0.5,R*0.16,R*0.1,'#b8a8d8');
+  const p=C.dpurple, l=C.purple, pl='#a878c8';
+  // gas puffs rising off the body
+  ellipse(x-R*0.55,y-R*0.72,R*0.2,R*0.14,'rgba(168,120,200,.5)');
+  ellipse(x+R*0.6,y-R*0.6,R*0.16,R*0.11,'rgba(168,120,200,.45)');
+  ellipse(x+R*0.12,y-R*0.88,R*0.13,R*0.1,'rgba(168,120,200,.4)');
+  // body
+  circle(x,y,R*0.72,p);
+  circle(x-R*0.18,y-R*0.18,R*0.5,l);   // lit side
+  circle(x-R*0.3,y-R*0.3,R*0.2,pl);    // highlight
+  // pores / vents (lighter rings with dark centres)
+  const pores=[[-0.4,0.36],[0.42,0.3],[-0.12,0.52],[0.32,-0.42],[-0.46,-0.08],[0.52,-0.02]];
+  for(let i=0;i<pores.length;i++){ const dx=pores[i][0],dy=pores[i][1];
+    circle(x+R*dx,y+R*dy,R*0.1,pl); circle(x+R*dx,y+R*dy,R*0.05,p); }
+  // eyes
+  circle(x-R*0.22,y-R*0.12,R*0.1,'#fff'); circle(x+R*0.22,y-R*0.12,R*0.1,'#fff');
+  circle(x-R*0.2,y-R*0.1,R*0.05,'#1a1420'); circle(x+R*0.24,y-R*0.1,R*0.05,'#1a1420');
+  // wide toothy grin
+  g.strokeStyle='#1a1420'; g.lineWidth=R*0.08; g.beginPath();
+  g.arc(x,y+R*0.1,R*0.34,0.18,Math.PI-0.18); g.stroke(); g.lineWidth=1;
+  rect(x-R*0.22,y+R*0.2,R*0.44,R*0.05,'#1a1420');
+  rect(x-R*0.09,y+R*0.2,R*0.03,R*0.16,'#1a1420'); rect(x+R*0.07,y+R*0.2,R*0.03,R*0.16,'#1a1420');
 }
 function mHoundour(x,y,R){
-  const k='#2a2a32', o=C.orange, w='#d8d8e0';
-  ellipse(x,y+R*0.4,R*0.6,R*0.5,k);
-  ellipse(x,y-R*0.35,R*0.55,R*0.5,k);
-  // horns
-  tri([x-R*0.4,y-R*0.6],[x-R*0.15,y-R*0.6],[x-R*0.45,y-R*1.1],w);
-  tri([x+R*0.4,y-R*0.6],[x+R*0.15,y-R*0.6],[x+R*0.45,y-R*1.1],w);
-  // snout
-  ellipse(x,y-R*0.05,R*0.35,R*0.22,k);
-  circle(x,y+R*0.02,R*0.08,'#1a1420');
-  // eyes (red)
-  circle(x-R*0.25,y-R*0.4,R*0.1,C.red); circle(x+R*0.25,y-R*0.4,R*0.1,C.red);
-  // belly band
-  rect(x-R*0.4,y+R*0.5,R*0.8,R*0.12,o);
-  ellipse(x-R*0.3,y+R*0.9,R*0.16,R*0.1,k); ellipse(x+R*0.3,y+R*0.9,R*0.16,R*0.1,k);
+  const k='#26242c', kd='#16151a', bone='#e6e2d6', ey=C.red;
+  // body
+  ellipse(x,y+R*0.5,R*0.62,R*0.52,k);
+  // front legs + white ankle bands (bone rings)
+  rect(x-R*0.36,y+R*0.55,R*0.18,R*0.5,k); rect(x+R*0.18,y+R*0.55,R*0.18,R*0.5,k);
+  rect(x-R*0.36,y+R*0.92,R*0.18,R*0.1,bone); rect(x+R*0.18,y+R*0.92,R*0.18,R*0.1,bone);
+  // chest rib bands (bone)
+  rect(x-R*0.3,y+R*0.28,R*0.6,R*0.06,bone); rect(x-R*0.26,y+R*0.42,R*0.52,R*0.06,bone);
+  // head
+  ellipse(x,y-R*0.3,R*0.56,R*0.5,k);
+  // pointed ears swept back
+  poly([[x-R*0.5,y-R*0.5],[x-R*0.2,y-R*0.55],[x-R*0.72,y-R*0.05]],kd);
+  poly([[x+R*0.5,y-R*0.5],[x+R*0.2,y-R*0.55],[x+R*0.72,y-R*0.05]],kd);
+  // back-curving bone horns
+  g.fillStyle=bone; g.beginPath();
+  g.moveTo(x-R*0.28,y-R*0.7); g.quadraticCurveTo(x-R*0.5,y-R*1.08,x-R*0.8,y-R*0.96);
+  g.quadraticCurveTo(x-R*0.5,y-R*0.86,x-R*0.14,y-R*0.62); g.closePath(); g.fill();
+  g.beginPath();
+  g.moveTo(x+R*0.28,y-R*0.7); g.quadraticCurveTo(x+R*0.5,y-R*1.08,x+R*0.8,y-R*0.96);
+  g.quadraticCurveTo(x+R*0.5,y-R*0.86,x+R*0.14,y-R*0.62); g.closePath(); g.fill();
+  // snout + nose
+  ellipse(x,y-R*0.05,R*0.32,R*0.24,k);
+  circle(x,y-R*0.12,R*0.09,'#0c0c10');
+  // mouth + fang
+  rect(x-R*0.16,y+R*0.07,R*0.32,R*0.04,'#0c0c10');
+  poly([[x-R*0.1,y+R*0.09],[x-R*0.02,y+R*0.09],[x-R*0.06,y+R*0.21]],'#fff');
+  // angry red eyes
+  poly([[x-R*0.42,y-R*0.42],[x-R*0.14,y-R*0.32],[x-R*0.16,y-R*0.22],[x-R*0.42,y-R*0.3]],ey);
+  poly([[x+R*0.42,y-R*0.42],[x+R*0.14,y-R*0.32],[x+R*0.16,y-R*0.22],[x+R*0.42,y-R*0.3]],ey);
+  circle(x-R*0.26,y-R*0.32,R*0.04,'#ffd0d0'); circle(x+R*0.26,y-R*0.32,R*0.04,'#ffd0d0');
 }
 function mEkans(x,y,R){
-  const p=C.purple, d=C.dpurple, cr=C.cream;
-  // coil
-  ellipse(x,y+R*0.5,R*0.85,R*0.4,p);
-  ellipse(x,y+R*0.5,R*0.55,R*0.22,d);
-  // body up
-  ellipse(x+R*0.2,y-R*0.1,R*0.45,R*0.5,p);
+  const p=C.purple, pd=C.dpurple, yl=C.yellow;
+  // coiled body
+  ellipse(x,y+R*0.55,R*0.92,R*0.42,p);
+  ellipse(x,y+R*0.55,R*0.6,R*0.26,pd);
+  ellipse(x-R*0.1,y+R*0.2,R*0.7,R*0.34,p);
+  // yellow rattle tail poking out (left)
+  poly([[x-R*0.78,y+R*0.04],[x-R*1.06,y-R*0.14],[x-R*1.06,y+R*0.32],[x-R*0.78,y+R*0.32]],yl);
+  rect(x-R*1.06,y-R*0.14,R*0.06,R*0.46,pd);
+  // neck rising to the head (right)
+  g.fillStyle=p; g.beginPath();
+  g.moveTo(x+R*0.08,y+R*0.36); g.quadraticCurveTo(x+R*0.72,y+R*0.2,x+R*0.56,y-R*0.46);
+  g.quadraticCurveTo(x+R*0.44,y-R*0.04,x-R*0.06,y+R*0.16); g.closePath(); g.fill();
+  // yellow neck band
+  g.fillStyle=yl; g.beginPath();
+  g.moveTo(x+R*0.2,y+R*0.1); g.quadraticCurveTo(x+R*0.64,y-R*0.02,x+R*0.52,y-R*0.32);
+  g.lineTo(x+R*0.36,y-R*0.28); g.quadraticCurveTo(x+R*0.48,y-R*0.02,x+R*0.16,y+R*0.04);
+  g.closePath(); g.fill();
   // head
-  ellipse(x+R*0.35,y-R*0.5,R*0.4,R*0.32,p);
-  // rattle tail
-  tri([x-R*0.8,y+R*0.2],[x-R*0.5,y+R*0.2],[x-R*1.0,y-R*0.2],cr);
-  eyeSpark(x+R*0.3,y-R*0.55,R*0.1);
-  rect(x+R*0.6,y-R*0.45,R*0.25,1,'#1a1420');
-  // tongue
-  poly([[x+R*0.7,y-R*0.4],[x+R*1.0,y-R*0.5],[x+R*1.0,y-R*0.3]],C.red);
+  ellipse(x+R*0.5,y-R*0.55,R*0.42,R*0.34,p);
+  ellipse(x+R*0.68,y-R*0.5,R*0.26,R*0.22,p); // snout
+  // menacing slit eye
+  ellipse(x+R*0.42,y-R*0.66,R*0.12,R*0.15,'#fff');
+  rect(x+R*0.4,y-R*0.76,R*0.05,R*0.2,'#1a1420');
+  // mouth
+  rect(x+R*0.5,y-R*0.4,R*0.4,R*0.04,'#1a1420');
+  // forked tongue
+  g.strokeStyle=C.red; g.lineWidth=R*0.06; g.lineCap='round'; g.beginPath();
+  g.moveTo(x+R*0.84,y-R*0.38); g.lineTo(x+R*1.12,y-R*0.44);
+  g.lineTo(x+R*1.26,y-R*0.54); g.moveTo(x+R*1.12,y-R*0.44); g.lineTo(x+R*1.26,y-R*0.36);
+  g.stroke(); g.lineWidth=1; g.lineCap='butt';
 }
 function mMurkrow(x,y,R){
-  const k='#2a2638', y1=C.yellow;
+  const k='#211d2e', kd='#15121f', yb=C.yellow, ey=C.red;
+  // upswept notched tail feathers (behind)
+  g.fillStyle=k; g.beginPath();
+  g.moveTo(x-R*0.1,y+R*0.4); g.lineTo(x-R*0.95,y-R*0.05);
+  g.lineTo(x-R*0.72,y+R*0.1); g.lineTo(x-R*0.95,y+R*0.32);
+  g.lineTo(x-R*0.6,y+R*0.34); g.lineTo(x-R*0.8,y+R*0.6); g.lineTo(x-R*0.1,y+R*0.55);
+  g.closePath(); g.fill();
   // body
-  ellipse(x,y+R*0.2,R*0.55,R*0.6,k);
-  // wings
-  poly([[x-R*0.4,y],[x-R*1.1,y+R*0.3],[x-R*0.3,y+R*0.5]],k);
-  poly([[x+R*0.4,y],[x+R*1.1,y+R*0.3],[x+R*0.3,y+R*0.5]],k);
-  // head + witch crest
-  ellipse(x,y-R*0.4,R*0.4,R*0.4,k);
-  poly([[x-R*0.45,y-R*0.55],[x+R*0.1,y-R*0.55],[x-R*0.9,y-R*1.3]],k);
-  poly([[x+R*0.45,y-R*0.55],[x-R*0.1,y-R*0.55],[x+R*0.9,y-R*1.3]],k);
-  // beak
-  poly([[x-R*0.1,y-R*0.4],[x+R*0.1,y-R*0.4],[x+R*0.5,y-R*0.25]],y1);
-  circle(x-R*0.12,y-R*0.45,R*0.08,'#fff'); circle(x+R*0.12,y-R*0.45,R*0.08,'#fff');
-  circle(x-R*0.12,y-R*0.45,R*0.04,'#1a1420'); circle(x+R*0.12,y-R*0.45,R*0.04,'#1a1420');
+  ellipse(x+R*0.08,y+R*0.3,R*0.5,R*0.55,k);
+  ellipse(x+R*0.12,y+R*0.32,R*0.32,R*0.42,kd); // folded wing
+  // yellow stick legs
+  g.strokeStyle=yb; g.lineWidth=R*0.07; g.beginPath();
+  g.moveTo(x-R*0.05,y+R*0.8); g.lineTo(x-R*0.05,y+R*1.0);
+  g.moveTo(x+R*0.22,y+R*0.8); g.lineTo(x+R*0.22,y+R*1.0); g.stroke(); g.lineWidth=1;
+  // head
+  ellipse(x+R*0.05,y-R*0.32,R*0.4,R*0.4,k);
+  // witch-hat feather crest (swept up & back)
+  g.fillStyle=k; g.beginPath();
+  g.moveTo(x-R*0.28,y-R*0.5); g.quadraticCurveTo(x-R*0.7,y-R*0.95,x-R*0.95,y-R*1.5);
+  g.quadraticCurveTo(x-R*0.35,y-R*1.05,x+R*0.32,y-R*0.62); g.closePath(); g.fill();
+  ellipse(x-R*0.02,y-R*0.6,R*0.42,R*0.12,kd); // crest brim shading
+  // yellow beak
+  poly([[x+R*0.32,y-R*0.4],[x+R*0.32,y-R*0.24],[x+R*0.74,y-R*0.3]],yb);
+  rect(x+R*0.32,y-R*0.34,R*0.18,R*0.02,'#caa018');
+  // red eye
+  circle(x+R*0.12,y-R*0.36,R*0.12,'#fff');
+  circle(x+R*0.14,y-R*0.36,R*0.07,ey); circle(x+R*0.14,y-R*0.36,R*0.03,'#1a1420');
 }
 function mPersian(x,y,R){
-  const t='#e0c878', d='#b89848', red=C.red;
-  // tail
-  ellipse(x-R*0.9,y+R*0.1,R*0.5,R*0.16,t);
-  ellipse(x,y+R*0.45,R*0.75,R*0.5,t);
-  ellipse(x,y-R*0.35,R*0.6,R*0.52,t);
-  // ears (big)
-  tri([x-R*0.55,y-R*0.55],[x-R*0.1,y-R*0.5],[x-R*0.9,y-R*1.2],t);
-  tri([x+R*0.55,y-R*0.55],[x+R*0.1,y-R*0.5],[x+R*0.9,y-R*1.2],t);
-  tri([x-R*0.5,y-R*0.6],[x-R*0.2,y-R*0.55],[x-R*0.7,y-R*1.0],d);
-  tri([x+R*0.5,y-R*0.6],[x+R*0.2,y-R*0.55],[x+R*0.7,y-R*1.0],d);
-  // red gem
-  poly([[x,y-R*0.75],[x-R*0.12,y-R*0.6],[x,y-R*0.45],[x+R*0.12,y-R*0.6]],red);
-  // eyes (sharp)
-  poly([[x-R*0.4,y-R*0.35],[x-R*0.1,y-R*0.4],[x-R*0.12,y-R*0.25]],'#1a1420');
-  poly([[x+R*0.4,y-R*0.35],[x+R*0.1,y-R*0.4],[x+R*0.12,y-R*0.25]],'#1a1420');
+  const t='#e3cf95', td='#c9ab66', dk='#8a6f3a', gem='#e83a4a';
+  // long curling tail with dark kinked tip
+  g.fillStyle=t; g.beginPath();
+  g.moveTo(x-R*0.5,y+R*0.55); g.quadraticCurveTo(x-R*1.25,y+R*0.55,x-R*1.2,y-R*0.05);
+  g.quadraticCurveTo(x-R*1.16,y-R*0.5,x-R*0.85,y-R*0.6);
+  g.quadraticCurveTo(x-R*1.0,y-R*0.35,x-R*1.0,y-R*0.02);
+  g.quadraticCurveTo(x-R*1.02,y+R*0.35,x-R*0.5,y+R*0.4); g.closePath(); g.fill();
+  ellipse(x-R*0.88,y-R*0.55,R*0.14,R*0.12,dk); // dark tail tip
+  // body + head
+  ellipse(x,y+R*0.45,R*0.72,R*0.55,t);
+  ellipse(x,y-R*0.32,R*0.6,R*0.52,t);
+  // big flared ears
+  poly([[x-R*0.55,y-R*0.5],[x-R*0.12,y-R*0.55],[x-R*1.0,y-R*1.15]],t);
+  poly([[x+R*0.55,y-R*0.5],[x+R*0.12,y-R*0.55],[x+R*1.0,y-R*1.15]],t);
+  poly([[x-R*0.5,y-R*0.56],[x-R*0.24,y-R*0.58],[x-R*0.82,y-R*1.0]],dk);
+  poly([[x+R*0.5,y-R*0.56],[x+R*0.24,y-R*0.58],[x+R*0.82,y-R*1.0]],dk);
+  // red forehead gem
+  ellipse(x,y-R*0.62,R*0.13,R*0.18,gem); ellipse(x-R*0.04,y-R*0.66,R*0.05,R*0.07,'#ff9aa6');
+  // sharp slanted eyes
+  poly([[x-R*0.44,y-R*0.42],[x-R*0.12,y-R*0.3],[x-R*0.14,y-R*0.2],[x-R*0.42,y-R*0.28]],'#1a1420');
+  poly([[x+R*0.44,y-R*0.42],[x+R*0.12,y-R*0.3],[x+R*0.14,y-R*0.2],[x+R*0.42,y-R*0.28]],'#1a1420');
+  circle(x-R*0.3,y-R*0.32,R*0.04,C.lblue); circle(x+R*0.3,y-R*0.32,R*0.04,C.lblue);
+  // muzzle + nose
+  ellipse(x,y-R*0.02,R*0.26,R*0.2,'#f2e6c2');
+  circle(x,y-R*0.08,R*0.06,C.dpink);
   // whiskers
-  rect(x-R*0.7,y-R*0.05,R*0.3,1,d); rect(x+R*0.4,y-R*0.05,R*0.3,1,d);
-  circle(x,y-R*0.1,R*0.06,C.dpink);
-  ellipse(x-R*0.3,y+R*0.92,R*0.18,R*0.12,d); ellipse(x+R*0.3,y+R*0.92,R*0.18,R*0.12,d);
+  g.strokeStyle=td; g.lineWidth=0.8; g.beginPath();
+  g.moveTo(x-R*0.18,y);g.lineTo(x-R*0.85,y-R*0.12); g.moveTo(x-R*0.18,y+R*0.06);g.lineTo(x-R*0.85,y+R*0.12);
+  g.moveTo(x+R*0.18,y);g.lineTo(x+R*0.85,y-R*0.12); g.moveTo(x+R*0.18,y+R*0.06);g.lineTo(x+R*0.85,y+R*0.12);
+  g.stroke(); g.lineWidth=1;
+  // paws
+  ellipse(x-R*0.32,y+R*0.92,R*0.2,R*0.12,td); ellipse(x+R*0.32,y+R*0.92,R*0.2,R*0.12,td);
 }
 function mUmbreon(x,y,R){
   const b='#26262e', d='#16161c', yl='#f4d11e', ey=C.red;
