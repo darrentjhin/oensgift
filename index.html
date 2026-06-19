@@ -1340,12 +1340,22 @@ function townTile(ch,sx,sy,alt,tx,ty){
     rrect(sx+4,sy+3,8,13,1,'#5a3a1e'); rect(sx+5,sy+4,6,11,'#7a4f28'); rect(sx+9,sy+9,1.5,1.5,'#f6d62e');
     rect(sx+2,sy+1,12,2,'#cf4b4b'); rect(sx+2,sy+3,12,1,'#a83838'); return; }
   // ---- downtown tower ----
-  if(ch==='G'){ // glass office facade
-    rect(sx,sy,TS,TS,'#5e7790');
-    for(let r=0;r<3;r++) for(let c=0;c<3;c++){ const wx=sx+2+c*5, wy=sy+2+r*5; rect(wx,wy,4,4, ((tx+c+ty+r)%3===0)?'#c3e2f5':'#86b3d2'); rect(wx,wy,4,1.5,'#dcf0fc'); }
-    g.fillStyle='rgba(30,45,60,.4)'; g.fillRect(sx,sy,1,TS); g.fillRect(sx+TS-1,sy,1,TS); return; }
-  if(ch==='r'){ // tower parapet cap
-    rect(sx,sy,TS,TS,'#4a5d72'); rect(sx,sy,TS,4,'#6a7f96'); for(let i=0;i<4;i++) rect(sx+i*4+1,sy,2,2,'#566b82'); rect(sx,sy+TS-2,TS,2,'#39495b'); return; }
+  if(ch==='G'){ // glass curtain-wall facade — windows align across tiles so a tower reads as one building
+    rect(sx,sy,TS,TS,'#45576b');                                       // dark mullion grid behind the panes
+    for(let r=0;r<2;r++) for(let c=0;c<2;c++){
+      const wx=sx+1.5+c*8, wy=sy+1.5+r*8;                              // 8px pitch -> seamless across tile edges
+      const v=((tx*2+c)*3 + (ty*2+r)*7) % 9;
+      const pane = v<2 ? '#c6e4f6' : v<5 ? '#7da6c5' : '#9abfd9';       // varied reflective panes
+      rect(wx,wy,6,6,pane);
+      rect(wx,wy,6,1.6,'#dcf0fc');                                      // sky glint at top of pane
+      rect(wx,wy+4.4,6,1.6,'rgba(38,66,90,.5)'); }                      // shade at bottom of pane
+    return; }
+  if(ch==='r'){ // tower rooftop cap (clear roofline + rooftop units)
+    rect(sx,sy,TS,TS,'#3a4a5e');                                       // roof slab
+    rect(sx,sy,TS,3,'#5d7488');                                        // sunlit front edge
+    rect(sx,sy+TS-3,TS,3,'#2a3747');                                   // shadow into the glass below
+    rect(sx+2,sy+5,4,5,'#54687e'); rect(sx+2,sy+5,4,1.6,'#6c8198');     // AC unit
+    rect(sx+9,sy+6,4,4,'#4a5d72'); rect(sx+9,sy+6,4,1.4,'#5f7488'); return; }
   if(ch==='A'){ // shop storefront with striped awning
     rect(sx,sy,TS,TS,'#caa46a');
     for(let i=0;i<4;i++) rect(sx+i*4,sy,3,6,(i%2)?'#e8554e':'#f4f0e4'); rect(sx,sy+6,TS,1,'#b04038');
