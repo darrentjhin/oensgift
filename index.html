@@ -2938,6 +2938,8 @@ function drawFloaters(){
 }
 // translate a battle-screen click into the same selection+confirm the keyboard would make
 function battlePointer(mx,my){
+  const b=SKIP_BTN;   // TEMP DEV: skip button hit-test
+  if(mx>=b.x && mx<=b.x+b.w && my>=b.y && my<=b.y+b.h){ skipBattle(); return; }
   const by=VH-50, p=battle.phase;
   if(p==='mainmenu'){
     if(mx<157) return;                                   // left "What will…" box, not a command
@@ -3096,6 +3098,29 @@ function winBattle(){
     if(cb) cb();
   }, 0);
 }
+/* ===== TEMP DEV: skip-battle button (top-right) — delete this block + its draw/click calls to remove ===== */
+const SKIP_BTN = { x:VW-46, y:4, w:42, h:13 };
+function skipBattle(){
+  if(!battle.active) return;
+  audio.sfx('confirm');
+  // cancel any in-flight animation/message callbacks so nothing fires after we bail out
+  battle.fxOnHit=battle.fxOnDone=null; battle.pauseCb=null; battle.afterDrain=null; battle.msgCb=null;
+  const rook1 = battle.cfg && battle.cfg.rookBattle1;   // scripted: this fight is meant to be LOST (-> evolution)
+  battle.active=false; battle.double=false; game.state='cutscene';
+  game.hearts=[]; game.particles=[]; game.flash=0; game.shake=0;
+  audio.play(battle.prevTrack||'route'); clearPressed();
+  if(rook1){ const cb=battle.onLose; battle.onLose=battle.onWin=null; if(cb) cb(); }
+  else { const cb=battle.onWin; battle.onWin=battle.onLose=null; if(cb) cb(); }
+}
+function drawSkipBtn(){
+  const b=SKIP_BTN;
+  rrect(b.x,b.y,b.w,b.h,3,'rgba(18,14,26,.72)');
+  g.strokeStyle='#e8b84a'; g.lineWidth=1; g.strokeRect(b.x+0.5,b.y+0.5,b.w-1,b.h-1);
+  g.textAlign='center'; g.textBaseline='middle';
+  text('SKIP ▸', b.x+b.w/2, b.y+b.h/2+0.5, '#ffd86a', 7);
+  g.textBaseline='alphabetic'; g.textAlign='left';
+}
+/* ===== end TEMP DEV ===== */
 /* =========================================================================
    TRUE 2v2 DOUBLE BATTLE  (Oen + Prof. Oak  vs  Giovanni & Ariana)
    Self-contained path, guarded by battle.double; reuses calcDmg / MOVE_FX /
@@ -3289,6 +3314,7 @@ function dblDraw(){
   else if(battle.phase==='targetsel') drawDblTargetPrompt(by);
   else drawBattleMsg(by);
   if(battle.startFx>0){ g.globalAlpha=clamp(battle.startFx,0,1)*0.8*(Math.sin(anim*0.55)*0.5+0.5); g.fillStyle='#fff'; g.fillRect(0,0,VW,VH); g.globalAlpha=1; }
+  drawSkipBtn();   // TEMP DEV
 }
 function drainTo(cur,target){ const d=target-cur; if(Math.abs(d)<0.12) return target; return cur + Math.sign(d)*Math.min(Math.abs(d), 0.14); } // slow, dramatic HP drain
 function battleAnim(dt){
@@ -3531,6 +3557,7 @@ function battleDraw(){
   if(battle.startFx>0){ g.globalAlpha=clamp(battle.startFx,0,1)*0.8*(Math.sin(anim*0.55)*0.5+0.5); g.fillStyle='#fff'; g.fillRect(0,0,VW,VH); g.globalAlpha=1; }
   g.restore();
   drawFloaters();
+  drawSkipBtn();   // TEMP DEV
 }
 function drawTransformOverlay(){
   const t=battle.transT, cx=battle.PX, cy=battle.PY-2;
