@@ -69,7 +69,7 @@ const cv = document.getElementById('screen');
 const g = cv.getContext('2d', { alpha:false });
 function fitScreen(){
   const dpr = Math.min(window.devicePixelRatio||1, 3);
-  const iw = window.innerWidth||1280, ih = window.innerHeight||800;   // fallback if viewport reports 0
+  const iw = window.innerWidth>1?window.innerWidth:1280, ih = window.innerHeight>1?window.innerHeight:800;   // fallback if viewport reports 0/1
   const s = Math.min(iw/VW, (ih-16)/VH);
   const cssW = Math.max(VW, Math.floor(VW*s)), cssH = Math.max(VH, Math.floor(VH*s));
   cv.style.width = cssW+'px'; cv.style.height = cssH+'px';
@@ -1690,7 +1690,7 @@ function dlgDraw(){
     setFont(8);
     const tagW=Math.min(tw(page.name)+10, bw-12);   // never let the name tag exceed the box
     rrect(bx+8,by-9,tagW,13,4,'#1d2336'); rrect(bx+9,by-8,tagW-2,11,3,'#4a73c0');
-    fitText(page.name,bx+13,by-6,'#fff',8,tagW-10);  // shrink so the name never spills past its tag
+    fitText(page.name,bx+13,by-1,'#fff',8,tagW-10);  // baseline centered in the tag; shrink so it never spills
   }
   // revealed text (clipped to the box as a safety net so it can never spill out)
   g.save(); g.beginPath(); g.rect(bx+8,by+4,bw-16,bh-8); g.clip();
@@ -1900,12 +1900,13 @@ function drawWorld(){
 }
 function drawObjectiveHUD(){
   if(!game.objective || dlg.active) return;
-  const txt=game.objective; const lines=wrap(txt,VW-34,8);
-  setFont(8); const bw=Math.min(VW-8, Math.max(tw('▸ '+lines[0]), ...lines.map(tw))+12), bh=lines.length*9+8;
-  rrect(4,4,bw,bh,3,'rgba(20,18,30,.82)');
+  const txt=game.objective; const lines=wrap(txt,VW-42,8);
+  setFont(8);
+  const widest=Math.max.apply(null, lines.map((l,i)=> tw((i?'  ':'▸ ')+l)));
+  const bw=Math.min(VW-8, widest+10), bh=lines.length*10+7;
+  rrect(4,4,bw,bh,3,'rgba(20,18,30,.85)');
   g.strokeStyle='#f6d62e'; g.lineWidth=1; g.strokeRect(4.5,4.5,bw-1,bh-1);
-  text('▸ '+lines[0],8,7,'#f6d62e',8);
-  for(let i=1;i<lines.length;i++) text('  '+lines[i],8,7+i*9,'#f6d62e',8);
+  for(let i=0;i<lines.length;i++) text((i?'  ':'▸ ')+lines[i], 9, 14+i*10, '#f6d62e', 8);
 }
 
 /* =========================================================================
@@ -3268,8 +3269,8 @@ function dblDraw(){
   for(const h of game.hearts){ drawHeart(h.x,h.y,3,clamp(1-h.t/h.life,0,1)); }
   if(battle.foes[0].shown) drawHPBar(8,10, battle.foes[0].name, battle.foes[0].lv, battle.foes[0].hpShow, battle.foes[0].max, false);
   if(battle.foes[1].shown) drawHPBar(8,40, battle.foes[1].name, battle.foes[1].lv, battle.foes[1].hpShow, battle.foes[1].max, false);
-  if(battle.allies[0].shown) drawHPBar(VW-118,78, battle.allies[0].name, battle.allies[0].lv, battle.allies[0].hpShow, battle.allies[0].max, true);
-  if(battle.allies[1].shown) drawHPBar(VW-118,108, battle.allies[1].name, battle.allies[1].lv, battle.allies[1].hpShow, battle.allies[1].max, true);
+  if(battle.allies[0].shown) drawHPBar(VW-118,70, battle.allies[0].name, battle.allies[0].lv, battle.allies[0].hpShow, battle.allies[0].max, true);
+  if(battle.allies[1].shown) drawHPBar(VW-118,106, battle.allies[1].name, battle.allies[1].lv, battle.allies[1].hpShow, battle.allies[1].max, true);
   drawFloaters();
   if(battle.phase==='targetsel'){ const f=battle.foes[battle.tgt]; if(f){ const yy=f.y-24+Math.sin(anim/8)*2; poly([[f.x-5,yy],[f.x+5,yy],[f.x,yy+6]],'#e23b3b'); } }
   const by=VH-50;
@@ -3413,16 +3414,18 @@ function drawMoveFx(){
   }
 }
 function drawHPBar(x,y,name,lv,hpShow,max,isPlayer){
-  const w=110, h=isPlayer?32:26;
+  const w=110, h=isPlayer?34:28;
   rrect(x,y,w,h,5,'#22283c'); rrect(x+2,y+2,w-4,h-4,4,'#f4efda');
-  fitText(name,x+7,y+4,'#283048',8,w-36); text('Lv'+lv,x+w-26,y+4,'#283048',8);
-  const bx=x+24, by2=y+16, bw=w-32;
-  text('HP',x+7,y+14,'#d07a18',8);
+  g.textBaseline='middle';   // center each label on its row — robust to font metric differences
+  fitText(name,x+7,y+9,'#283048',8,w-40); text('Lv'+lv,x+w-26,y+9,'#283048',8);
+  const bx=x+22, by2=y+19, bw=w-30;
+  text('HP',x+6,y+20,'#d07a18',8);
   rrect(bx-1,by2-1,bw+2,5,2,'#22283c'); rrect(bx,by2,bw,3,1,'#5a6276');
   const ratio=clamp(hpShow/max,0,1);
   const col=ratio>0.5?'#48c048':ratio>0.2?'#f0c020':'#e84038';
   if(ratio>0) rrect(bx,by2,Math.max(1,bw*ratio),3,1,col);
-  if(isPlayer) text(Math.max(0,Math.ceil(hpShow))+'/'+max, x+w-48, y+22, '#283048',8);
+  if(isPlayer) text(Math.max(0,Math.ceil(hpShow))+'/'+max, x+w-46, y+28, '#283048',8);
+  g.textBaseline='alphabetic';
 }
 function drawMainMenu(by){
   uiBox(4,by,150,46);
