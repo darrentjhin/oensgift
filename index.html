@@ -1829,7 +1829,7 @@ function onPlayerArrive(){
    ========================================================================= */
 function playUpdate(dt){
   const p=game.player;
-  if(consume('menu')){ game.paused=true; return; }
+  if(consume('menu')){ game.paused=true; pause.confirmQuit=false; return; }
   if(!p.stepping){
     let dir=null;
     if(keys.up) dir='up'; else if(keys.down) dir='down';
@@ -3822,8 +3822,8 @@ function pauseDraw(){
 }
 function pauseUpdate(){
   if(consume('menu')){ game.paused=false; clearPressed(); return; }
-  if(consume('up') && pause.sel>0){ pause.sel--; audio.sfx('cursor'); }
-  else if(consume('down') && pause.sel<PAUSE_ITEMS-1){ pause.sel++; audio.sfx('cursor'); }
+  if(consume('up') && pause.sel>0){ pause.sel--; pause.confirmQuit=false; audio.sfx('cursor'); }
+  else if(consume('down') && pause.sel<PAUSE_ITEMS-1){ pause.sel++; pause.confirmQuit=false; audio.sfx('cursor'); }
   else { const left=consume('left'), right=consume('right');
     if(left||right){
       if(pause.sel===2){ settings.textSpeed=clampInt(settings.textSpeed+(right?1:-1),0,2); saveSettings(); audio.sfx('cursor'); }
@@ -3837,7 +3837,10 @@ function pauseUpdate(){
     else if(pause.sel===2){ settings.textSpeed=(settings.textSpeed+1)%3; saveSettings(); pause.msg='Text speed: '+TEXT_SPEED_LABEL[settings.textSpeed]; pause.msgT=80; }
     else if(pause.sel===3){ settings.shake=!settings.shake; saveSettings(); pause.msg='Screen shake: '+(settings.shake?'On':'Off'); pause.msgT=80; }
     else if(pause.sel===4){ audio.toggleMute(); pause.msg=audio.muted?'Sound off':'Sound on'; pause.msgT=60; }
-    else if(pause.sel===5){ game.paused=false; resetToTitle(); }
+    else if(pause.sel===5){
+      if(pause.confirmQuit){ pause.confirmQuit=false; game.paused=false; resetToTitle(); }
+      else { pause.confirmQuit=true; pause.msg='Quit to title? Pick Title again to confirm.'; pause.msgT=200; }
+    }
   }
 }
 
