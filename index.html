@@ -1844,6 +1844,20 @@ function interact(){
   const e=game.entities.find(en=>en!==p && en.visible && en.tx===tx && en.ty===ty && en.talk);
   if(e){ e.dir = ({up:'down',down:'up',left:'right',right:'left'})[p.dir]||e.dir; e.talk(e); }
 }
+// discoverability: a small "!" bubble above whatever interactable the player is facing
+function drawInteractPrompt(){
+  if(game.state!=='play' || dlg.active || game.paused || (typeof estActive==='function'&&estActive())) return;
+  const p=game.player; if(!p || p.stepping) return;
+  const [dx,dy]=DIRV[p.dir];
+  const e=game.entities.find(en=>en!==p && en.visible && en.tx===p.tx+dx && en.ty===p.ty+dy && en.talk);
+  if(!e) return;
+  const ox=-Math.round(game.cam.x), oy=-Math.round(game.cam.y);
+  const cx=e.px+ox+8, cy=e.py+oy-7 + Math.sin(anim/12)*1.5;
+  rrect(cx-6,cy-5,12,10,3,'rgba(22,16,32,.9)');
+  g.strokeStyle='#ffe07a'; g.lineWidth=1; g.strokeRect(cx-5.5,cy-4.5,11,9);
+  poly([[cx-2,cy+5],[cx+2,cy+5],[cx,cy+8]],'rgba(22,16,32,.9)');   // tail pointing at the NPC
+  g.textAlign='center'; g.textBaseline='middle'; text('!',cx,cy,'#ffe07a',8); g.textBaseline='alphabetic'; g.textAlign='left';
+}
 
 /* =========================================================================
    CAMERA + RENDER WORLD
@@ -3916,7 +3930,7 @@ function render(){
   switch(game.state){
     case 'title': titleDraw(); break;
     case 'intro': introDraw(); break;
-    case 'play': drawWorld(); drawObjectiveHUD(); break;
+    case 'play': drawWorld(); drawInteractPrompt(); drawObjectiveHUD(); break;
     case 'cutscene': drawWorld(); dlgDraw(); break;
     case 'battle': battleDraw(); break;
     case 'minigame': miniDraw(); break;
