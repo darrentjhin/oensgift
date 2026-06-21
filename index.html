@@ -1802,12 +1802,13 @@ function tryStep(e, dir, ignoreEnt){
   e.dir=dir;
   const [dx,dy]=DIRV[dir];
   const ntx=e.tx+dx, nty=e.ty+dy;
-  if(!walkable(game.map,ntx,nty)) return false;
+  if(!walkable(game.map,ntx,nty)){ if(e===game.player){ e.bumpT=110; e.bumpDir=dir; } return false; }   // bump feedback on walls
   if(!ignoreEnt && entAt(ntx,nty)) return false;
   e.stepping=true; e.sp=0; e.fromx=e.px; e.fromy=e.py; e.tx=ntx; e.ty=nty;
   return true;
 }
 function updateEntity(e,dt){
+  if(e.bumpT>0) e.bumpT-=dt;
   if(e.stepping){
     e.sp += dt/((e===game.player && keys.run && game.state==='play')?78:130);   // hold Shift to run
     if(e.sp>=1){ e.sp=1; e.stepping=false; e.px=e.tx*TS; e.py=e.ty*TS; e.frame^=1;
@@ -1920,7 +1921,8 @@ function drawWorld(){
   const ents=game.entities.filter(e=>e.visible).slice().sort((a,b)=>(a.py+ (a.kind==='mon'?8:0))-(b.py));
   for(const e of ents){
     const ex=Math.round(e.px+ox), ey=Math.round(e.py+oy);
-    if(e.kind==='char'){ if(e.sub) ellipse(ex+8,ey+14,5,2,C.shadow); drawChar(e.sub, ex, ey-4, e.dir, e.stepping?(e.sp<0.5?1:0):0); }
+    if(e.kind==='char'){ let bX=0,bY=0; if(e.bumpT>0){ const k=Math.sin((1-e.bumpT/110)*Math.PI)*2.4, bd=DIRV[e.bumpDir||'down']; bX=bd[0]*k; bY=bd[1]*k; }
+      if(e.sub) ellipse(ex+8+bX,ey+14,5,2,C.shadow); drawChar(e.sub, ex+bX, ey-4+bY, e.dir, e.stepping?(e.sp<0.5?1:0):0); }
     else if(e.kind==='mon'){ ellipse(ex+8,ey+15,5,2,C.shadow); const bob=Math.sin((anim+e.bob*10)/16)*1; drawMon(e.sub, ex+8, ey+8+bob, e.R||6); }
     else if(e.kind==='obj'){ if(e.draw) e.draw(ex,ey); }
   }
