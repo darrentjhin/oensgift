@@ -1331,7 +1331,14 @@ function townTile(ch,sx,sy,alt,tx,ty){
   if(ch==='P'){ // city stone pavement
     rect(sx,sy,TS,TS,'#bcbfc7'); rect(sx,sy,TS,1,'#d0d3d9'); g.strokeStyle='rgba(120,124,134,.5)'; g.lineWidth=0.6; g.strokeRect(sx+0.5,sy+0.5,TS-1,TS-1);
     rect(sx+2,sy+2,3,3,'#c6c9d0'); rect(sx+9,sy+9,3,3,'#c6c9d0'); return; }
-  if(ch==='T'){ ellipse(sx+8,sy+15,5,2,C.shadow); ellipse(sx+8,sy+5,8,7,C.dgrass); ellipse(sx+8,sy+3,7,6,'#5fb03f'); ellipse(sx+6,sy+2,3,2.4,'#76c455'); rect(sx+6,sy+11,4,5,'#6e4520'); return; }
+  if(ch==='T'){ // layered leafy tree
+    ellipse(sx+8,sy+15,5.5,2,C.shadow);
+    rect(sx+6.6,sy+10,2.8,5.5,'#6e4520'); rect(sx+6.6,sy+10,1.1,5.5,'#835633');   // trunk + sunlit edge
+    ellipse(sx+8,sy+7,7.6,7,'#3f7d2c');                                            // dark canopy base
+    ellipse(sx+5,sy+6,4,3.8,'#4e9636'); ellipse(sx+11.4,sy+7,3.6,3.4,'#4e9636');   // side clumps
+    ellipse(sx+8,sy+4,5,4.4,'#5fb03f');                                            // upper canopy
+    ellipse(sx+6.5,sy+3.4,2.6,2.2,'#76c455'); ellipse(sx+10,sy+5,2.2,1.9,'#76c455'); // highlights
+    ellipse(sx+7,sy+2.6,1.5,1.3,'#8ace6a'); return; }
   if(ch==='f'){ circle(sx+5,sy+6,2,C.red); circle(sx+11,sy+10,2,C.yellow); circle(sx+9,sy+4,2,'#fff'); circle(sx+4,sy+11,2,'#e87fc8'); return; }
   if(ch==='w'){ rect(sx,sy,TS,TS,'#3f93da'); rect(sx,sy,TS,3,'#5aa6ea'); g.globalAlpha=.5; rect(sx,sy+((Math.floor(anim/16)%2)?5:10),TS,2,'#bfe2fb'); g.globalAlpha=1; return; }
   if(ch==='h'){ rrect(sx+0.5,sy+2,TS-1,TS-3,3,'#3f7d2c'); rrect(sx+2,sy+3,TS-5,3,2,'#5aa03c'); g.fillStyle='#347024'; rect(sx+4,sy+8,2,1,'#347024'); rect(sx+9,sy+6,2,1,'#347024'); return; }
