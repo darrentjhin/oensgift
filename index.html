@@ -1730,23 +1730,26 @@ function dlgDraw(){
   const bx=6, by=VH-52, bw=VW-12, bh=46;
   uiBox(bx,by,bw,bh);
   const page=dlg.pages[dlg.pi];
-  let ty=by+10;
+  g.textBaseline='top';                 // glyph TOP sits at ty — predictable padding regardless of prior state
+  let ty=by+14;                         // breathing room so the first line never touches the frame
   if(page.name){
-    setFont(8);
+    g.textBaseline='middle'; setFont(8);
     const tagW=Math.min(tw(page.name)+10, bw-12);   // never let the name tag exceed the box
     rrect(bx+8,by-9,tagW,13,4,'#1d2336'); rrect(bx+9,by-8,tagW-2,11,3,'#4a73c0');
-    fitText(page.name,bx+13,by-1,'#fff',8,tagW-10);  // baseline centered in the tag; shrink so it never spills
+    fitText(page.name,bx+13,by-2,'#fff',8,tagW-10);  // centered in the tag; shrink so it never spills
+    g.textBaseline='top';
   }
   // revealed text (clipped to the box as a safety net so it can never spill out)
-  g.save(); g.beginPath(); g.rect(bx+8,by+4,bw-16,bh-8); g.clip();
+  g.save(); g.beginPath(); g.rect(bx+8,by+6,bw-16,bh-10); g.clip();
   let count=dlg.reveal|0;
   for(const ln of page.lines){
     const show = ln.slice(0, Math.max(0,count));
     text(show, bx+12, ty, '#283048',8);
     count -= ln.length; if(count<0) count=0;
-    ty+=12;
+    ty+=11;
   }
   g.restore();
+  g.textBaseline='alphabetic';
   // calm blinking advance arrow
   const full=page.lines.join('\n').length;
   if((dlg.reveal|0)>=full && Math.floor(anim/34)%2){ const ay=by+bh-9+(Math.floor(anim/17)%2?0:1); poly([[bx+bw-14,ay-3],[bx+bw-8,ay-3],[bx+bw-11,ay+1]],'#4a73c0'); }
@@ -1804,6 +1807,7 @@ class Seq {
       case 'warp': { enterMap(act.to, act.tx, act.ty, act.dir); break; }
       case 'travel': { this.busy=true; game.travelText=act.text||''; let t=act.ms||1400; this.tick=(dt)=>{ t-=dt; if(t<=0){ game.travelText=''; this.resolve(); } }; break; }
       case 'battle': { this.busy=true; startBattle(act.cfg, ()=>this.resolve()); break; }
+      case 'levelup': { this.busy=true; startLevelUp(act.to, {stone:act.stone}, ()=>this.resolve()); break; }
       case 'endchoice': { this.busy=true; startCinema(); break; }
       case 'creditroll': { this.busy=true; startCredits(()=>this.resolve()); break; }
     }
@@ -1954,10 +1958,11 @@ function drawWorld(){
   for(const pr of game.particles){ g.globalAlpha=clamp(1-pr.t/pr.life,0,1); rect((pr.x+ox)|0,(pr.y+oy)|0,2,2,pr.col); g.globalAlpha=1; }
   drawAmbient(m.theme);   // theme atmosphere (fireflies / embers / sparks / pollen / dust)
   // building name labels (town navigation)
-  if(m.labels){ g.textAlign='center'; setFont(8); for(const L of m.labels){ const lx=L.x*TS+8+ox, ly=L.y*TS+oy;
+  if(m.labels){ g.textAlign='center'; g.textBaseline='middle'; setFont(8); for(const L of m.labels){ const lx=L.x*TS+8+ox, ly=L.y*TS+oy;
     if(lx<-30||lx>VW+30||ly<-10||ly>VH+10) continue;
-    rrect(lx-tw(L.t)/2-3, ly-1, tw(L.t)+6, 11, 3, 'rgba(252,250,240,.82)');
-    textShadow(L.t, lx, ly+1, L.c||'#2a2a3a', 'rgba(255,255,255,.6)', 8); } g.textAlign='left'; }
+    const bw2=tw(L.t)+10, bh2=12;
+    rrect(lx-bw2/2, ly-1, bw2, bh2, 3, 'rgba(252,250,240,.88)');
+    textShadow(L.t, lx, ly-1+bh2/2, L.c||'#2a2a3a', 'rgba(255,255,255,.6)', 8); } g.textAlign='left'; g.textBaseline='top'; }
 }
 function drawObjectiveHUD(){
   if(!game.objective || dlg.active) return;
@@ -2014,6 +2019,7 @@ function setupTown(){
             {type:'say',name:'Rocket Grunt',text:'Tch... you actually found my hideyhole. Nosy brat.'},
             {type:'say',name:'Rocket Grunt',text:'The Power Station is Team Rocket property now. You\'re not getting the key!'},
             {type:'battle',cfg:{trainer:'Rocket Grunt', kind:'grunt', enemies:[{species:'rattata'},{species:'zubat'}]}},
+            {type:'levelup',to:11},
             {type:'say',name:'Rocket Grunt',text:'Ugh, fine! Take the key... but you\'re too late, Jolteon is already powering the station.'},
             {type:'flag',set:'routeClear'},
             {type:'move',id:'rgrunt',path:['up','up','right','right']},
@@ -2047,6 +2053,8 @@ function setupTown(){
     game.objective='Fairy energy nearby - go to the Moonlit Garden (south-east).';
   } else if(!F.gameWon){
     game.objective='Sylveon\'s signal is underground - enter the sealed door (far south).';
+  } else {
+    game.objective = F.objText || 'Head home to Prof. Oak\'s lab (north-west of town).';
   }
 }
 
@@ -2123,8 +2131,8 @@ function runLabIntro(oak,asst){
     {type:'say',name:'Prof. Oak',text:'But nothing ever worked. In the end I realized... this Eevee simply wants to be itself, exactly as it is.'},
     {type:'say',name:'Prof. Oak',text:'It is young, but braver than any Pokémon I know. Work together, and I am certain you can save the others.'},
     {type:'func',fn:()=>audio.fanfare()},{type:'hearts',id:'player'},
-    {type:'func',fn:()=>{ F.gotEevee=true; }},
-    {type:'say',name:'',text:'Oen received partner EEVEE!'},
+    {type:'func',fn:()=>{ F.gotEevee=true; F.eeveeLv=10; }},
+    {type:'say',name:'',text:'Oen received partner EEVEE!  (Lv 10)'},
     {type:'say',name:'Prof. Oak',text:'The signals are scattered across Pallet Town. Head outside and search, Oen. There\'s no time to lose.'},
     {type:'flag',set:'introDone'},
     {type:'objective',text:'Leave the lab and explore Pallet Town to find the stolen Pokémon.'},
@@ -2162,6 +2170,7 @@ function setupRoute1(){
           {type:'say',name:'Rocket Grunt',text:'You found our note? Tch. Nosy trainers always ruin everything.'},
           {type:'say',name:'Rocket Grunt',text:'You\'re not getting past me, Oen!'},
           {type:'battle',cfg:{trainer:'Rocket Grunt', kind:'grunt', enemies:[{species:'rattata'},{species:'zubat'}]}},
+          {type:'levelup',to:11},
           {type:'say',name:'Rocket Grunt',text:'Ugh! Fine! But you\'re too late. Jolteon is already powering the old station.'},
           {type:'flag',set:'routeClear'},
           {type:'move',id:'rgrunt',path:['left','left','left']},
@@ -2308,6 +2317,7 @@ function setupStation(){
         {type:'say',name:'Rocket Engineer',text:'Hey! You\'re messing with my machine! Team Rocket doesn\'t forgive unpaid electricians.'},
         {type:'say',name:'Rocket Engineer',text:'Let\'s see if you can handle a little shock!'},
         {type:'battle',cfg:{trainer:'Rocket Engineer', kind:'grunt', enemies:[{species:'magnemite'},{species:'voltorb'}]}},
+        {type:'levelup',to:12},
         {type:'say',name:'Rocket Engineer',text:'No! The cage is overloading!'},
         {type:'flash',col:C.yellow,ms:300},{type:'shake',ms:300},{type:'sfx',name:'spark'},
         {type:'despawn',id:'eng'},
@@ -2322,10 +2332,8 @@ function setupStation(){
         {type:'despawn',id:'joltC'},
         {type:'flag',set:'jolteonRescued'},
         {type:'say',name:'Evo Tracker',text:'Jolteon returned to the lab. Fire energy detected in town - head to the Ember Warehouse (south-west).'},
-        {type:'fade',dir:'out',ms:400},
-        {type:'travel',text:'Leaving the Old Power Station...',ms:1400},
-        {type:'warp',to:'town',tx:41,ty:9,dir:'down'},
-        {type:'fade',dir:'in',ms:400},
+        {type:'say',name:'Prof. Oak',text:'Now make your way back outside, Oen. Leave through the door to the south.'},
+        {type:'objective',text:'Leave the Power Station - walk out through the door (south).'},
       ], ()=>{ game.state='play'; });
     } else {
       runSeq([{type:'say',name:'',text:'Generator '+label+' powers down. Its lights glow green. The cage dims a little...'}],()=>game.state='play');
@@ -2463,6 +2471,7 @@ function setupWarehouse(){
       {type:'spawn',entity:{id:'cole',kind:'char',sub:'grunt',tx:7,ty:7,dir:'down'}},
       {type:'say',name:'Grunt Cole',text:'You saved Jolteon, didn\'t you? Not happening again. Let\'s turn up the heat!'},
       {type:'battle',cfg:{trainer:'Grunt Cole', kind:'grunt', enemies:[{species:'koffing'},{species:'houndour'}]}},
+      {type:'levelup',to:13},
       {type:'say',name:'Grunt Cole',text:'My plan... burned out.'},
       {type:'move',id:'cole',path:['right','right','down','down','down']},
       {type:'despawn',id:'cole'},
@@ -2480,10 +2489,7 @@ function setupWarehouse(){
       {type:'flag',set:'flareonRescued'},
       {type:'say',name:'Prof. Oak',text:'You\'ve saved Jolteon and Flareon. But Sylveon\'s signal is strange... almost like it\'s calling for help.'},
       {type:'say',name:'Evo Tracker',text:'Fairy energy detected back in town - search the Moonlit Garden (south-east).'},
-      {type:'fade',dir:'out',ms:400},
-      {type:'travel',text:'Leaving the Ember Warehouse...',ms:1400},
-      {type:'warp',to:'town',tx:7,ty:35,dir:'down'},
-      {type:'fade',dir:'in',ms:400},
+      {type:'objective',text:'Leave the Ember Warehouse - walk out through the door (south).'},
     ], ()=>{ game.state='play'; });
   }
   placeEntity(newEntity({id:'console',kind:'obj',tx:6,ty:6,dir:'down',solid:true,visible:true,
@@ -2533,8 +2539,19 @@ function setupGarden(){
         {type:'battle',cfg:{double:true, trainer:'Giovanni & Ariana', kind:'giovanni',
           foes:[{species:'persian',trainer:'Giovanni',moves:['Leer','Growl','Screech'],hpMul:1.9},
                 {species:'murkrow',trainer:'Ariana',moves:['Intimidate','Glare','Leer'],hpMul:1.7}], music:'boss'}},
+        {type:'levelup',to:15},
         {type:'say',name:'Giovanni',text:'Impossible... beaten by a child and a worn-out professor.'},
         {type:'despawn',id:'gv'},{type:'despawn',id:'ar'},
+        // --- Prof. Oak entrusts Oen with the POWER STONE (Eevee surges Lv 15 -> 25) ---
+        {type:'face',id:'oakG',dir:'up'},
+        {type:'say',name:'Prof. Oak',text:'Oen, wait - before you go any further, take this. I\'ve been saving it for a moment exactly like this.'},
+        {type:'func',fn:()=>{ F.gotStone=true; audio.fanfare(); }},
+        {type:'say',name:'',text:'Oen received the POWER STONE!'},
+        {type:'say',name:'Prof. Oak',text:'It holds the concentrated energy of countless evolutions. Hold it up to Eevee - let its strength flow into your partner!'},
+        {type:'say',name:'Oen',text:'Here, Eevee... take this power. We\'ll face Rook together!'},
+        {type:'levelup',to:25,stone:true},
+        {type:'say',name:'Oen',text:'Whoa... Eevee surged all the way to Lv 25! I can feel how much stronger it is now!'},
+        {type:'say',name:'Prof. Oak',text:'Incredible. With that power and the bond you two share, you finally stand a chance against Admin Rook.'},
         {type:'say',name:'Admin Rook',text:'Tch. Useless, both of them. Fine - I\'ll handle this myself, at the hideout.'},
         {type:'sfx',name:'spark'},{type:'flash',col:C.pink,ms:300},
         {type:'say',name:'Sylveon',text:'Sylveon...! (Its cage shrinks into a capture capsule.)'},
@@ -2548,10 +2565,7 @@ function setupGarden(){
         {type:'despawn',id:'oakG'},
         {type:'flag',set:'gardenCleared'},
         {type:'say',name:'Evo Tracker',text:'Final signal locked: the sealed door in the far south of town. The Rocket Hideout is open now.'},
-        {type:'fade',dir:'out',ms:500},
-        {type:'travel',text:'Leaving the Moonlit Garden...',ms:1500},
-        {type:'warp',to:'town',tx:39,ty:35,dir:'down'},
-        {type:'fade',dir:'in',ms:500},
+        {type:'objective',text:'Leave the Moonlit Garden through the door (south), then enter the Hideout (far south of town).'},
       ], ()=>{ game.state='play'; });
     }}));
   if(!F.gardenIntro){ F.gardenIntro=true;
@@ -2559,7 +2573,7 @@ function setupGarden(){
       {type:'say',name:'',text:'The garden is quiet and beautiful. Glowing flowers shimmer under the moonlight.'},
       {type:'say',name:'Evo Tracker',text:'Sylveon signal nearby... it glows pink.'},
       {type:'face',id:'sylC',dir:'down'},{type:'hearts',id:'sylC'},
-      {type:'say',name:'Sylveon',text:'Sylveon... (It reaches its ribbons toward you.)'},
+      {type:'say',name:'Sylveon',text:'Syl... veon! (It presses against the glowing cage and cries out the moment it sees you.)'},
       {type:'objective',text:'Approach Sylveon - but someone is guarding it.'},
     ],()=>{ game.state='play'; });
   } else { game.objective='Approach Sylveon in the Moonlit Garden.'; }
@@ -2596,8 +2610,9 @@ function startRookEncounter(){
       enemies:[{species:'charizard'},{species:'rayquaza'},{species:'mewtwo',hpMul:8,atkMul:1.1}]},
       ()=>{ rookVictory(); },                       // onWin (effectively unreachable in battle 1)
       ()=>{ startEvo(()=>{                            // onLose -> evolution -> rematch
-        startBattle({trainer:'Admin Rook', kind:'rook', music:'boss', rookFinal:true, playerSpecies:'umbreon',
-          enemies:[{species:'mewtwo'}]},
+        startBattle({trainer:'Admin Rook', kind:'rook', music:'boss', rookFinal:true, playerSpecies:'umbreon', bigBars:true,
+          // a long, climactic duel: huge HP, but Mewtwo wastes many turns intimidating instead of striking
+          enemies:[{species:'mewtwo', hpMul:6, atkMul:0.85, lv:40, moves:['Leer','Swift','Screech','Psy Pulse','Growl']}]},
           ()=>{ rookVictory(); });
       }); });
   });
@@ -2617,13 +2632,12 @@ function rookVictory(){
     {type:'hearts',id:'player'},{type:'hearts',id:'sylH'},
     {type:'func',fn:()=>audio.fanfare()},
     {type:'say',name:'Sylveon',text:'Sylveon! (It wraps its ribbons gently around Oen\'s arm.)'},
-    {type:'say',name:'Oen',text:'You\'re safe now. Let\'s get back to the lab - I\'ll send you to the Professor with the others.'},
+    {type:'say',name:'Oen',text:'You\'re safe now, Sylveon. Stay close to me - let\'s walk out of here together.'},
     {type:'flag',set:'sylveonRescued'},
-    {type:'fade',dir:'out',ms:600},
-    {type:'travel',text:'Bringing everyone home to Pallet Town...',ms:1800},
-    {type:'func',fn:()=>{ F.gameWon=true; }},
-    {type:'warp',to:'lab',tx:7,ty:9,dir:'up'},
-    {type:'fade',dir:'in',ms:600},
+    {type:'despawn',id:'sylH',hearts:true},
+    {type:'func',fn:()=>{ F.gameWon=true; F.objText='Head home to Prof. Oak\'s lab (north-west of town).'; }},
+    {type:'say',name:'',text:'With Sylveon safe in your arms, it\'s time to head home.'},
+    {type:'objective',text:'Leave the Hideout (door, south), then return to Prof. Oak\'s lab (north-west of town).'},
   ], ()=>{ game.state='play'; });
 }
 
@@ -2660,8 +2674,9 @@ function vsDraw(){
 /* ---- 10-second Eevee -> Umbreon evolution (light pours from the windows) ---- */
 const evo={ t:0, cb:null };
 function startEvo(cb){ F.partner='umbreon';
-  // play the 4K evolution film if present; otherwise run the painted canvas cinematic
-  playStoryVideo('evolution', cb, ()=>startEvoCanvas(cb)); }
+  // run the painted canvas cinematic — it visibly morphs Eevee INTO Umbreon
+  // (clearer than the generic light film, which only showed the glow)
+  startEvoCanvas(cb); }
 function startEvoCanvas(cb){ evo.t=0; evo.cb=cb; game.state='evo'; audio.play('emotion');
   audio.note(130,0.6,'sine',0.4); audio.note(196,0.6,'triangle',0.25,0.15); clearPressed(); F.partner='umbreon'; }
 function evoUpdate(dt){
@@ -2701,8 +2716,9 @@ function evoDraw(){
   }
   const phase = t<3400?'pre' : t<7200?'flicker' : t<8900?'flash' : 'umbreon';
   if(phase==='pre'){
-    // painted Eevee is the star here — just bathe it in growing light (no doubled sprite when art present)
-    if(!art){ ellipse(cx,cy+15,18,4,'rgba(255,255,255,'+(0.12+glow*0.22)+')'); drawMon('eevee',cx,cy+Math.sin(t/200)*1.5,R); }
+    // always show the Eevee sprite so it's unmistakably Eevee that begins to change
+    ellipse(cx,cy+15,18,4,'rgba(255,255,255,'+(0.12+glow*0.22)+')');
+    drawMon('eevee',cx,cy+Math.sin(t/200)*1.5,R);
     g.globalAlpha=glow*(art?0.4:0.45); circle(cx,cy,(art?32:21)+Math.sin(t/100)*3,'#fff7d0'); g.globalAlpha=1;
   } else if(phase==='flicker'){
     g.globalAlpha=0.72; circle(cx,cy,(art?36:27)+Math.sin(t/55)*5,'#fffbe0'); g.globalAlpha=1;
@@ -2720,6 +2736,52 @@ function evoDraw(){
   const cap = t<3400 ? 'A strange light pours in through the windows...' : t<7200 ? 'Eevee is evolving!' : t<8900 ? '' : 'Eevee evolved into UMBREON!';
   if(cap){ g.globalAlpha=0.82; rrect(12,VH-32,VW-24,22,6,'#0a0a14'); g.globalAlpha=1; textShadow(cap,VW/2,VH-26,'#ffe6f0','#2a1020',9); }
   if(t>6200 && Math.floor(anim/30)%2) text('SPACE',VW/2,VH-6,'#9aa','#000',7);
+  g.textAlign='left';
+}
+
+/* ---- Level-up flourish (also drives the Power Stone 15->25 surge) ---- */
+const lvUp={ t:0, from:10, to:11, cb:null, stone:false, dur:1700, species:'eevee' };
+function startLevelUp(toLv, opts, cb){
+  opts=opts||{};
+  lvUp.from=eeveeLv(); lvUp.to=toLv; lvUp.cb=cb||null; lvUp.t=0; lvUp.stone=!!opts.stone;
+  lvUp.species=opts.species||'eevee';
+  lvUp.dur = lvUp.stone ? 4600 : 1900;
+  game.state='levelup'; audio.sfx(lvUp.stone?'heal':'win'); clearPressed();
+}
+function lvUpFinish(){ F.eeveeLv=lvUp.to; const cb=lvUp.cb; lvUp.cb=null; game.state='cutscene'; if(cb) cb(); }
+function lvUpUpdate(dt){
+  lvUp.t+=dt;
+  if(lvUp.stone && lvUp.t>1700 && lvUp.t-dt<=1700) audio.sfx('win');
+  if(lvUp.t>=lvUp.dur || (consume('ok')&&lvUp.t>800)) lvUpFinish();
+}
+function lvUpDraw(){
+  const t=lvUp.t;
+  const grd=g.createLinearGradient(0,0,0,VH);
+  if(lvUp.stone){ grd.addColorStop(0,'#2a1640'); grd.addColorStop(0.6,'#5a2a6a'); grd.addColorStop(1,'#3a1850'); }
+  else { grd.addColorStop(0,'#0e2038'); grd.addColorStop(1,'#1c3a54'); }
+  g.fillStyle=grd; g.fillRect(0,0,VW,VH);
+  const cx=VW/2, cy=108, R=lvUp.stone?30:24;
+  // the power stone descends and dissolves into Eevee
+  if(lvUp.stone && t<1500){ const dp=clamp(t/1500,0,1); const sy=20+dp*(cy-30-20);
+    g.globalAlpha=0.9; const sg=g.createRadialGradient(cx,sy,1,cx,sy,12); sg.addColorStop(0,'#fff'); sg.addColorStop(0.5,'#e8a0ff'); sg.addColorStop(1,'#7a30b0');
+    g.fillStyle=sg; g.beginPath(); g.arc(cx,sy,8+Math.sin(anim/6),0,7); g.fill();
+    drawStar(cx,sy,4,'#ffffff'); g.globalAlpha=1; }
+  // rising light rings
+  for(let r=0;r<5;r++){ g.globalAlpha=(0.22-r*0.04)*(0.5+0.5*Math.sin(anim/9)); circle(cx,cy,R+10+r*11+Math.sin(anim/7)*2, lvUp.stone?'#f0c0ff':'#fff6c0'); }
+  g.globalAlpha=1;
+  ellipse(cx,cy+R*0.9,R*0.92,R*0.28,'rgba(255,255,255,.18)');
+  drawMon(lvUp.species, cx, cy+Math.sin(anim/16)*2, R);
+  for(let i=0;i<10;i++){ const a=anim*0.05+i*0.63, rr=R+16+Math.sin(anim/10+i)*4; drawStar(cx+Math.cos(a)*rr, cy+Math.sin(a)*rr, 2.2, lvUp.stone?'#ffd0f0':'#fff0a0'); }
+  // counting level number
+  const shown=Math.round(lerp(lvUp.from, lvUp.to, clamp((t-600)/(lvUp.dur-1100),0,1)));
+  g.textAlign='center';
+  textShadow('Lv '+shown, cx, cy-R-12, '#ffe24a', '#3a2a08', 16);
+  g.globalAlpha=0.86; rrect(12,VH-34,VW-24,24,6,'#0a0a14'); g.globalAlpha=1;
+  const cap = lvUp.stone
+    ? 'The POWER STONE floods Eevee with energy!  Lv '+lvUp.from+' → '+lvUp.to+'!'
+    : 'Eevee grew to Lv '+lvUp.to+'!';
+  textShadow(cap, cx, VH-26, '#fff', '#2a1020', 9);
+  if(t>800 && Math.floor(anim/30)%2) text('SPACE', cx, VH-7, '#9aa', '#000', 7);
   g.textAlign='left';
 }
 
@@ -2787,7 +2849,9 @@ function chooseSylveon(){
     {type:'face',id:'eSyl',dir:'down'},
     {type:'hearts',id:'player'},{type:'hearts',id:'eSyl'},
     {type:'func',fn:()=>audio.fanfare()},
-    {type:'wait',ms:1500},
+    {type:'wait',ms:1200},
+    {type:'say',name:'Prof. Oak',text:'Sylveon chose you, Oen. Go on - go out and explore the world of Pokémon with your new partner by your side.'},
+    {type:'wait',ms:600},
     {type:'video',key:'ending'},                         // 4K ending film, then credits
     {type:'fade',dir:'out',ms:800},
     {type:'func',fn:()=>{ game.fade=0; startCredits(()=>{}); }},
@@ -2868,8 +2932,10 @@ const MOVES = {
   'Quick Attack':{type:'Normal',pow:40,pp:30},
   'Bite':{type:'Dark',pow:60,pp:25},
   'Swift':{type:'Normal',pow:60,pp:20},
+  // life-absorbing move (real Pokémon move) — heals the user for half the damage dealt
+  'Draining Kiss':{type:'Fairy',pow:50,pp:10,drain:0.75},
 };
-const EEVEE_MOVES=['Tackle','Quick Attack','Bite','Swift'];
+const EEVEE_MOVES=['Quick Attack','Bite','Swift','Draining Kiss'];
 const ENEMY={
   rattata:{lv:5,hp:18,atk:4,type:'Normal',moves:['Tackle','Tail Whip']},
   zubat:{lv:5,hp:18,atk:4,type:'Poison',moves:['Leech Life','Supersonic']},
@@ -2892,6 +2958,7 @@ const TYPE_CHART = {
   Fire:     { Grass:2, Ice:2, Bug:2, Steel:2, Fire:0.5, Water:0.5, Rock:0.5, Dragon:0.5 },
   Poison:   { Grass:2, Poison:0.5, Ghost:0.5 },
   Flying:   { Grass:2, Fighting:2, Bug:2, Electric:0.5, Rock:0.5 },
+  Fairy:    { Dark:2, Dragon:2, Fighting:2, Fire:0.5, Poison:0.5, Steel:0.5 },
 };
 function typeMult(atkType, defType){ const r=TYPE_CHART[atkType]; return (r && r[defType]!=null) ? r[defType] : 1; }
 // status / stat-lowering moves: shown as a message, deal NO damage (used by the bosses)
@@ -2915,19 +2982,26 @@ const battle = {
 function curEnemy(){ return battle.enemies[battle.ei]; }
 function bMsg(text, cb, auto){ battle.phase='msg'; battle.msg=text; battle.msgReveal=0; battle.msgCb=cb||null; battle.msgAuto=auto||0; battle.msgAutoT=0; battle.msgFast=false; }
 
-const UMBREON_MOVES=['Bite','Quick Attack','Swift','Tackle'];
+const UMBREON_MOVES=['Bite','Quick Attack','Swift','Draining Kiss'];
+// ---- persistent Eevee progression (level grows across the adventure) ----
+function eeveeMaxHp(lv){ return 60 + Math.round((lv-10)*9); }   // lv10:60  lv15:105  lv25:195
+function eeveeLv(){ return F.eeveeLv || 10; }
 function startBattle(cfg, onWin, onLose){
   battle.active=true; battle.cfg=cfg; battle.onWin=onWin; battle.onLose=onLose||null; battle.prevTrack=audio.track;
   battle.enemies=(cfg.enemies||[]).map(s=>{ const d=ENEMY[s.species]; const hp=Math.round(d.hp*1.4*(s.hpMul||1));
     return {species:s.species,name:MON[s.species].name,lv:(s.lv||d.lv),hp:hp,max:hp,atk:Math.round(d.atk*(s.atkMul||1)),type:d.type,moves:(s.moves||d.moves).slice()}; });
   battle.ei=0;
   if(cfg.playerSpecies==='umbreon'){
-    battle.player={species:'umbreon',name:'Umbreon',lv:18,hp:85,max:85,
-      moves:UMBREON_MOVES.map(n=>({name:n,type:MOVES[n].type,pow:MOVES[n].pow+8,pp:MOVES[n].pp,maxpp:MOVES[n].pp}))};
+    // Umbreon carries Eevee's earned level forward (post power-stone it's ~25)
+    const ulv=Math.max(25, eeveeLv()); const umax=eeveeMaxHp(ulv);
+    battle.player={species:'umbreon',name:'Umbreon',lv:ulv,hp:umax,max:umax,
+      moves:UMBREON_MOVES.map(n=>({name:n,type:MOVES[n].type,pow:MOVES[n].pow+8,pp:MOVES[n].pp,maxpp:MOVES[n].pp,drain:MOVES[n].drain}))};
   } else {
-    battle.player={species:'eevee',name:'Eevee',lv:10,hp:60,max:60,
-      moves:EEVEE_MOVES.map(n=>({name:n,type:MOVES[n].type,pow:MOVES[n].pow,pp:MOVES[n].pp,maxpp:MOVES[n].pp}))};
+    const elv=eeveeLv(); const emax=eeveeMaxHp(elv);
+    battle.player={species:'eevee',name:'Eevee',lv:elv,hp:emax,max:emax,
+      moves:EEVEE_MOVES.map(n=>({name:n,type:MOVES[n].type,pow:MOVES[n].pow,pp:MOVES[n].pp,maxpp:MOVES[n].pp,drain:MOVES[n].drain}))};
   }
+  battle.bigBars=!!cfg.bigBars;   // final Mewtwo duel uses oversized HP bars
   battle.ephShow=battle.enemies[0]?battle.enemies[0].hp:0; battle.phpShow=battle.player.hp;
   battle.mainSel=0; battle.moveSel=0; battle.helped=false; battle.lowhpT=0;
   battle.eShown=false; battle.pShown=false; battle.eIntro=0; battle.pIntro=0;
@@ -2935,7 +3009,7 @@ function startBattle(cfg, onWin, onLose){
   battle.ball=null; battle.burst=0; battle.hitFlash=0; battle.hitShake=0; battle.trainerShown=true; battle.trainerOut=false; battle.trainerX=0;
   battle.phase='fx'; battle.pt=0; battle.startFx=1; battle.drainGate=false; battle.afterDrain=null;
   battle.foeAtk=0; battle.scripted=!!cfg.scripted; battle.transformed=false; battle.transT=0;
-  battle.mewAtk=0; battle.bonded=false;
+  battle.mewAtk=0; battle.bonded=false; battle.dugIn=false;
   battle.double=false;
   battle.floaters=[];
   game.state='battle';
@@ -3047,12 +3121,16 @@ function doPlayerMove(){
   dmg=Math.max(1, Math.round(dmg*mult));
   const superEff=mult>1;
   const eff = mult>1.5 ? 'It\'s super effective!' : (mult===0 ? 'It doesn\'t affect '+e.name+'...' : (mult<1 ? 'It\'s not very effective...' : ''));
+  const drained = mv.drain ? Math.max(1, Math.round(dmg*mv.drain)) : 0;
   bMsg(battle.player.name+' used '+mv.name+'!', ()=>{
     playMoveFx(mv.name, 'player',
       ()=>{ audio.sfx(crit||superEff?'hitSuper':'hit'); applyDamageToEnemy(dmg); battleImpact(battle.EX, battle.EY, crit||superEff); addDmgFloat(battle.EX, battle.EY-14, dmg, crit||superEff, false); },
       ()=>{ waitDrain(()=>{
         const after=()=>{ if(e.hp<=0) enemyFaint(); else setTimeoutBattle(880, doEnemyTurn); };
-        const showEff=()=>{ if(eff) bMsg(eff, after, 0); else setTimeoutBattle(740, after); };
+        const doDrain=()=>{ if(!drained){ after(); return; }
+          audio.sfx('heal'); battle.player.hp=Math.min(battle.player.max, battle.player.hp+drained); spawnHearts(battle.PX,battle.PY-12,6);
+          bMsg(battle.player.name+' drained '+drained+' HP from '+e.name+'!', ()=>waitDrain(after), 0); };
+        const showEff=()=>{ if(eff) bMsg(eff, doDrain, 0); else setTimeoutBattle(drained?300:740, doDrain); };
         if(crit) bMsg('A critical hit!', showEff, 0); else setTimeoutBattle(eff?420:740, showEff);
       }); }
     );
@@ -3092,9 +3170,20 @@ function enemyAttack(){
         if(mode==='lose'){ bMsg('Even with Sylveon\'s strength, Eevee gave everything it had... and fell.', ()=>loseBattle(), 0); return; }
         if(battle.player.hp<=0){
           // safety net: never a hard game-over outside the scripted Rook loss
-          battle.player.hp=Math.max(10, Math.round(battle.player.max*0.3));
           battle.pFaint=0;
-          bMsg(battle.player.name+' dug in and refused to fall!', ()=>setTimeoutBattle(740, showMenu), 0);
+          if(!battle.dugIn){ battle.dugIn=true;     // first brush with defeat — full dramatic beat, revives to 3/4
+            bMsg(battle.player.name+' is about to fall...!', ()=>{
+              setTimeoutBattle(1900, ()=>{
+                audio.sfx('heal');
+                battle.player.hp=Math.round(battle.player.max*0.75);
+                spawnHearts(battle.PX,battle.PY-12,7);
+                bMsg(battle.player.name+' dug deep and refused to fall!', ()=>setTimeoutBattle(640, showMenu), 0);
+              });
+            }, 0);
+          } else {
+            battle.player.hp=Math.max(8, Math.round(battle.player.max*0.5));
+            bMsg(battle.player.name+' grits its teeth and holds on!', ()=>setTimeoutBattle(640, showMenu), 0);
+          }
         } else setTimeoutBattle(740, showMenu);
       }); }
     );
@@ -3102,9 +3191,16 @@ function enemyAttack(){
 }
 function doBondHeal(){
   battle.bonded=true; battle.pFaint=0;
-  bMsg('Eevee collapses! ...But Sylveon\'s bond reaches across the battle!', ()=>{
-    audio.sfx('heal'); battle.player.max=80; battle.player.hp=80; battle.phpShow=80; spawnHearts(battle.PX,battle.PY-12,9);
-    waitDrain(()=> bMsg('A warm pink light fills Eevee with brand-new strength!', ()=>setTimeoutBattle(620, showMenu), 0));
+  // Eevee has hit 0 HP — hold on the fallen partner for a dramatic couple of seconds...
+  bMsg('Eevee took everything Mewtwo had... and crumpled to the ground.', ()=>{
+    setTimeoutBattle(2000, ()=>{                       // the dramatic beat at 0 HP
+      bMsg('...But Sylveon\'s bond reaches across the battle!', ()=>{
+        audio.sfx('heal');
+        battle.player.hp=Math.round(battle.player.max*0.75);   // bar surges back up to three-quarters
+        spawnHearts(battle.PX,battle.PY-12,9);
+        waitDrain(()=> bMsg('A warm pink light fills Eevee with brand-new strength!', ()=>setTimeoutBattle(620, showMenu), 0));
+      }, 0);
+    });
   }, 0);
 }
 function loseBattle(){
@@ -3192,22 +3288,23 @@ function startDoubleBattle(cfg){
     return {species:o.species,name:MON[o.species].name,lv:(o.lv||d.lv+4),hp,max:hp,atk:Math.round(d.atk*1.2),type:d.type,
       moves:(o.moves||d.moves).slice(), owner:o.trainer, isAlly:false, hpShow:hp, intro:0,blink:0,shake:0,faint:0,alive:true,shown:false}; };
   // allies: Eevee (player-controlled) + Prof. Oak's Jolteon
-  const eevee={species:'eevee',name:'Eevee',lv:13,hp:75,max:75,owner:'Oen',isAlly:true,isPlayer:true,
-    moves:EEVEE_MOVES.map(n=>({name:n,type:MOVES[n].type,pow:MOVES[n].pow,pp:MOVES[n].pp,maxpp:MOVES[n].pp})),
-    hpShow:75,intro:0,blink:0,shake:0,faint:0,alive:true,shown:false};
-  const jolt={species:'jolteon',name:'Jolteon',lv:13,hp:66,max:66,owner:'Oak',isAlly:true,
+  const elv=eeveeLv(); const emax=eeveeMaxHp(elv);
+  const eevee={species:'eevee',name:'Eevee',lv:elv,hp:emax,max:emax,owner:'Oen',isAlly:true,isPlayer:true,
+    moves:EEVEE_MOVES.map(n=>({name:n,type:MOVES[n].type,pow:MOVES[n].pow,pp:MOVES[n].pp,maxpp:MOVES[n].pp,drain:MOVES[n].drain})),
+    hpShow:emax,intro:0,blink:0,shake:0,faint:0,alive:true,shown:false};
+  const jolt={species:'jolteon',name:'Jolteon',lv:elv,hp:66,max:66,owner:'Oak',isAlly:true,
     moves:['Quick Attack','Spark','Tackle'], hpShow:66,intro:0,blink:0,shake:0,faint:0,alive:true,shown:false};
   battle.allies=[eevee,jolt];
   battle.foes=[ mkFoe(cfg.foes[0]), mkFoe(cfg.foes[1]) ];
-  // screen positions
-  eevee.x=58; eevee.y=128; jolt.x=98; jolt.y=140;
-  battle.foes[0].x=176; battle.foes[0].y=52; battle.foes[1].x=212; battle.foes[1].y=66;
+  // screen positions (allies bottom-left, foes upper-right; clear of the corner HP bars)
+  eevee.x=52; eevee.y=120; jolt.x=92; jolt.y=134;
+  battle.foes[0].x=176; battle.foes[0].y=46; battle.foes[1].x=212; battle.foes[1].y=60;
   battle.player=eevee; battle.mainSel=0; battle.moveSel=0; battle.tgt=0;
   battle.phase='fx'; battle.pt=0; battle.startFx=1; battle.drainGate=false; battle.afterDrain=null;
 }
 function dblAnim(dt){
   const all=battle.allies.concat(battle.foes); let gate=false;
-  for(const c of all){ c.hpShow=drainTo(c.hpShow,c.hp); if(Math.abs(c.hp-c.hpShow)>0.4) gate=true;
+  for(const c of all){ c.hpShow=drainTo(c.hpShow,c.hp,c.max); if(Math.abs(c.hp-c.hpShow)>0.4) gate=true;
     if(c.blink>0)c.blink-=dt; if(c.shake>0)c.shake-=dt;
     if(c.shown && c.intro<1)c.intro=Math.min(1,c.intro+dt/240);
     if(c.faint>0&&c.faint<1)c.faint=Math.min(1,c.faint+dt/420); }
@@ -3237,6 +3334,7 @@ function dblAct(atk, def, move, after){
     const mt=(typeof move==='object'&&move.type)?move.type : ((MOVES[moveName]&&MOVES[moveName].type)||'Normal');
     const mult=typeMult(mt, def.type); dmg=Math.max(1,Math.round(dmg*mult)); superEff=mult>1; }
   else { moveName=move; const r=0.85+Math.random()*0.3; dmg=Math.max(2,Math.round((atk.atk+atk.lv*0.3)*r*1.3)); }
+  const drained = (atk.isAlly && typeof move==='object' && move.drain) ? Math.max(1, Math.round(dmg*move.drain)) : 0;
   const fdef=def;
   // bosses only intimidate / lower stats — their moves deal NO damage
   if(!atk.isAlly && STATUS_MOVES[moveName]){
@@ -3247,7 +3345,8 @@ function dblAct(atk, def, move, after){
   }
   bMsg((atk.owner?atk.owner+'’s ':'')+atk.name+' used '+moveName+'!', ()=>{
     dblPlayMoveFx(moveName, atk, fdef,
-      ()=>{ audio.sfx(crit||superEff?'hitSuper':'hit'); fdef.hp=Math.max(0,fdef.hp-dmg); fdef.blink=420; fdef.shake=320; battleImpact(fdef.x,fdef.y,crit||superEff); addDmgFloat(fdef.x, fdef.y-12, dmg, crit||superEff, fdef.isAlly); },
+      ()=>{ audio.sfx(crit||superEff?'hitSuper':'hit'); fdef.hp=Math.max(0,fdef.hp-dmg); fdef.blink=420; fdef.shake=320; battleImpact(fdef.x,fdef.y,crit||superEff); addDmgFloat(fdef.x, fdef.y-12, dmg, crit||superEff, fdef.isAlly);
+           if(drained){ audio.sfx('heal'); atk.hp=Math.min(atk.max, atk.hp+drained); spawnHearts(atk.x,atk.y-12,5); } },
       ()=>{ dblWaitDrain(()=>{
         if(fdef.hp<=0){
           if(fdef.isPlayer){ fdef.hp=Math.max(10,Math.round(fdef.max*0.25)); fdef.faint=0;
@@ -3356,15 +3455,15 @@ function dblDraw(){
   }
   battle.foes.forEach(f=>ellipse(f.x,f.y+17,32,9,'rgba(28,18,38,.5)'));
   battle.allies.forEach(a=>ellipse(a.x,a.y+16,38,10,'rgba(28,18,38,.5)'));
-  battle.foes.forEach((f,i)=>{ if(f.shown) drawBattleMon(f.species,f.x,f.y, i===1?17:20, f.intro,f.blink,f.shake,f.faint, f.x); });
-  battle.allies.forEach((a,i)=>{ if(a.shown) drawBattleMon(a.species,a.x,a.y, i===1?20:24, a.intro,a.blink,a.shake,a.faint, a.x*1.3); });
+  battle.foes.forEach((f,i)=>{ if(f.shown) drawBattleMon(f.species,f.x,f.y, 18, f.intro,f.blink,f.shake,f.faint, f.x); });
+  battle.allies.forEach((a,i)=>{ if(a.shown) drawBattleMon(a.species,a.x,a.y, 20, a.intro,a.blink,a.shake,a.faint, a.x*1.3); });
   drawMoveFx();
   for(const pr of game.particles){ g.globalAlpha=clamp(1-pr.t/pr.life,0,1); rect(pr.x|0,pr.y|0,2,2,pr.col); g.globalAlpha=1; }
   for(const h of game.hearts){ drawHeart(h.x,h.y,3,clamp(1-h.t/h.life,0,1)); }
-  if(battle.foes[0].shown) drawHPBar(8,10, battle.foes[0].name, battle.foes[0].lv, battle.foes[0].hpShow, battle.foes[0].max, false);
-  if(battle.foes[1].shown) drawHPBar(8,40, battle.foes[1].name, battle.foes[1].lv, battle.foes[1].hpShow, battle.foes[1].max, false);
-  if(battle.allies[0].shown) drawHPBar(VW-118,70, battle.allies[0].name, battle.allies[0].lv, battle.allies[0].hpShow, battle.allies[0].max, true);
-  if(battle.allies[1].shown) drawHPBar(VW-118,106, battle.allies[1].name, battle.allies[1].lv, battle.allies[1].hpShow, battle.allies[1].max, true);
+  if(battle.foes[0].shown) drawHPBar(6,6,  battle.foes[0].name, battle.foes[0].lv, battle.foes[0].hpShow, battle.foes[0].max, false, 'mini');
+  if(battle.foes[1].shown) drawHPBar(6,34, battle.foes[1].name, battle.foes[1].lv, battle.foes[1].hpShow, battle.foes[1].max, false, 'mini');
+  if(battle.allies[0].shown) drawHPBar(VW-98,84,  battle.allies[0].name, battle.allies[0].lv, battle.allies[0].hpShow, battle.allies[0].max, true, 'mini');
+  if(battle.allies[1].shown) drawHPBar(VW-98,112, battle.allies[1].name, battle.allies[1].lv, battle.allies[1].hpShow, battle.allies[1].max, true, 'mini');
   drawFloaters();
   if(battle.phase==='targetsel'){ const f=battle.foes[battle.tgt]; if(f){ const yy=f.y-24+Math.sin(anim/8)*2; poly([[f.x-5,yy],[f.x+5,yy],[f.x,yy+6]],'#e23b3b'); } }
   const by=VH-50;
@@ -3376,11 +3475,11 @@ function dblDraw(){
   drawLowHpVignette();
   drawSkipBtn();   // TEMP DEV
 }
-function drainTo(cur,target){ const d=target-cur; if(Math.abs(d)<0.12) return target; return cur + Math.sign(d)*Math.min(Math.abs(d), 0.14); } // slow, dramatic HP drain
+function drainTo(cur,target,max){ const sp=Math.max(0.14,(max||40)*0.02); const d=target-cur; if(Math.abs(d)<sp) return target; return cur + Math.sign(d)*Math.min(Math.abs(d), sp); } // dramatic HP drain, scaled to bar size
 function battleAnim(dt){
   const e=curEnemy();
-  if(e) battle.ephShow = drainTo(battle.ephShow, e.hp);
-  battle.phpShow = drainTo(battle.phpShow, battle.player.hp);
+  if(e) battle.ephShow = drainTo(battle.ephShow, e.hp, e.max);
+  battle.phpShow = drainTo(battle.phpShow, battle.player.hp, battle.player.max);
   battle.drainGate = (e? Math.abs(e.hp-battle.ephShow)>0.4:false) || Math.abs(battle.player.hp-battle.phpShow)>0.4;
   // move animation timer
   if(battle.phase==='moveanim'){ battle.fxT+=dt;
@@ -3509,18 +3608,26 @@ function drawMoveFx(){
     if(p>0.3&&p<0.7){ g.strokeStyle='#fff04a'; g.lineWidth=1.6; g.beginPath(); let zx=tx-14, zy=ty-22; g.moveTo(zx,zy); for(let i=0;i<5;i++){ zx+=6*(i%2?1:-1)+ (Math.random()*4-2); zy+=9; g.lineTo(zx,zy);} g.stroke(); }
   }
 }
-function drawHPBar(x,y,name,lv,hpShow,max,isPlayer){
-  const w=110, h=isPlayer?34:28;
+// style: 'reg' (1v1) | 'mini' (compact, used in 2v2) | 'big' (final Mewtwo duel)
+function drawHPBar(x,y,name,lv,hpShow,max,isPlayer,style){
+  style = style || (battle.bigBars?'big':'reg');
+  const S = style==='big'  ? {w:152,h:46,bw:116,nf:11,bf:10,ny:12,by:26,bh:6}
+          : style==='mini' ? {w:92, h:26,bw:56, nf:8, bf:7, ny:8, by:13,bh:3}
+          :                  {w:112,h:32,bw:80, nf:8, bf:8, ny:9, by:18,bh:3};
+  const w=S.w, h=S.h;
   rrect(x,y,w,h,5,'#22283c'); rrect(x+2,y+2,w-4,h-4,4,'#f4efda');
   g.textBaseline='middle';   // center each label on its row — robust to font metric differences
-  fitText(name,x+7,y+9,'#283048',8,w-40); text('Lv'+lv,x+w-26,y+9,'#283048',8);
-  const bx=x+22, by2=y+19, bw=w-30;
-  text('HP',x+6,y+20,'#d07a18',8);
-  rrect(bx-1,by2-1,bw+2,5,2,'#22283c'); rrect(bx,by2,bw,3,1,'#5a6276');
+  fitText(name,x+7,y+S.ny,'#283048',S.nf,w-44);
+  setFont(S.nf-1); const lvs='Lv'+lv; text(lvs,x+w-tw(lvs)-6,y+S.ny,'#283048',S.nf-1);
+  const bx=x+22, by2=y+S.by;
+  text('HP',x+6,by2+1,'#d07a18',style==='big'?9:7);
+  rrect(bx-1,by2-1,S.bw+2,S.bh+2,2,'#22283c'); rrect(bx,by2,S.bw,S.bh,1,'#5a6276');
   const ratio=clamp(hpShow/max,0,1);
   const col=ratio>0.5?'#48c048':ratio>0.2?'#f0c020':'#e84038';
-  if(ratio>0) rrect(bx,by2,Math.max(1,bw*ratio),3,1,col);
-  if(isPlayer) text(Math.max(0,Math.ceil(hpShow))+'/'+max, x+w-46, y+28, '#283048',8);
+  if(ratio>0) rrect(bx,by2,Math.max(1,S.bw*ratio),S.bh,1,col);
+  // numeric HP for EVERY Pokémon (player + foe) so the real health is always visible
+  setFont(S.bf); const num=Math.max(0,Math.ceil(hpShow))+'/'+max;
+  text(num, x+w-tw(num)-6, y+h-(style==='big'?8:5), '#283048', S.bf);
   g.textBaseline='alphabetic';
 }
 function drawMainMenu(by){
@@ -3554,12 +3661,14 @@ function drawBattleMsg(by){
   if(!battle.msg) return;
   const lines=wrap(battle.msg, VW-44, 8);          // stable wrap of the full line; reveal by count below
   g.save(); g.beginPath(); g.rect(8,mby+4,VW-16,42); g.clip();
+  g.textBaseline='top';
   let count=battle.msgReveal|0;
   for(let i=0;i<lines.length && i<3;i++){
     const show=lines[i].slice(0, Math.max(0,count));
-    text(show,14,mby+13+i*12,'#283048',8);
+    text(show,14,mby+11+i*12,'#283048',8);
     count-=lines[i].length; if(count<0) count=0;
   }
+  g.textBaseline='alphabetic';
   g.restore();
   const done=battle.msgReveal>=battle.msg.length;
   if(done && battle.msgCb && !battle.drainGate && battle.msgAuto===0 && Math.floor(anim/34)%2){
@@ -3610,8 +3719,10 @@ function battleDraw(){
     for(let i=0;i<8;i++){ const ang=i/8*6.283, rr=(i%2?4:13)+(1-f)*10, px=Math.cos(ang)*rr, py=Math.sin(ang)*rr; i?g.lineTo(px,py):g.moveTo(px,py); }
     g.closePath(); g.fill(); g.restore(); g.globalAlpha=1;
     if(battle.hitCrit){ g.globalAlpha=f*0.16; g.fillStyle='#fff'; g.fillRect(-6,-6,VW+12,VH+12); g.globalAlpha=1; } }
-  if(e && battle.eShown) drawHPBar(12,16, e.name, e.lv, battle.ephShow, e.max, false);
-  if(battle.pShown) drawHPBar(VW-122,94, battle.player.name, battle.player.lv, battle.phpShow, battle.player.max, true);
+  const hpStyle = battle.bigBars?'big':'reg';
+  const pw = hpStyle==='big'?152:112;
+  if(e && battle.eShown) drawHPBar(10,14, e.name, e.lv, battle.ephShow, e.max, false, hpStyle);
+  if(battle.pShown) drawHPBar(VW-pw-6, hpStyle==='big'?92:96, battle.player.name, battle.player.lv, battle.phpShow, battle.player.max, true, hpStyle);
   for(const pr of game.particles){ g.globalAlpha=clamp(1-pr.t/pr.life,0,1); rect(pr.x|0,pr.y|0,2,2,pr.col); g.globalAlpha=1; }
   for(const h of game.hearts){ drawHeart(h.x,h.y,3,clamp(1-h.t/h.life,0,1)); }
   const by=VH-50;
@@ -3959,6 +4070,7 @@ function update(dt){
     case 'vsintro': vsUpdate(dt); break;
     case 'video': videoUpdate(dt); break;
     case 'evo': evoUpdate(dt); break;
+    case 'levelup': lvUpUpdate(dt); break;
     case 'cinema': cinemaUpdate(dt); break;
     case 'credits': creditsUpdate(dt); break;
   }
@@ -3978,6 +4090,7 @@ function render(){
     case 'vsintro': vsDraw(); break;
     case 'video': videoDraw(); break;
     case 'evo': evoDraw(); break;
+    case 'levelup': lvUpDraw(); break;
     case 'cinema': cinemaDraw(); break;
     case 'credits': creditsDraw(); break;
   }
