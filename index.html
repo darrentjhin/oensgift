@@ -3490,8 +3490,13 @@ function drawFightMenu(by){
     fitText(mv.name,cx,cy, mv.pp>0?'#283048':'#b04040',8, (i%2?180:104)-cx-3); }
   const ix=184, iw=VW-ix-4; uiBox(ix,by,iw,46);
   const mv=battle.player.moves[battle.moveSel];
-  text('PP '+mv.pp+'/'+mv.maxpp, ix+10,by+11,'#283048',8);
-  text('TYPE/',ix+10,by+25,'#283048',8); text(mv.type,ix+10,by+35,'#3a78c8',8);
+  const typeCol={Normal:'#8a8a7a',Dark:'#6a5a7a',Electric:'#d8a818',Fire:'#e8602a',Poison:'#9a4aa8',Flying:'#6a9ad0',Dragon:'#5a6ad8',Psychic:'#e05a9a',Fighting:'#c04030'}[mv.type]||'#3a78c8';
+  text('PP '+mv.pp+'/'+mv.maxpp, ix+10,by+12,'#283048',8);
+  text(mv.type.toUpperCase(), ix+10,by+25, typeCol,8);
+  const foe = battle.double ? (battle.foes&&battle.foes[battle.tgt]) : curEnemy();
+  if(foe){ const m=typeMult(mv.type, foe.type);
+    const lbl = m>1.5?'SUPER!' : (m===0?'NO EFFECT' : (m<1?'not very':''));
+    if(lbl) text(lbl, ix+10, by+37, m>1.5?'#e8a020':'#8090a4', 8); }
 }
 function drawBattleMsg(by){
   const mby=by-4;                                  // taller box: 3 lines of text never clip the frame
