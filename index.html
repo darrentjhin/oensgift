@@ -1370,11 +1370,11 @@ function townTile(ch,sx,sy,alt,tx,ty){
     rect(sx,sy,TS,TS,'#45576b');                                       // dark mullion grid behind the panes
     for(let r=0;r<2;r++) for(let c=0;c<2;c++){
       const wx=sx+1.5+c*8, wy=sy+1.5+r*8;                              // 8px pitch -> seamless across tile edges
-      const v=((tx*2+c)*3 + (ty*2+r)*7) % 9;
-      const pane = v<2 ? '#c6e4f6' : v<5 ? '#7da6c5' : '#9abfd9';       // varied reflective panes
+      const v=((tx*2+c)*3 + (ty*2+r)*7) % 9, lit=((tx*5+c*2)+(ty*3+r))%7===0;   // occasional warm-lit office window
+      const pane = lit ? '#ffe7a0' : (v<2 ? '#c6e4f6' : v<5 ? '#7da6c5' : '#9abfd9');
       rect(wx,wy,6,6,pane);
-      rect(wx,wy,6,1.6,'#dcf0fc');                                      // sky glint at top of pane
-      rect(wx,wy+4.4,6,1.6,'rgba(38,66,90,.5)'); }                      // shade at bottom of pane
+      rect(wx,wy,6,1.6, lit?'#fff4d4':'#dcf0fc');                       // glint / lit top
+      rect(wx,wy+4.4,6,1.6, lit?'rgba(180,140,40,.4)':'rgba(38,66,90,.5)'); } // shade at bottom of pane
     return; }
   if(ch==='r'){ // tower rooftop cap (clear roofline + rooftop units)
     rect(sx,sy,TS,TS,'#3a4a5e');                                       // roof slab
