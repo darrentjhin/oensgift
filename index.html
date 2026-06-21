@@ -29,7 +29,7 @@
 </head>
 <body>
 <div id="wrap"><canvas id="screen" width="256" height="192"></canvas></div>
-<div id="hint">WASD / Arrows = move &nbsp;·&nbsp; Space / Enter = action &nbsp;·&nbsp; Esc = menu &nbsp;·&nbsp; M = mute</div>
+<div id="hint">WASD / Arrows = move &nbsp;·&nbsp; Shift = run &nbsp;·&nbsp; Space / Enter = action &nbsp;·&nbsp; Esc = menu &nbsp;·&nbsp; M = mute</div>
 <div id="touch">
   <div class="dpad">
     <div class="btn" id="tc-up">▲</div>
@@ -203,7 +203,8 @@ const KMAP = {
   ArrowUp:'up', KeyW:'up', ArrowDown:'down', KeyS:'down',
   ArrowLeft:'left', KeyA:'left', ArrowRight:'right', KeyD:'right',
   Enter:'ok', Space:'ok', KeyZ:'ok', KeyJ:'ok',
-  Escape:'menu', KeyM:'mute'
+  Escape:'menu', KeyM:'mute',
+  ShiftLeft:'run', ShiftRight:'run'
 };
 addEventListener('keydown', e=>{
   const k = KMAP[e.code]; if(!k) return;
@@ -1797,7 +1798,7 @@ function tryStep(e, dir, ignoreEnt){
 }
 function updateEntity(e,dt){
   if(e.stepping){
-    e.sp += dt/130;
+    e.sp += dt/((e===game.player && keys.run && game.state==='play')?78:130);   // hold Shift to run
     if(e.sp>=1){ e.sp=1; e.stepping=false; e.px=e.tx*TS; e.py=e.ty*TS; e.frame^=1;
       if(e===game.player) onPlayerArrive();
       if(e.walkPath && e.walkPath.length){ const nd=e.walkPath.shift(); tryStep(e,nd,true); }
@@ -3121,6 +3122,14 @@ function drawSkipBtn(){
   g.textBaseline='alphabetic'; g.textAlign='left';
 }
 /* ===== end TEMP DEV ===== */
+// pulsing red danger vignette when the player's Pokémon is critically low (pairs with the lowhp beep)
+function drawLowHpVignette(){
+  const p=battle.player; if(!p || p.hp<=0 || p.hp>p.max*0.2 || battle.pFaint!==0) return;
+  const pulse=0.16+0.14*(Math.sin(anim*0.16)*0.5+0.5);
+  const vg=g.createRadialGradient(VW/2,VH/2,VH*0.34, VW/2,VH/2,VH*0.8);
+  vg.addColorStop(0,'rgba(210,40,40,0)'); vg.addColorStop(1,'rgba(190,18,18,'+pulse.toFixed(3)+')');
+  g.fillStyle=vg; g.fillRect(0,0,VW,VH);
+}
 /* =========================================================================
    TRUE 2v2 DOUBLE BATTLE  (Oen + Prof. Oak  vs  Giovanni & Ariana)
    Self-contained path, guarded by battle.double; reuses calcDmg / MOVE_FX /
@@ -3314,6 +3323,7 @@ function dblDraw(){
   else if(battle.phase==='targetsel') drawDblTargetPrompt(by);
   else drawBattleMsg(by);
   if(battle.startFx>0){ g.globalAlpha=clamp(battle.startFx,0,1)*0.8*(Math.sin(anim*0.55)*0.5+0.5); g.fillStyle='#fff'; g.fillRect(0,0,VW,VH); g.globalAlpha=1; }
+  drawLowHpVignette();
   drawSkipBtn();   // TEMP DEV
 }
 function drainTo(cur,target){ const d=target-cur; if(Math.abs(d)<0.12) return target; return cur + Math.sign(d)*Math.min(Math.abs(d), 0.14); } // slow, dramatic HP drain
@@ -3557,6 +3567,7 @@ function battleDraw(){
   if(battle.startFx>0){ g.globalAlpha=clamp(battle.startFx,0,1)*0.8*(Math.sin(anim*0.55)*0.5+0.5); g.fillStyle='#fff'; g.fillRect(0,0,VW,VH); g.globalAlpha=1; }
   g.restore();
   drawFloaters();
+  drawLowHpVignette();
   drawSkipBtn();   // TEMP DEV
 }
 function drawTransformOverlay(){
