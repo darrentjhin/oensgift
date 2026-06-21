@@ -1920,7 +1920,7 @@ function drawWorld(){
   const ents=game.entities.filter(e=>e.visible).slice().sort((a,b)=>(a.py+ (a.kind==='mon'?8:0))-(b.py));
   for(const e of ents){
     const ex=Math.round(e.px+ox), ey=Math.round(e.py+oy);
-    if(e.kind==='char'){ drawChar(e.sub, ex, ey-4, e.dir, e.stepping?(e.sp<0.5?1:0):0); }
+    if(e.kind==='char'){ if(e.sub) ellipse(ex+8,ey+14,5,2,C.shadow); drawChar(e.sub, ex, ey-4, e.dir, e.stepping?(e.sp<0.5?1:0):0); }
     else if(e.kind==='mon'){ ellipse(ex+8,ey+15,5,2,C.shadow); const bob=Math.sin((anim+e.bob*10)/16)*1; drawMon(e.sub, ex+8, ey+8+bob, e.R||6); }
     else if(e.kind==='obj'){ if(e.draw) e.draw(ex,ey); }
   }
