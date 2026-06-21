@@ -57,12 +57,22 @@ const TEXT_FAST = 0.5;               // ~30 chars/sec while Space is held/presse
 // player-facing accessibility/feel settings (persisted in localStorage)
 const TEXT_SPEED_MUL = [0.6, 1, 2.0];          // Slow / Normal / Fast multipliers on TEXT_SLOW
 const TEXT_SPEED_LABEL = ['Slow','Normal','Fast'];
-const settings = { textSpeed:1, shake:true };  // textSpeed = index into the arrays above
+const VOL_MUL = [0, 0.35, 0.65, 1.0];          // Off / Low / Med / High
+const VOL_LABEL = ['Off','Low','Med','High'];
+const settings = { textSpeed:1, shake:true, volume:3 };  // textSpeed/volume = index into the arrays above
 try{ const s=JSON.parse(localStorage.getItem('poke3lights_settings')||'{}');
   if(typeof s.textSpeed==='number') settings.textSpeed=clampInt(s.textSpeed,0,2);
-  if(typeof s.shake==='boolean') settings.shake=s.shake; }catch(e){}
+  if(typeof s.shake==='boolean') settings.shake=s.shake;
+  if(typeof s.volume==='number') settings.volume=clampInt(s.volume,0,3); }catch(e){}
 function clampInt(v,a,b){ v=v|0; return v<a?a:v>b?b:v; }
 function saveSettings(){ try{ localStorage.setItem('poke3lights_settings', JSON.stringify(settings)); }catch(e){} }
+function applyVolume(){ const m=VOL_MUL[settings.volume];
+  if(typeof audio!=='undefined'){
+    if(audio.master) audio.master.gain.value = 0.9*m;
+    if(audio.musicEl) audio.musicEl.volume = 0.6*m;
+    audio.muted = (settings.volume===0);
+  } }
+function setVolume(v){ settings.volume=clampInt(v,0,3); saveSettings(); applyVolume(); }
 function textRevealStep(){ return TEXT_SLOW*TEXT_SPEED_MUL[settings.textSpeed]; }
 function shakeAmt(){ return settings.shake?1:0; }
 const cv = document.getElementById('screen');
@@ -212,7 +222,7 @@ addEventListener('keydown', e=>{
   if(!keys[k]) pressed[k] = true;
   keys[k] = true;
   if(!audio.started) audio.start();
-  if(k==='mute') audio.toggleMute();
+  if(k==='mute') setVolume(settings.volume===0 ? 3 : 0);   // M = quick mute toggle (Off <-> High)
 });
 addEventListener('keyup', e=>{ const k=KMAP[e.code]; if(k){ e.preventDefault(); keys[k]=false; } });
 function consume(k){ if(pressed[k]){ pressed[k]=false; return true; } return false; }
@@ -330,6 +340,7 @@ const audio = {
       const b=this.ctx.createBuffer(1, this.ctx.sampleRate*0.5, this.ctx.sampleRate);
       const d=b.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1; this.noiseBuf=b;
     }catch(e){ this.ctx=null; }
+    applyVolume();                           // honour the saved volume setting
     if(this.track) this.play(this.track);   // plays a custom file even if WebAudio is unavailable
   },
   // load any user-supplied music/sfx files listed in ASSETS
@@ -3799,7 +3810,7 @@ function restoreGame(state){
 const pause = { sel:0, msg:'', msgT:0 };
 const PAUSE_ITEMS=6;
 function pauseBtns(){ return ['Resume','Save Game','Text Speed: '+TEXT_SPEED_LABEL[settings.textSpeed],
-  'Screen Shake: '+(settings.shake?'On':'Off'), audio.muted?'Unmute':'Mute','Title']; }
+  'Screen Shake: '+(settings.shake?'On':'Off'), 'Volume: '+VOL_LABEL[settings.volume],'Title']; }
 function pauseDraw(){
   drawWorld(); drawObjectiveHUD();
   g.fillStyle='rgba(10,8,16,.8)'; g.fillRect(0,0,VW,VH);
@@ -3812,7 +3823,7 @@ function pauseDraw(){
     const byi=by0+i*(bh0+gap);
     if(i===pause.sel){ poly([[bx+8,byi+1],[bx+8,byi+9],[bx+13,byi+5]],'#e23b3b');
       rrect(bx+16,byi-4,bw-24,15,3,'rgba(74,115,192,.14)'); }
-    const adj=(i===2||i===3);
+    const adj=(i===2||i===3||i===4);
     text((i===pause.sel&&adj?'◂ ':'')+btns[i], bx+20, byi+6, i===pause.sel?'#16203a':'#445', 8);
   }
   if(pause.msg && pause.msgT>0){ pause.msgT--; const alph=Math.min(1,pause.msgT/60); g.globalAlpha=alph;
@@ -3828,6 +3839,7 @@ function pauseUpdate(){
     if(left||right){
       if(pause.sel===2){ settings.textSpeed=clampInt(settings.textSpeed+(right?1:-1),0,2); saveSettings(); audio.sfx('cursor'); }
       else if(pause.sel===3){ settings.shake=!settings.shake; saveSettings(); audio.sfx('cursor'); }
+      else if(pause.sel===4){ setVolume(settings.volume+(right?1:-1)); audio.sfx('cursor'); }
     }
   }
   if(consume('ok')){
@@ -3836,7 +3848,7 @@ function pauseUpdate(){
     else if(pause.sel===1){ pause.msg=saveSystem.save(); pause.msgT=100; }
     else if(pause.sel===2){ settings.textSpeed=(settings.textSpeed+1)%3; saveSettings(); pause.msg='Text speed: '+TEXT_SPEED_LABEL[settings.textSpeed]; pause.msgT=80; }
     else if(pause.sel===3){ settings.shake=!settings.shake; saveSettings(); pause.msg='Screen shake: '+(settings.shake?'On':'Off'); pause.msgT=80; }
-    else if(pause.sel===4){ audio.toggleMute(); pause.msg=audio.muted?'Sound off':'Sound on'; pause.msgT=60; }
+    else if(pause.sel===4){ setVolume((settings.volume+1)%4); pause.msg='Volume: '+VOL_LABEL[settings.volume]; pause.msgT=70; }
     else if(pause.sel===5){
       if(pause.confirmQuit){ pause.confirmQuit=false; game.paused=false; resetToTitle(); }
       else { pause.confirmQuit=true; pause.msg='Quit to title? Pick Title again to confirm.'; pause.msgT=200; }
