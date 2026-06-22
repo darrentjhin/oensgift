@@ -120,7 +120,7 @@ const ASSETS = {
   char:  { oen:'', oak:'', asst:'', kid:'', grunt:'', rook:'' },
   // full-screen painted backdrops (4K AI art, downscaled): title, establishing shots,
   // battle arenas, evolution cinematic, and illustrated intro story panels.
-  scene: { town:'assets/town.png', evo:'assets/evo.png', poppy:'assets/poppy.png',
+  scene: { town:'assets/town.png', evo:'assets/evo.png', poppy:'assets/poppy.png', poppySylveon:'assets/poppy_sylveon.png',
            lab:'assets/lab.png', station:'assets/station.png', warehouse:'assets/warehouse.png',
            garden:'assets/garden.png', hideout:'assets/hideout.png',
            bg_field:'assets/bg_field.png', bg_boss:'assets/bg_boss.png',
@@ -3907,7 +3907,7 @@ function introUpdate(dt){
 }
 
 // credits
-const credits={t:0, cb:null, active:false};
+const credits={t:0, cb:null, active:false, phase:'scroll', phaseT:0};
 const CREDIT_LINES=[
   '',
   'And so, after saving three stolen Pokémon',
@@ -3928,41 +3928,74 @@ const CREDIT_LINES=[
   'Sylveon joined Oen\'s team.',
   '',
   '',
-  'Sylveon will always choose Oen.',
   '♥',
   '',
   'Made with love, for Oen.',
   '',
 ];
-function startCredits(cb){ credits.active=true; credits.t=0; credits.cb=cb; game.state='credits'; audio.play('emotion'); }
+function startCredits(cb){ credits.active=true; credits.t=0; credits.cb=cb; credits.phase='scroll'; credits.phaseT=0; game.state='credits'; audio.play('emotion'); }
+function markGameComplete(){ try{ localStorage.setItem('poke3lights_done','1'); }catch(e){} }
 function creditsUpdate(dt){
-  credits.t+=dt*0.0018;   // 0.8x of the previous scroll speed (slower)
-  if((anim%40)===0) spawnHearts(Math.random()*VW, VH+6, 1);
-  for(const h of game.hearts){ } // updated globally
+  if(credits.phase==='scroll'){
+    credits.t+=dt*0.0018;   // 0.8x scroll speed
+    if((anim%40)===0) spawnHearts(Math.random()*VW, VH+6, 1);
+    const totalH=CREDIT_LINES.length*18;
+    if(credits.t*14 > totalH-VH+30 || (consume('ok')&&credits.t>0.4)){ credits.phase='photo'; credits.phaseT=0; }
+    return;
+  }
+  credits.phaseT+=dt;
+  if(credits.phase==='photo'){
+    if((anim%34)===0) spawnHearts(Math.random()*VW, VH+6, 1);
+    if(consume('ok')&&credits.phaseT>400){ audio.sfx('confirm'); markGameComplete(); credits.phase='card1'; credits.phaseT=0; }
+    return;
+  }
+  if(credits.phase==='card1'){ if(credits.phaseT>=7500){ audio.sfx('confirm'); credits.phase='card2'; credits.phaseT=0; } return; }
+  if(credits.phase==='card2'){ if(credits.phaseT>=4000){ audio.fanfare(); credits.phase='thanks'; credits.phaseT=0; } return; }
+  if(credits.phase==='thanks'){ if(consume('ok')&&credits.phaseT>700){ credits.active=false; resetToTitle(); } return; }
 }
 function creditsDraw(){
-  const grd=g.createLinearGradient(0,0,0,VH); grd.addColorStop(0,'#2a1838'); grd.addColorStop(1,'#5a2a4a');
-  g.fillStyle=grd; g.fillRect(0,0,VW,VH);
   g.textAlign='center';
-  const startY=VH+10;
-  let y=startY - credits.t*14;
-  for(const ln of CREDIT_LINES){
-    if(y>-10 && y<VH+10){
-      const col = ln==='♥'? '#f6a8c8' : (ln.indexOf('MISSION')>=0||ln.indexOf('Stolen')>=0)? '#f6d62e':'#f8f8f0';
-      textShadow(ln,VW/2,y,col,'#1a0a1a', ln==='MISSION COMPLETE'?12:10);
+  if(credits.phase==='scroll'){
+    const grd=g.createLinearGradient(0,0,0,VH); grd.addColorStop(0,'#2a1838'); grd.addColorStop(1,'#5a2a4a');
+    g.fillStyle=grd; g.fillRect(0,0,VW,VH);
+    let y=(VH+10) - credits.t*14;
+    for(const ln of CREDIT_LINES){
+      if(y>-10 && y<VH+10){
+        const col = ln==='♥'? '#f6a8c8' : (ln.indexOf('MISSION')>=0||ln.indexOf('Stolen')>=0)? '#f6d62e':'#f8f8f0';
+        textShadow(ln,VW/2,y,col,'#1a0a1a', ln==='MISSION COMPLETE'?12:10);
+      }
+      y+=18;
     }
-    y+=18;
-  }
-  // sylveon at bottom-ish appears near end
-  const totalH=CREDIT_LINES.length*18;
-  if(credits.t*14 > totalH-VH){
-    drawMon('sylveon',VW/2, 70, 22);
-    if(Math.floor(anim/30)%2) text('Press SPACE',VW/2,140,'#fff',9);
-    if(consume('ok')){ // loop back to title
-      credits.active=false; g.textAlign='left';
-      resetToTitle();
-      return;
+    if(Math.floor(anim/40)%2) text('SPACE  ▸  skip', VW/2, VH-8, 'rgba(255,255,255,.55)', 7);
+  } else if(credits.phase==='photo'){
+    const grd=g.createLinearGradient(0,0,0,VH); grd.addColorStop(0,'#2a1838'); grd.addColorStop(1,'#3a1f3a');
+    g.fillStyle=grd; g.fillRect(0,0,VW,VH);
+    const im=sceneImg('poppySylveon');
+    if(im) drawCover(im,1,0);
+    else { drawMon('sylveon',VW/2-22,90,20); drawPoppy(VW/2+18,108,'down',0); }
+    // soft bottom scrim for the hint
+    const sc=g.createLinearGradient(0,VH-22,0,VH); sc.addColorStop(0,'rgba(20,10,26,0)'); sc.addColorStop(1,'rgba(20,10,26,.7)');
+    g.fillStyle=sc; g.fillRect(0,VH-22,VW,22);
+    if(Math.floor(anim/30)%2) textShadow('press SPACE to continue', VW/2, VH-8, '#fff', '#2a1020', 8);
+  } else {
+    // card-dispenser black screens
+    g.fillStyle='#000'; g.fillRect(0,0,VW,VH);
+    g.textBaseline='middle';
+    if(credits.phase==='card1'){
+      textShadow('Dispensing your card,', VW/2, VH/2-8, '#f6e8b0', '#000', 11);
+      textShadow('please wait', VW/2, VH/2+8, '#f6e8b0', '#000', 11);
+      // little progress dots
+      const n=(Math.floor(credits.phaseT/400)%4); let d=''; for(let i=0;i<n;i++) d+='.';
+      text(d, VW/2, VH/2+28, '#9a8a5a', 11);
+    } else if(credits.phase==='card2'){
+      textShadow('Check the compartment', VW/2, VH/2-8, '#bfe6c0', '#000', 11);
+      textShadow('in front of you', VW/2, VH/2+8, '#bfe6c0', '#000', 11);
+    } else { // thanks
+      textShadow('Thanks for playing', VW/2, VH/2-2, '#f6a8c8', '#2a1020', 13);
+      drawHeart(VW/2, VH/2+16, 5, 1);
+      if(Math.floor(anim/30)%2) text('press SPACE', VW/2, VH-14, 'rgba(255,255,255,.6)', 8);
     }
+    g.textBaseline='alphabetic';
   }
   g.textAlign='left';
   for(const h of game.hearts){ drawHeart(h.x,h.y,3,clamp(1-h.t/h.life,0,1)); }
