@@ -120,7 +120,7 @@ const ASSETS = {
   char:  { oen:'', oak:'', asst:'', kid:'', grunt:'', rook:'' },
   // full-screen painted backdrops (4K AI art, downscaled): title, establishing shots,
   // battle arenas, evolution cinematic, and illustrated intro story panels.
-  scene: { town:'assets/town.png', evo:'assets/evo.png', poppy:'assets/poppy.png', poppySylveon:'assets/poppy_sylveon.png',
+  scene: { town:'assets/town.png', evo:'assets/evo.png', poppy:'assets/poppy.png', poppySylveon:'assets/poppy_sylveon.png', poppySylveonCut:'assets/poppy_sylveon_cut.png',
            lab:'assets/lab.png', station:'assets/station.png', warehouse:'assets/warehouse.png',
            garden:'assets/garden.png', hideout:'assets/hideout.png',
            bg_field:'assets/bg_field.png', bg_boss:'assets/bg_boss.png',
@@ -234,7 +234,13 @@ cv.addEventListener('pointerdown', (ev)=>{
   const r=cv.getBoundingClientRect();
   const mx=(ev.clientX-r.left)/r.width*VW, my=(ev.clientY-r.top)/r.height*VH;
   if(game.state==='title'){
-    if(saveSystem.hasSave()){
+    if(titleComplete()){
+      // left-stacked menu: New Game (top) / Continue (below)
+      if(mx>=10 && mx<=120){
+        if(my>=96 && my<=118){ game.titleSel=0; audio.sfx('confirm'); startCharIntro(); }
+        else if(my>=120 && my<=142){ game.titleSel=1; audio.sfx('confirm'); const s=saveSystem.load(); if(s) restoreGame(s); else startCharIntro(); }
+      }
+    } else if(saveSystem.hasSave()){
       if(my>114 && my<140){
         audio.sfx('confirm');
         if(mx < VW/2){ startCharIntro(); } else { const s=saveSystem.load(); if(s) restoreGame(s); }
@@ -3775,6 +3781,7 @@ function titleVideoFrame(){   // muted, looping, autoplay-safe animated title ba
   if(titleVidEl.readyState>=2) return drawCover(titleVidEl,1,0);
   return false;
 }
+function titleComplete(){ try{ return localStorage.getItem('poke3lights_done')==='1'; }catch(e){ return false; } }
 function titleDraw(){
   const art=sceneImg('town');
   const hasBg = titleVideoFrame() || (art && drawCover(art, 1, Math.sin(anim/600)*4));
@@ -3797,18 +3804,34 @@ function titleDraw(){
   // three lights
   const ph=(Math.sin(anim/20)+1)/2;
   // three lights - painted hi-res sprites (R>=16 uses the PNGs, not the small procedural fallback)
-  const bob=Math.sin(anim/22)*1.6, R=19;
-  const trio=[['jolteon',VW/2-54,bob],['flareon',VW/2,-bob],['sylveon',VW/2+54,bob]];
-  for(const m of trio){ ellipse(m[1],118,14,3.6,'rgba(20,14,30,.30)'); drawMon(m[0],m[1],98+m[2],R); }
-  spawnHeartsAuto(VW/2+54,92);
-  if(saveSystem.hasSave()){
+  if(!titleComplete()){
+    const bob=Math.sin(anim/22)*1.6, R=19;
+    const trio=[['jolteon',VW/2-54,bob],['flareon',VW/2,-bob],['sylveon',VW/2+54,bob]];
+    for(const m of trio){ ellipse(m[1],118,14,3.6,'rgba(20,14,30,.30)'); drawMon(m[0],m[1],98+m[2],R); }
+    spawnHeartsAuto(VW/2+54,92);
+    if(saveSystem.hasSave()){
+      const opts=['New Game','Continue'];
+      for(let i=0;i<2;i++){ const ox=VW/2-40+i*70, sel=game.titleSel===i;
+        textShadow(opts[i], ox, 126, sel?'#ffe24a':'#cfd6ff', '#2a2a4a', 9);
+        if(sel && Math.floor(anim/24)%2) textShadow('▸', ox-12, 126, '#ffe24a','#2a2a4a',9);
+      }
+    } else if(Math.floor(anim/30)%2){ textShadow('Press SPACE / ENTER to start',VW/2,128,'#fff','#2a2a4a',9); }
+    textShadow('A rescue made for Oen ♥',VW/2,146,'#f6a8c8','#5a2a4a',8);
+  } else {
+    // completed cover: Poppy & Sylveon photo (no eeveelutions) + left-stacked menu
+    const im=sceneImg('poppySylveonCut');
+    if(im){ const ih=128, iw=ih*(im.naturalWidth/im.naturalHeight);
+      ellipse(VW-6-iw/2, 56+ih-4, iw*0.34, 5, 'rgba(20,14,30,.30)');
+      g.drawImage(im, VW-iw-4, 52+Math.sin(anim/40)*1.4, iw, ih); }
+    spawnHeartsAuto(VW-48, 78);
+    g.textAlign='left';
     const opts=['New Game','Continue'];
-    for(let i=0;i<2;i++){ const ox=VW/2-40+i*70, sel=game.titleSel===i;
-      textShadow(opts[i], ox, 126, sel?'#ffe24a':'#cfd6ff', '#2a2a4a', 9);
-      if(sel && Math.floor(anim/24)%2) textShadow('▸', ox-12, 126, '#ffe24a','#2a2a4a',9);
+    for(let i=0;i<2;i++){ const oy=106+i*24, sel=game.titleSel===i;
+      if(sel && Math.floor(anim/24)%2) textShadow('▸', 14, oy, '#ffe24a','#2a2a4a',12);
+      textShadow(opts[i], 30, oy, sel?'#ffe24a':'#dfe4ff', '#2a2a4a', 12);
     }
-  } else if(Math.floor(anim/30)%2){ textShadow('Press SPACE / ENTER to start',VW/2,128,'#fff','#2a2a4a',9); }
-  textShadow('A rescue made for Oen ♥',VW/2,146,'#f6a8c8','#5a2a4a',8);
+    textShadow('A rescue made for Oen ♥', 24, 164, '#f6a8c8','#5a2a4a',8);
+  }
   g.textAlign='left';
   // hearts
   for(const h of game.hearts){ drawHeart(h.x,h.y,3,clamp(1-h.t/h.life,0,1)); }
@@ -4146,7 +4169,7 @@ function update(dt){
 
   switch(game.state){
     case 'title':
-      if(saveSystem.hasSave()){
+      if(saveSystem.hasSave() || titleComplete()){
         if(consume('up')||consume('down')||consume('left')||consume('right')){ game.titleSel=game.titleSel?0:1; audio.sfx('cursor'); }
         if(consume('ok')){ audio.sfx('confirm');
           if(game.titleSel===1){ const s=saveSystem.load(); if(s){ restoreGame(s); break; } }
