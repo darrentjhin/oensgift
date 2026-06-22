@@ -49,11 +49,27 @@ def strip(inp, outp, thresh=232, fill_holes=False):
 
     cleared = visited.copy()
     if fill_holes:
-        # also clear PURE-white pockets trapped inside the subject (e.g. the
-        # background gaps enclosed by Rayquaza's coils). Strict purity keeps
-        # the subject's own shaded light areas intact.
-        pure = (rgb.min(axis=2) >= 244) & (rgb.max(axis=2) - rgb.min(axis=2) <= 10)
-        cleared |= (pure & ~visited)
+        # also clear LARGE pure-white pockets trapped inside the subject (e.g.
+        # background gaps enclosed by Rayquaza's coils or a Flareon tail curl).
+        # Strict purity + a min-size threshold keep the subject's own shaded
+        # light areas AND tiny white details (eye glints) intact.
+        pure = (rgb.min(axis=2) >= 244) & (rgb.max(axis=2) - rgb.min(axis=2) <= 10) & ~visited
+        min_hole = max(2500, int(h * w * 0.003))
+        pv = np.zeros((h, w), bool)
+        pys, pxs = np.where(pure)
+        for sy, sx in zip(pys.tolist(), pxs.tolist()):
+            if pv[sy, sx]:
+                continue
+            stack = [(sy, sx)]; pv[sy, sx] = True; comp = []
+            while stack:
+                y, x = stack.pop(); comp.append((y, x))
+                for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    ny, nx = y + dy, x + dx
+                    if 0 <= ny < h and 0 <= nx < w and pure[ny, nx] and not pv[ny, nx]:
+                        pv[ny, nx] = True; stack.append((ny, nx))
+            if len(comp) >= min_hole:
+                for (y, x) in comp:
+                    cleared[y, x] = True
 
     arr[:, :, 3] = np.where(cleared, 0, arr[:, :, 3])
     visited = cleared
