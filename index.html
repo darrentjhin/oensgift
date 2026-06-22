@@ -135,7 +135,8 @@ const ASSETS = {
              warehouse:'assets/area_warehouse.mp4', garden:'assets/area_garden.mp4', hideout:'assets/area_hideout.mp4' },
   _img:{},
 };
-function loadImg(key,src){ const im=new Image(); im.onload=()=>{ASSETS._img[key]=im;}; im.onerror=()=>{}; im.src=src; }
+const ASSET_VER='20260621c';   // bump whenever an asset file is replaced, so browsers refetch instead of serving a stale cached copy
+function loadImg(key,src){ const im=new Image(); im.onload=()=>{ASSETS._img[key]=im;}; im.onerror=()=>{}; im.src=src+(src.indexOf('?')<0?'?v='+ASSET_VER:''); }
 function loadAssetImages(){
   for(const sp in ASSETS.mon){ if(ASSETS.mon[sp]) loadImg('mon:'+sp, ASSETS.mon[sp]); }
   for(const k in ASSETS.char){ if(ASSETS.char[k]) loadImg('char:'+k, ASSETS.char[k]); }
