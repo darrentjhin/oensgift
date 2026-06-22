@@ -120,7 +120,7 @@ const ASSETS = {
   char:  { oen:'', oak:'', asst:'', kid:'', grunt:'', rook:'' },
   // full-screen painted backdrops (4K AI art, downscaled): title, establishing shots,
   // battle arenas, evolution cinematic, and illustrated intro story panels.
-  scene: { town:'assets/town.png', evo:'assets/evo.png',
+  scene: { town:'assets/town.png', evo:'assets/evo.png', poppy:'assets/poppy.png',
            lab:'assets/lab.png', station:'assets/station.png', warehouse:'assets/warehouse.png',
            garden:'assets/garden.png', hideout:'assets/hideout.png',
            bg_field:'assets/bg_field.png', bg_boss:'assets/bg_boss.png',
@@ -237,9 +237,14 @@ cv.addEventListener('pointerdown', (ev)=>{
     if(saveSystem.hasSave()){
       if(my>114 && my<140){
         audio.sfx('confirm');
-        if(mx < VW/2){ newGame(); } else { const s=saveSystem.load(); if(s) restoreGame(s); }
+        if(mx < VW/2){ startCharIntro(); } else { const s=saveSystem.load(); if(s) restoreGame(s); }
       }
-    } else { audio.sfx('confirm'); newGame(); }
+    } else { audio.sfx('confirm'); startCharIntro(); }
+    return;
+  }
+  if(game.state==='charintro'){
+    const b=CHARINTRO_BTN;
+    if(mx>=b.x && mx<=b.x+b.w && my>=b.y && my<=b.y+b.h){ audio.sfx('confirm'); newGame(); }
     return;
   }
   if(game.state==='minigame'){ miniClick(mx,my); return; }
@@ -3809,6 +3814,46 @@ function titleDraw(){
 let heartTimer=0;
 function spawnHeartsAuto(x,y){ heartTimer++; if(heartTimer%50===0) spawnHearts(x,y,1); }
 
+/* ---- Character intro page (after New Game): Oen/Poppy portrait + Start button ---- */
+const CHARINTRO_BTN = { x:VW/2-60, y:158, w:120, h:22 };
+function startCharIntro(){ if(!audio.started) audio.start(); game.state='charintro'; game.hearts=[]; clearPressed(); }
+function charIntroUpdate(dt){
+  if(consume('ok')){ audio.sfx('confirm'); newGame(); }
+  if(consume('menu')){ audio.sfx('cancel'); game.state='title'; }   // back to title
+}
+function charIntroDraw(){
+  // dimmed painted-town backdrop
+  const art=sceneImg('town');
+  if(art && drawCover(art,1,0)){ g.fillStyle='rgba(16,12,28,.66)'; g.fillRect(0,0,VW,VH); }
+  else { const grd=g.createLinearGradient(0,0,0,VH); grd.addColorStop(0,'#241a3e'); grd.addColorStop(1,'#3a2a5a'); g.fillStyle=grd; g.fillRect(0,0,VW,VH); }
+  // Poppy / Oen portrait
+  const im=sceneImg('poppy');
+  const ph=116, pw= im? ph*(im.naturalWidth/im.naturalHeight) : 42;
+  const ptop=12, gx=VW/2, gy=ptop+ph*0.46;
+  const rg=g.createRadialGradient(gx,gy,4,gx,gy,74); rg.addColorStop(0,'rgba(255,238,196,.26)'); rg.addColorStop(1,'rgba(255,238,196,0)');
+  g.fillStyle=rg; g.beginPath(); g.arc(gx,gy,74,0,7); g.fill();
+  ellipse(VW/2, ptop+ph-2, pw*0.46, 4.5, 'rgba(10,6,20,.45)');
+  if(im) g.drawImage(im, VW/2-pw/2, ptop+Math.sin(anim/40)*1.2, pw, ph);
+  else drawPoppy(VW/2, ptop+ph-14, 'down', 0);
+  spawnHeartsAuto(VW/2+pw*0.5, ptop+ph*0.4);
+  // name "Oen" + heart logo, centred as a group
+  g.textAlign='center'; g.textBaseline='middle'; setFont(13);
+  const ny=ptop+ph+12, nw=tw('Oen');
+  textShadow('Oen', VW/2-9, ny, '#fff', '#3a2444', 13);
+  drawHeart(VW/2 + nw/2 + 1, ny, 4.5, 1);
+  // Start button (pulsing)
+  const b=CHARINTRO_BTN, pulse=0.5+0.5*Math.sin(anim/14);
+  rrect(b.x,b.y,b.w,b.h,7,'#1d2336');
+  const bg=g.createLinearGradient(0,b.y,0,b.y+b.h); bg.addColorStop(0,'#ffd86a'); bg.addColorStop(1,'#e8a93a');
+  g.fillStyle=bg; rpath(b.x+2,b.y+2,b.w-4,b.h-4,5); g.fill();
+  g.strokeStyle='rgba(255,244,210,'+(0.4+pulse*0.5).toFixed(2)+')'; g.lineWidth=1.4; rpath(b.x+1,b.y+1,b.w-2,b.h-2,6); g.stroke();
+  textShadow('START ADVENTURE', VW/2, b.y+b.h/2+0.5, '#3a2410', 'rgba(255,255,255,.4)', 9);
+  g.textBaseline='alphabetic';
+  if(Math.floor(anim/36)%2) text('press SPACE / ENTER', VW/2, VH-6, 'rgba(255,255,255,.6)', 7);
+  g.textAlign='left';
+  for(const h of game.hearts){ drawHeart(h.x,h.y,3,clamp(1-h.t/h.life,0,1)); }
+}
+
 const INTRO_PAGES=[
   'In the peaceful town of Pallet, Professor Oak has studied one of the most mysterious Pokémon of all: Eevee.',
   'Eevee is special. It can evolve into many forms, each shaped by its bond, its environment, and its energy.',
@@ -4057,10 +4102,11 @@ function update(dt){
         if(consume('up')||consume('down')||consume('left')||consume('right')){ game.titleSel=game.titleSel?0:1; audio.sfx('cursor'); }
         if(consume('ok')){ audio.sfx('confirm');
           if(game.titleSel===1){ const s=saveSystem.load(); if(s){ restoreGame(s); break; } }
-          newGame();
+          startCharIntro();
         }
-      } else if(consume('ok')){ audio.sfx('confirm'); newGame(); }
+      } else if(consume('ok')){ audio.sfx('confirm'); startCharIntro(); }
       break;
+    case 'charintro': charIntroUpdate(dt); break;
     case 'intro': introUpdate(dt); break;
     case 'play': playUpdate(dt); break;
     case 'cutscene':
@@ -4084,6 +4130,7 @@ function render(){
   g.fillStyle='#000'; g.fillRect(0,0,VW,VH);
   switch(game.state){
     case 'title': titleDraw(); break;
+    case 'charintro': charIntroDraw(); break;
     case 'intro': introDraw(); break;
     case 'play': drawWorld(); drawInteractPrompt(); drawObjectiveHUD(); break;
     case 'cutscene': drawWorld(); dlgDraw(); break;
