@@ -2105,7 +2105,8 @@ function runLabIntro(oak,asst){
     {type:'face',id:'sylveon',dir:'down'},
     {type:'func',fn:reach}, {type:'hearts',id:'sylveon'},
     {type:'say',name:'Prof. Oak',text:'Ah, Oen! You arrived at the perfect time. These Pokémon need someone kind to help observe them today.'},
-    // alarm
+    // alarm - the break-in: swap to the tense/ominous theme (stays until Oen leaves the lab)
+    {type:'music',name:'tense'},
     {type:'flash',col:'#d83838',ms:200},{type:'sfx',name:'spark'},{type:'shake',ms:300},
     {type:'say',name:'Assistant',text:'Professor! Someone is breaking into the security system!'},
     {type:'flash',col:'#222',ms:400},{type:'sfx',name:'faint'},
