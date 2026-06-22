@@ -1396,19 +1396,26 @@ function townTile(ch,sx,sy,alt,tx,ty){
       rect(wx,wy,6,1.6, lit?'#fff4d4':'#dcf0fc');                       // glint / lit top
       rect(wx,wy+4.4,6,1.6, lit?'rgba(180,140,40,.4)':'rgba(38,66,90,.5)'); } // shade at bottom of pane
     return; }
-  if(ch==='g'){ // glass-tower GROUND FLOOR: a GRAND lobby entrance, seamless across adjacent 'g' tiles
-    const row=(game.map&&game.map.tiles&&game.map.tiles[ty])||null;
-    const L=row && row[tx-1]==='g', R=row && row[tx+1]==='g';   // part of a wider door?
+  if(ch==='g'){ // glass-tower GROUND FLOOR: a TALL, symmetric lobby entrance (seamless across stacked/side-by-side 'g')
+    const tl=game.map&&game.map.tiles;
+    const up = tl && tl[ty-1] && tl[ty-1][tx]==='g';   // door continues above (this is a lower/body tile)
+    const dn = tl && tl[ty+1] && tl[ty+1][tx]==='g';   // door continues below (this is the top tile)
+    const lf = tl && tl[ty] && tl[ty][tx-1]==='g';
+    const rt = tl && tl[ty] && tl[ty][tx+1]==='g';
     rect(sx,sy,TS,TS,'#3a4658');                                       // stone surround
-    rect(sx+1.5,sy+0.6,TS-3,2.2,'#7da6c5'); rect(sx+1.5,sy+0.6,TS-3,0.8,'#dcf0fc'); // glass band above
-    const x0=sx+(L?0:2), x1=sx+TS-(R?0:2), top=sy+5, bh2=TS-(top-sy)-1;
-    rect(x0,top,x1-x0,bh2,'#19222e');                                  // tall dark-glass doorway (fills most of the tile)
-    for(let mxp=sx+TS/2; mxp<x1-0.5; mxp+=TS/2){ rect(mxp-0.4,top,0.8,bh2,'#46586c'); } // door splits across the span
-    if(L) rect(sx-0.4,top,0.8,bh2,'#46586c');                          // seam split at the tile join
-    rect(x0,top,x1-x0,1.6,'#7088a0');                                  // lit transom
-    rect(sx,sy+3.2,TS,2.4,'#6c8198'); rect(sx,sy+3.2,TS,1,'#88a2bc');  // wide entrance canopy (full tile width)
-    if(!L) rect(sx,top,2,bh2,'#4a5a6e');                               // outer jambs only at the ends
-    if(!R) rect(sx+TS-2,top,2,bh2,'#4a5a6e');
+    const x0=sx+(lf?0:3), x1=sx+TS-(rt?0:3);                           // symmetric jambs on the outer edges
+    const gtop = up? sy : sy+5;                                        // top tile leaves room for the canopy
+    const gbot = dn? sy+TS : sy+TS-2;                                  // bottom tile gets a threshold
+    rect(x0,gtop,x1-x0,gbot-gtop,'#19222e');                           // dark-glass doorway
+    if(!up){ rect(sx,sy+0.6,TS,2,'#7da6c5'); rect(sx,sy+0.6,TS,0.8,'#dcf0fc');   // glass strip above the canopy
+             rect(sx,sy+3,TS,2.4,'#6c8198'); rect(sx,sy+3,TS,1,'#88a2bc');        // canopy (full width, centred)
+             rect(x0,sy+5,x1-x0,1.4,'#7088a0'); }                                  // lit transom
+    if(!dn) rect(x0,sy+TS-2,x1-x0,2,'#46586c');                        // threshold at the foot
+    const splitX = (lf&&!rt)? sx : (rt&&!lf)? sx+TS : sx+TS/2;         // centre split (double doors), placed symmetrically
+    rect(splitX-0.4,gtop,0.8,gbot-gtop,'#46586c');
+    if(up){ rect(splitX-2.6,sy+3,1,2.4,'#9ab0c4'); rect(splitX+1.6,sy+3,1,2.4,'#9ab0c4'); }   // door handles, mirrored
+    if(!lf) rect(sx,gtop,3,gbot-gtop,'#4a5a6e');                       // outer jambs (equal both sides => symmetric)
+    if(!rt) rect(sx+TS-3,gtop,3,gbot-gtop,'#4a5a6e');
     return; }
   if(ch==='r'){ // tower rooftop cap (clear roofline + rooftop units)
     rect(sx,sy,TS,TS,'#3a4a5e');                                       // roof slab
@@ -1607,9 +1614,10 @@ function buildMaps(){
       if(bh>=4){ setRect(t,x,y+1,bw,1,'E'); setRect(t,x,y+2,bw,bh-2,'B'); }   // eave + walls (taller buildings)
       else setRect(t,x,y+1,bw,bh-1,'B'); };
     const tower=(x,y,bw,bh)=>{ setRect(t,x,y,bw,1,'r'); setRect(t,x,y+1,bw,bh-1,'G');
-      if(bh>=2){ const by2=y+bh-1, dx=x+Math.max(0,Math.floor(bw/2)-1);   // grand ground-floor entrance
-        if(inb(dx,by2)) t[by2][dx]='g';
-        if(bw>=4 && inb(dx+1,by2)) t[by2][dx+1]='g'; } };                 // 2 tiles wide on bigger towers
+      // centered (symmetric) entrance, TALL: 2 tiles high. width = 1 (odd towers) or 2 (even towers) so it sits dead-centre
+      if(bh>=3){ const dw=(bw%2===0)?2:1, dx0=x+((bw-dw)>>1), rows=Math.min(2,bh-1);
+        for(let r=0;r<rows;r++) for(let c=0;c<dw;c++){ const yy=y+bh-1-r, xx=dx0+c; if(inb(xx,yy)) t[yy][xx]='g'; } }
+      else if(bh>=2){ const dx=x+((bw-1)>>1); if(inb(dx,y+bh-1)) t[y+bh-1][dx]='g'; } };
     const shop=(x,y,bw)=>{ setRect(t,x,y,bw,1,'R'); setRect(t,x,y+1,bw,1,'A'); };
     const put=(arr,ch)=>arr.forEach(([x,y])=>{ if(inb(x,y)) t[y][x]=ch; });
     const grassPut=(arr,ch)=>arr.forEach(([x,y])=>{ if(inb(x,y)&&t[y][x]==='.') t[y][x]=ch; });
@@ -2460,15 +2468,16 @@ function riddleUpdate(dt){
   if(riddle.temp>=100 && riddle.overheat<=0){ riddle.overheat=1500; riddle.coolant=clamp(riddle.coolant-7,0,100); riddle.temp=62; riddle.combo=0;
     for(const v of riddle.valves){ v.flaring=false; v.cool=320; } audio.sfx('cancel'); }
   for(const f of riddle.hitFx){ f.x+=f.vx*(dt/16); f.y+=f.vy*(dt/16); f.t+=dt; } riddle.hitFx=riddle.hitFx.filter(f=>f.t<f.life);
-  if(consume('ok')) riddleVentUrgent();
+  consume('ok');   // spacebar does NOT vent (must click each valve) - swallow it so it can't queue
 }
 function riddleDraw(){
   drawWorld();
   g.globalAlpha=0.6; rect(0,0,VW,VH,'#1a0c06'); g.globalAlpha=1;
   const bw=224, bx=(VW-bw)/2, by=10, bh=176; uiBox(bx,by,bw,bh);
-  g.textAlign='center';
-  textShadow(riddle.title,VW/2,by+8,'#a8431a','#ffd9a0',8);
-  text('Vent each glowing valve before it blows!',VW/2,by+20,'#9a6a4a',7);
+  g.textAlign='center'; g.textBaseline='top';
+  fitText(riddle.title,VW/2,by+8,'#a8431a',9,bw-24,true);   // title, padded from the frame and shrunk to fit
+  text('Vent each glowing valve before it blows!',VW/2,by+22,'#9a6a4a',7);
+  g.textBaseline='alphabetic';
   const fx=riddle.ox, fy=riddle.oy, heat=riddle.temp/100, fl=(Math.sin(anim/5)+1)/2;
   // furnace
   rrect(fx-14,fy-12,28,26,3,'#3a2a22'); rect(fx-12,fy-10,24,8,'#241812');
@@ -2497,8 +2506,7 @@ function riddleDraw(){
   rrect(cX,cY,cW,cH,3,'#0e1b22'); const cg=g.createLinearGradient(cX,0,cX+cW,0); cg.addColorStop(0,'#3a8aa8'); cg.addColorStop(1,'#7fe0ff');
   g.fillStyle=cg; rpath(cX+1,cY+1,Math.max(0,(cW-2)*riddle.coolant/100),cH-2,2); g.fill();
   if(riddle.overheat>0) textShadow('OVERHEAT!  valves reset',VW/2,fy+40,'#fff','#e23b3b',8);
-  else if(riddle.combo>3) textShadow('x'+riddle.combo,VW/2,fy+40,'#ffd24a','#000',8);
-  else text('Click a flaring valve  (or mash SPACE)',VW/2,fy+38,'#8a6a4a',7);
+  else text('Click each glowing valve to vent it!',VW/2,fy+38,'#8a6a4a',7);
   g.textAlign='left';
 }
 
