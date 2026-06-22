@@ -243,8 +243,9 @@ cv.addEventListener('pointerdown', (ev)=>{
     return;
   }
   if(game.state==='charintro'){
-    const b=CHARINTRO_BTN;
-    if(mx>=b.x && mx<=b.x+b.w && my>=b.y && my<=b.y+b.h){ audio.sfx('confirm'); newGame(); }
+    const s=CHARINTRO_START, k=CHARINTRO_BACK;
+    if(mx>=s.x && mx<=s.x+s.w && my>=s.y && my<=s.y+s.h){ game.charSel=1; charIntroConfirm(); }
+    else if(mx>=k.x && mx<=k.x+k.w && my>=k.y && my<=k.y+k.h){ game.charSel=0; charIntroConfirm(); }
     return;
   }
   if(game.state==='minigame'){ miniClick(mx,my); return; }
@@ -3815,43 +3816,56 @@ function titleDraw(){
 let heartTimer=0;
 function spawnHeartsAuto(x,y){ heartTimer++; if(heartTimer%50===0) spawnHearts(x,y,1); }
 
-/* ---- Character intro page (after New Game): Oen/Poppy portrait + Start button ---- */
-const CHARINTRO_BTN = { x:VW/2-60, y:158, w:120, h:22 };
-function startCharIntro(){ if(!audio.started) audio.start(); game.state='charintro'; game.hearts=[]; clearPressed(); }
+/* ---- Character intro page (after New Game): Oen/Poppy portrait + two buttons ---- */
+const CHARINTRO_BACK  = { x:10,  y:166, w:118, h:20 };   // "I forgot something..." -> back to title
+const CHARINTRO_START = { x:128, y:166, w:118, h:20 };   // "Start Adventure" -> begin
+function startCharIntro(){ if(!audio.started) audio.start(); game.state='charintro'; game.hearts=[]; game.charSel=1; clearPressed(); }
+function charIntroConfirm(){
+  if(game.charSel===1){ audio.sfx('confirm'); newGame(); }
+  else { audio.sfx('cancel'); game.state='title'; }      // "I forgot something..." -> back to title
+}
 function charIntroUpdate(dt){
-  if(consume('ok')){ audio.sfx('confirm'); newGame(); }
-  if(consume('menu')){ audio.sfx('cancel'); game.state='title'; }   // back to title
+  if(consume('left')||consume('right')){ game.charSel = game.charSel?0:1; audio.sfx('cursor'); }
+  if(consume('ok')) charIntroConfirm();
+  if(consume('menu')){ audio.sfx('cancel'); game.state='title'; }   // Esc -> back to title
+}
+function charIntroButton(b, label, primary, sel){
+  const pulse=0.5+0.5*Math.sin(anim/14);
+  rrect(b.x,b.y,b.w,b.h,7,'#1d2336');
+  if(primary){ const bg=g.createLinearGradient(0,b.y,0,b.y+b.h); bg.addColorStop(0,'#ffd86a'); bg.addColorStop(1,'#e8a93a'); g.fillStyle=bg; rpath(b.x+2,b.y+2,b.w-4,b.h-4,5); g.fill(); }
+  else { g.fillStyle = sel ? '#46506e' : '#2c3450'; rpath(b.x+2,b.y+2,b.w-4,b.h-4,5); g.fill(); }
+  g.strokeStyle = sel ? 'rgba(255,244,210,'+(0.55+pulse*0.45).toFixed(2)+')' : 'rgba(255,255,255,.18)';
+  g.lineWidth = sel?1.5:1; rpath(b.x+1,b.y+1,b.w-2,b.h-2,6); g.stroke();
+  g.textAlign='center'; g.textBaseline='middle';
+  const col = primary ? '#3a2410' : (sel?'#fff':'#c9d0e8');
+  fitText(label, b.x+b.w/2, b.y+b.h/2+0.5, col, 9, b.w-12);
+  if(sel && Math.floor(anim/24)%2){ g.fillStyle='#ffe24a'; poly([[b.x+5,b.y+b.h/2-3],[b.x+5,b.y+b.h/2+3],[b.x+9,b.y+b.h/2]],'#ffe24a'); }
+  g.textBaseline='alphabetic'; g.textAlign='left';
 }
 function charIntroDraw(){
-  // dimmed painted-town backdrop
-  const art=sceneImg('town');
-  if(art && drawCover(art,1,0)){ g.fillStyle='rgba(16,12,28,.66)'; g.fillRect(0,0,VW,VH); }
-  else { const grd=g.createLinearGradient(0,0,0,VH); grd.addColorStop(0,'#241a3e'); grd.addColorStop(1,'#3a2a5a'); g.fillStyle=grd; g.fillRect(0,0,VW,VH); }
+  // dimmed Moonlit Garden backdrop
+  const art=sceneImg('garden');
+  if(art && drawCover(art,1,0)){ g.fillStyle='rgba(14,10,28,.58)'; g.fillRect(0,0,VW,VH); }
+  else { const grd=g.createLinearGradient(0,0,0,VH); grd.addColorStop(0,'#1e1640'); grd.addColorStop(1,'#3a2360'); g.fillStyle=grd; g.fillRect(0,0,VW,VH); }
   // Poppy / Oen portrait
   const im=sceneImg('poppy');
-  const ph=116, pw= im? ph*(im.naturalWidth/im.naturalHeight) : 42;
-  const ptop=12, gx=VW/2, gy=ptop+ph*0.46;
-  const rg=g.createRadialGradient(gx,gy,4,gx,gy,74); rg.addColorStop(0,'rgba(255,238,196,.26)'); rg.addColorStop(1,'rgba(255,238,196,0)');
-  g.fillStyle=rg; g.beginPath(); g.arc(gx,gy,74,0,7); g.fill();
+  const ph=112, pw= im? ph*(im.naturalWidth/im.naturalHeight) : 42;
+  const ptop=8, gx=VW/2, gy=ptop+ph*0.46;
+  const rg=g.createRadialGradient(gx,gy,4,gx,gy,72); rg.addColorStop(0,'rgba(255,238,196,.26)'); rg.addColorStop(1,'rgba(255,238,196,0)');
+  g.fillStyle=rg; g.beginPath(); g.arc(gx,gy,72,0,7); g.fill();
   ellipse(VW/2, ptop+ph-2, pw*0.46, 4.5, 'rgba(10,6,20,.45)');
   if(im) g.drawImage(im, VW/2-pw/2, ptop+Math.sin(anim/40)*1.2, pw, ph);
   else drawPoppy(VW/2, ptop+ph-14, 'down', 0);
   spawnHeartsAuto(VW/2+pw*0.5, ptop+ph*0.4);
   // name "Oen" + heart logo, centred as a group
   g.textAlign='center'; g.textBaseline='middle'; setFont(13);
-  const ny=ptop+ph+12, nw=tw('Oen');
+  const ny=ptop+ph+11, nw=tw('Oen');
   textShadow('Oen', VW/2-9, ny, '#fff', '#3a2444', 13);
   drawHeart(VW/2 + nw/2 + 1, ny, 4.5, 1);
-  // Start button (pulsing)
-  const b=CHARINTRO_BTN, pulse=0.5+0.5*Math.sin(anim/14);
-  rrect(b.x,b.y,b.w,b.h,7,'#1d2336');
-  const bg=g.createLinearGradient(0,b.y,0,b.y+b.h); bg.addColorStop(0,'#ffd86a'); bg.addColorStop(1,'#e8a93a');
-  g.fillStyle=bg; rpath(b.x+2,b.y+2,b.w-4,b.h-4,5); g.fill();
-  g.strokeStyle='rgba(255,244,210,'+(0.4+pulse*0.5).toFixed(2)+')'; g.lineWidth=1.4; rpath(b.x+1,b.y+1,b.w-2,b.h-2,6); g.stroke();
-  textShadow('START ADVENTURE', VW/2, b.y+b.h/2+0.5, '#3a2410', 'rgba(255,255,255,.4)', 9);
-  g.textBaseline='alphabetic';
-  if(Math.floor(anim/36)%2) text('press SPACE / ENTER', VW/2, VH-6, 'rgba(255,255,255,.6)', 7);
-  g.textAlign='left';
+  g.textBaseline='alphabetic'; g.textAlign='left';
+  // two buttons
+  charIntroButton(CHARINTRO_BACK, 'I forgot something...', false, game.charSel===0);
+  charIntroButton(CHARINTRO_START, 'START ADVENTURE', true, game.charSel===1);
   for(const h of game.hearts){ drawHeart(h.x,h.y,3,clamp(1-h.t/h.life,0,1)); }
 }
 
