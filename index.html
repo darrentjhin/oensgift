@@ -1396,6 +1396,18 @@ function townTile(ch,sx,sy,alt,tx,ty){
       rect(wx,wy,6,1.6, lit?'#fff4d4':'#dcf0fc');                       // glint / lit top
       rect(wx,wy+4.4,6,1.6, lit?'rgba(180,140,40,.4)':'rgba(38,66,90,.5)'); } // shade at bottom of pane
     return; }
+  if(ch==='g'){ // glass-tower GROUND FLOOR: lobby entrance so a tower reads as a real building
+    rect(sx,sy,TS,TS,'#45576b');                                       // mullion grid
+    // upper band of glass panes (matches the tower facade above)
+    for(let c=0;c<2;c++){ const wx=sx+1.5+c*8; rect(wx,sy+1.5,6,4,'#7da6c5'); rect(wx,sy+1.5,6,1.2,'#dcf0fc'); }
+    // recessed entrance: stone surround + dark glass double doors + canopy
+    rect(sx+1,sy+7,TS-2,TS-7,'#3a4658');                               // recessed lobby frame
+    rect(sx+3,sy+8,TS-6,TS-8,'#1d2733');                               // dark glass doorway
+    rect(sx+TS/2-0.4,sy+8,0.8,TS-8,'#54687e');                          // door split (double doors)
+    rect(sx+3,sy+8,TS-6,1.4,'#7088a0');                                // lit transom above the doors
+    rect(sx+2,sy+6.4,TS-4,1.6,'#6c8198');                              // entrance canopy
+    rect(sx+2,sy+6.4,TS-4,0.7,'#86a0ba');                             // canopy highlight
+    return; }
   if(ch==='r'){ // tower rooftop cap (clear roofline + rooftop units)
     rect(sx,sy,TS,TS,'#3a4a5e');                                       // roof slab
     rect(sx,sy,TS,3,'#5d7488');                                        // sunlit front edge
@@ -1438,7 +1450,7 @@ function townTile(ch,sx,sy,alt,tx,ty){
 /* =========================================================================
    MAP BUILDING
    ========================================================================= */
-const SOLID = new Set(['#','T','=','b','C','M','w','c','F','V','|','A','B','R','E','h','S','G','r','L','k','o','i','j','e']);
+const SOLID = new Set(['#','T','=','b','C','M','w','c','F','V','|','A','B','R','E','h','S','G','g','r','L','k','o','i','j','e']);
 function makeGrid(w,h,fill){ const a=[]; for(let y=0;y<h;y++){ a.push(new Array(w).fill(fill)); } return a; }
 function setBorder(grid,ch){ const h=grid.length,w=grid[0].length;
   for(let x=0;x<w;x++){ grid[0][x]=ch; grid[h-1][x]=ch; }
@@ -1592,7 +1604,8 @@ function buildMaps(){
     const house=(x,y,bw,bh)=>{ setRect(t,x,y,bw,1,'R');                       // ridge
       if(bh>=4){ setRect(t,x,y+1,bw,1,'E'); setRect(t,x,y+2,bw,bh-2,'B'); }   // eave + walls (taller buildings)
       else setRect(t,x,y+1,bw,bh-1,'B'); };
-    const tower=(x,y,bw,bh)=>{ setRect(t,x,y,bw,1,'r'); setRect(t,x,y+1,bw,bh-1,'G'); };
+    const tower=(x,y,bw,bh)=>{ setRect(t,x,y,bw,1,'r'); setRect(t,x,y+1,bw,bh-1,'G');
+      const dx=x+Math.floor((bw-1)/2); if(bh>=2 && inb(dx,y+bh-1)) t[y+bh-1][dx]='g'; };   // ground-floor entrance
     const shop=(x,y,bw)=>{ setRect(t,x,y,bw,1,'R'); setRect(t,x,y+1,bw,1,'A'); };
     const put=(arr,ch)=>arr.forEach(([x,y])=>{ if(inb(x,y)) t[y][x]=ch; });
     const grassPut=(arr,ch)=>arr.forEach(([x,y])=>{ if(inb(x,y)&&t[y][x]==='.') t[y][x]=ch; });
@@ -2020,8 +2033,17 @@ function setupTown(){
   audio.play('route');
   if(!F.sawTown){ F.sawTown=true; showEstablishing('town','PALLET TOWN'); }   // painted establishing shot, first arrival only
   // town noticeboard near the lab / spawn
-  placeEntity(newEntity({id:'board',kind:'char',sub:null,tx:8,ty:9,dir:'down',solid:true,
-    talk:(e)=>{ runSeq([
+  placeEntity(newEntity({id:'board',kind:'obj',tx:8,ty:9,dir:'down',solid:true,visible:true,
+    draw:(x,y)=>{                                   // visible town noticeboard (was an invisible blocker before)
+      ellipse(x+8,y+15,6,2,C.shadow);
+      rect(x+3.5,y+9,2,6,'#6e4a2a'); rect(x+10.5,y+9,2,6,'#6e4a2a');   // two posts
+      rect(x+3.5,y+9,1,6,'#8a6038'); rect(x+10.5,y+9,1,6,'#8a6038');   // post highlights
+      rect(x+1,y+2,14,9,'#7a5230'); rect(x+1,y+2,14,1.4,'#9a6a40');    // board frame
+      rect(x+2.5,y+3.2,11,6.4,'#efe6cc');                             // light board face
+      rect(x+3,y+4,10,1.4,'#3a78c8');                                 // blue header (map)
+      rect(x+3.5,y+6,3,2.2,'#8abf6a'); rect(x+9.5,y+6,3,2.2,'#c8a0d0'); // little map zones
+      rect(x+6,y+8.2,1.6,1.6,'#d84848'); }                            // a red "you are here" marker
+    ,talk:(e)=>{ runSeq([
       {type:'say',name:'Town Map',text:'PALLET TOWN.  NW: Prof. Oak\'s Lab.  NE: Old Power Station.  SW: Ember Warehouse.  SE: Moonlit Garden.  The building names float above their roofs - follow the labels.'},
     ],()=>game.state='play'); }}));
   if(!F.routeClear){
