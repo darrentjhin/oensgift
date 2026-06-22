@@ -13,7 +13,7 @@ import numpy as np
 from PIL import Image
 
 
-def strip(inp, outp, thresh=232):
+def strip(inp, outp, thresh=232, fill_holes=False):
     im = Image.open(inp).convert("RGBA")
     arr = np.array(im)
     h, w = arr.shape[:2]
@@ -47,7 +47,16 @@ def strip(inp, outp, thresh=232):
         if x < w - 1 and whiteish[y, x + 1] and not visited[y, x + 1]:
             visited[y, x + 1] = True; dq.append((y, x + 1))
 
-    arr[:, :, 3] = np.where(visited, 0, arr[:, :, 3])
+    cleared = visited.copy()
+    if fill_holes:
+        # also clear PURE-white pockets trapped inside the subject (e.g. the
+        # background gaps enclosed by Rayquaza's coils). Strict purity keeps
+        # the subject's own shaded light areas intact.
+        pure = (rgb.min(axis=2) >= 244) & (rgb.max(axis=2) - rgb.min(axis=2) <= 10)
+        cleared |= (pure & ~visited)
+
+    arr[:, :, 3] = np.where(cleared, 0, arr[:, :, 3])
+    visited = cleared
 
     # soften the 1px halo: any opaque pixel touching the cleared region and still
     # near-white gets partial alpha so edges don't show a white fringe
@@ -74,4 +83,5 @@ def strip(inp, outp, thresh=232):
 
 if __name__ == "__main__":
     thr = int(sys.argv[3]) if len(sys.argv) > 3 else 232
-    strip(sys.argv[1], sys.argv[2], thr)
+    holes = len(sys.argv) > 4 and sys.argv[4] == "holes"
+    strip(sys.argv[1], sys.argv[2], thr, holes)
