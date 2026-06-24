@@ -1569,7 +1569,8 @@ function buildMaps(){
     // flowers + pond
     const fs=[[2,2],[10,2],[3,4],[9,4],[2,8],[10,8],[4,9],[8,9],[6,3],[5,7],[7,7]];
     fs.forEach(p=>t[p[1]][p[0]]='f');
-    setRect(t,2,7,2,2,'w'); // small pond, tucked to the side
+    // (removed the small pond - water tiles looked bad; fill with a flower patch instead)
+    t[7][2]='f'; t[7][3]='i'; t[8][2]='u'; t[8][3]='f';
     // some dark trees inside
     t[4][3]='T'; t[8][9]='T';
     // ---- moonlit garden ornaments along the edges ----
@@ -1628,7 +1629,7 @@ function buildMaps(){
     pave(14,2,32,26);
     tower(15,2,4,7); tower(20,2,4,8); tower(27,2,4,6); tower(31,3,2,5);   // skyline (all even width so doors centre)
     shop(14,12,3); shop(30,12,3); shop(14,20,3); shop(30,20,3);          // storefronts
-    setRect(t,22,15,2,2,'w');                                            // plaza fountain
+    setRect(t,22,15,2,2,'P');                                            // plaza centre (water tiles removed - looked bad)
     put([[17,15],[29,15],[17,25],[29,25],[23,11]],'L');                  // lampposts
     grassPut([[19,24],[27,24]],'f');
     // ---- functional buildings (door + label + warp) ----
@@ -1642,7 +1643,7 @@ function buildMaps(){
     // ---- greenery, ponds, signs ----
     grassPut([[2,3],[44,3],[44,38],[2,38],[12,9],[34,9],[12,27],[34,27],[20,30],[35,27],[10,36],[44,18]],'T');
     grassPut([[8,12],[42,12],[8,23],[42,23],[19,33],[33,33],[6,38],[40,38]],'f');
-    setRect(t,42,33,2,2,'w');   // SE pond
+    grassPut([[42,33],[43,33],[42,34],[43,34]],'f');   // SE corner: flowers (water pond removed - looked bad)
     // ---- hidden Grunt alcove (SW), screened by hedges ----
     put([[2,36],[4,36],[2,38],[5,37],[4,38]],'h');
     // ---- richer townscape: parks, gardens & city furniture (grassPut only fills empty grass) ----
@@ -2597,7 +2598,8 @@ function setupWarehouse(){
     runSeq([
       {type:'say',name:'Evo Tracker',text:'Fire energy very close. This is the Ember Warehouse.'},
       {type:'say',name:'',text:'Flareon is trapped behind a roaring wall of flame. Before it stands a cold stone ALTAR with three empty crystal slots.'},
-      {type:'say',name:'Prof. Oak',text:'That\'s an old fire-warding shrine, Oen. It needs three Spring Crystals to douse the flames - but Team Rocket scattered them across Pallet Town. Find all three and bring them back to this altar.'},
+      {type:'say',name:'',text:'A weathered SIGN is bolted beside the altar. Oen leans in to read it...'},
+      {type:'say',name:'Old Sign',text:'"This shrine wards the flame. Set the three SPRING CRYSTALS into its slots to quell the fire. When raiders came, the crystals were scattered across Pallet Town for safekeeping."'},
       {type:'objective',text:'Find the 3 Spring Crystals scattered in town, then present them at the warehouse altar.'},
     ],()=>{ game.state='play'; });
   } else { game.objective = crystalCount()>=3 ? 'Present the 3 Spring Crystals at the altar to free Flareon.' : 'Find the Spring Crystals in town ('+crystalCount()+'/3), then return to the altar.'; }
@@ -2632,8 +2634,8 @@ function setupGarden(){
         {type:'say',name:'Ariana',text:'Gladly, Giovanni. Two of us, one little trainer.'},
         {type:'say',name:'Prof. Oak',text:'You are not alone, Oen. Jolteon and I will stand and fight beside you!'},
         {type:'battle',cfg:{double:true, trainer:'Giovanni & Ariana', kind:'giovanni',
-          foes:[{species:'persian',trainer:'Giovanni',moves:['Leer','Growl','Screech'],hpMul:1.9},
-                {species:'murkrow',trainer:'Ariana',moves:['Intimidate','Glare','Leer'],hpMul:1.7}], music:'boss'}},
+          foes:[{species:'persian',trainer:'Giovanni',moves:['Scratch','Bite','Screech'],hpMul:1.9},
+                {species:'murkrow',trainer:'Ariana',moves:['Peck','Astonish','Glare'],hpMul:1.7}], music:'boss'}},
         {type:'levelup',to:15},
         {type:'say',name:'Giovanni',text:'Impossible... beaten by a child and a worn-out professor.'},
         {type:'despawn',id:'gv'},{type:'despawn',id:'ar'},
@@ -2701,14 +2703,21 @@ function setupHideout(){
 // Cinematic boss sequence: VS intro -> battle 1 (lose to Mewtwo) -> 10s evolution -> rematch -> win
 function startRookEncounter(){
   startVsIntro('Admin Rook', ()=>{
-    startBattle({trainer:'Admin Rook', kind:'rook', music:'boss', rookBattle1:true,
-      enemies:[{species:'charizard'},{species:'rayquaza'},{species:'mewtwo',hpMul:8,atkMul:1.1}]},
+    startBattle({trainer:'Admin Rook', kind:'rook', music:'boss', rookBattle1:true, bigBars:true,
+      enemies:[{species:'charizard'},{species:'rayquaza'},{species:'mewtwo',hpMul:6,atkMul:1.1,lv:40}]},   // Mewtwo 420 HP - same as the rematch
       ()=>{ rookVictory(); },                       // onWin (effectively unreachable in battle 1)
-      ()=>{ startEvo(()=>{                            // onLose -> evolution -> rematch
-        startBattle({trainer:'Admin Rook', kind:'rook', music:'boss', rookFinal:true, playerSpecies:'umbreon', bigBars:true,
-          // a long, climactic duel: huge HP, but Mewtwo wastes many turns intimidating instead of striking
-          enemies:[{species:'mewtwo', hpMul:6, atkMul:0.85, lv:40, moves:['Leer','Swift','Screech','Psy Pulse','Growl']}]},
-          ()=>{ rookVictory(); });
+      ()=>{ startEvo(()=>{                            // onLose -> evolution -> (Oen reacts) -> rematch
+        runSeq([
+          {type:'say',name:'Oen',text:'Eevee...? You... you EVOLVED! Into an Umbreon?!'},
+          {type:'say',name:'Oen',text:'After all this time, all those stones... it took THIS - you and me, refusing to give up on each other.'},
+          {type:'say',name:'Umbreon',text:'Umbree! (Its rings glow softly in the dark.)'},
+          {type:'say',name:'Oen',text:'Let\'s go, Umbreon. It\'s time to end this - together!'},
+        ], ()=>{
+          startBattle({trainer:'Admin Rook', kind:'rook', music:'boss', rookFinal:true, playerSpecies:'umbreon', bigBars:true,
+            // a long, climactic duel: Mewtwo at 420 HP, leaning on Leer/Screech so the fight lasts ~2 min
+            enemies:[{species:'mewtwo', hpMul:6, atkMul:0.85, lv:40, moves:['Leer','Swift','Screech','Psy Pulse','Growl']}]},
+            ()=>{ rookVictory(); });
+        });
       }); });
   });
 }
@@ -2871,12 +2880,19 @@ function lvUpDraw(){
   const shown=Math.round(lerp(lvUp.from, lvUp.to, clamp((t-600)/(lvUp.dur-1100),0,1)));
   g.textAlign='center';
   textShadow('Lv '+shown, cx, cy-R-12, '#ffe24a', '#3a2a08', 16);
-  g.globalAlpha=0.86; rrect(12,VH-34,VW-24,24,6,'#0a0a14'); g.globalAlpha=1;
-  const cap = lvUp.stone
-    ? 'The POWER STONE floods Eevee with energy!  Lv '+lvUp.from+' → '+lvUp.to+'!'
-    : 'Eevee grew to Lv '+lvUp.to+'!';
-  textShadow(cap, cx, VH-26, '#fff', '#2a1020', 9);
-  if(t>800 && Math.floor(anim/30)%2) text('SPACE', cx, VH-7, '#9aa', '#000', 7);
+  if(lvUp.stone){
+    g.globalAlpha=0.86; rrect(10,VH-40,VW-20,30,6,'#0a0a14'); g.globalAlpha=1;
+    g.textBaseline='middle';
+    fitText('The POWER STONE surges through Eevee!', cx, VH-30, '#fff', 9, VW-30, true);
+    fitText('Lv '+lvUp.from+'  →  Lv '+lvUp.to+'!', cx, VH-18, '#ffe24a', 9, VW-30, true);
+    g.textBaseline='alphabetic';
+  } else {
+    g.globalAlpha=0.86; rrect(12,VH-34,VW-24,24,6,'#0a0a14'); g.globalAlpha=1;
+    g.textBaseline='middle';
+    fitText('Eevee grew to Lv '+lvUp.to+'!', cx, VH-22, '#fff', 9, VW-30, true);
+    g.textBaseline='alphabetic';
+  }
+  if(t>800 && Math.floor(anim/30)%2) text('SPACE', cx, VH-6, '#9aa', '#000', 7);
   g.textAlign='left';
 }
 
@@ -3029,6 +3045,11 @@ const MOVES = {
   'Swift':{type:'Normal',pow:60,pp:20},
   // life-absorbing move (real Pokémon move) - heals the user for half the damage dealt
   'Draining Kiss':{type:'Fairy',pow:50,pp:10,drain:0.75},
+  // ---- Umbreon's authentic Dark-type kit (super-effective vs Mewtwo's Psychic) ----
+  'Dark Pulse':{type:'Dark',pow:80,pp:15},
+  'Foul Play':{type:'Dark',pow:95,pp:15},
+  'Snarl':{type:'Dark',pow:55,pp:15},
+  'Moonlight':{type:'Fairy',pow:55,pp:10,drain:0.6},   // silver moonbeam that also restores Umbreon
 };
 const EEVEE_MOVES=['Quick Attack','Bite','Swift','Draining Kiss'];
 const ENEMY={
@@ -3077,7 +3098,7 @@ const battle = {
 function curEnemy(){ return battle.enemies[battle.ei]; }
 function bMsg(text, cb, auto){ battle.phase='msg'; battle.msg=text; battle.msgReveal=0; battle.msgCb=cb||null; battle.msgAuto=auto||0; battle.msgAutoT=0; battle.msgFast=false; }
 
-const UMBREON_MOVES=['Bite','Quick Attack','Swift','Draining Kiss'];
+const UMBREON_MOVES=['Dark Pulse','Foul Play','Snarl','Moonlight'];
 // ---- persistent Eevee progression (level grows across the adventure) ----
 function eeveeMaxHp(lv){ return 60 + Math.round((lv-10)*9); }   // lv10:60  lv15:105  lv25:195
 function eeveeLv(){ return F.eeveeLv || 10; }
@@ -3089,11 +3110,11 @@ function startBattle(cfg, onWin, onLose){
   if(cfg.playerSpecies==='umbreon'){
     // Umbreon carries Eevee's earned level forward (post power-stone it's ~25)
     const ulv=Math.max(25, eeveeLv()); const umax=eeveeMaxHp(ulv);
-    battle.player={species:'umbreon',name:'Umbreon',lv:ulv,hp:umax,max:umax,
-      moves:UMBREON_MOVES.map(n=>({name:n,type:MOVES[n].type,pow:MOVES[n].pow+8,pp:MOVES[n].pp,maxpp:MOVES[n].pp,drain:MOVES[n].drain}))};
+    battle.player={species:'umbreon',name:'Umbreon',lv:ulv,hp:umax,max:umax,dmgMul:1.5,   // Umbreon hits 1.5x harder
+      moves:UMBREON_MOVES.map(n=>({name:n,type:MOVES[n].type,pow:MOVES[n].pow,pp:MOVES[n].pp,maxpp:MOVES[n].pp,drain:MOVES[n].drain}))};
   } else {
     const elv=eeveeLv(); const emax=eeveeMaxHp(elv);
-    battle.player={species:'eevee',name:'Eevee',lv:elv,hp:emax,max:emax,
+    battle.player={species:'eevee',name:'Eevee',lv:elv,hp:emax,max:emax,dmgMul:1,
       moves:EEVEE_MOVES.map(n=>({name:n,type:MOVES[n].type,pow:MOVES[n].pow,pp:MOVES[n].pp,maxpp:MOVES[n].pp,drain:MOVES[n].drain}))};
   }
   battle.bigBars=!!cfg.bigBars;   // final Mewtwo duel uses oversized HP bars
@@ -3182,21 +3203,36 @@ function battlePointer(mx,my){
 function waitDrain(cb){ battle.phase='drainwait'; battle.afterDrain=cb; }
 function setTimeoutBattle(ms, cb){ battle.phase='pause'; battle.pauseT=ms; battle.pauseCb=cb; }  // dramatic beat
 
-// per-move animation styles (original effects)
+// per-move animation styles - every move has its own authentic effect
 const MOVE_FX={
   'Tackle':       {dur:900,  hitAt:0.45, kind:'lunge',  sfx:'mTackle'},
-  'Scratch':      {dur:880,  hitAt:0.45, kind:'lunge',  sfx:'mTackle'},
-  'Peck':         {dur:860,  hitAt:0.45, kind:'lunge',  sfx:'mTackle'},
-  'Wrap':         {dur:980,  hitAt:0.5,  kind:'lunge',  sfx:'mTackle'},
+  'Scratch':      {dur:880,  hitAt:0.48, kind:'slash',  sfx:'mTackle'},
+  'Peck':         {dur:840,  hitAt:0.46, kind:'peck',   sfx:'mQuick'},
+  'Wrap':         {dur:1040, hitAt:0.5,  kind:'wrap',   sfx:'mTackle'},
   'Quick Attack': {dur:760,  hitAt:0.4,  kind:'streak', sfx:'mQuick'},
-  'Leech Life':   {dur:900,  hitAt:0.5,  kind:'lunge',  sfx:'mTackle'},
+  'Leech Life':   {dur:1050, hitAt:0.48, kind:'leech',  sfx:'mBite'},
   'Bite':         {dur:1050, hitAt:0.52, kind:'bite',   sfx:'mBite'},
   'Swift':        {dur:1050, hitAt:0.6,  kind:'stars',  sfx:'mSwift'},
   'Ember':        {dur:1000, hitAt:0.55, kind:'fire',   sfx:'mFire'},
-  'Smog':         {dur:1000, hitAt:0.55, kind:'fire',   sfx:'mFire'},
-  'Spark':        {dup:1,dur:980, hitAt:0.5, kind:'zap',  sfx:'mZap'},
+  'Smog':         {dur:1050, hitAt:0.55, kind:'gas',    sfx:'mFire'},
+  'Spark':        {dur:980,  hitAt:0.5,  kind:'zap',    sfx:'mZap'},
   'Thunder Shock':{dur:980,  hitAt:0.5,  kind:'zap',    sfx:'mZap'},
   'Draining Kiss':{dur:1250, hitAt:0.55, kind:'kiss',   sfx:'heal'},
+  // status / no-damage moves still get a clear visual tell
+  'Tail Whip':    {dur:820,  hitAt:0.5,  kind:'tailwhip', sfx:'mQuick'},
+  'Supersonic':   {dur:1000, hitAt:0.5,  kind:'sonic',  sfx:'mZap'},
+  'Screech':      {dur:1000, hitAt:0.5,  kind:'screech',sfx:'mZap'},
+  'Astonish':     {dur:860,  hitAt:0.45, kind:'spook',  sfx:'mBite'},
+  'Leer':         {dur:880,  hitAt:0.5,  kind:'leer',   sfx:'mTackle'},
+  'Growl':        {dur:880,  hitAt:0.5,  kind:'leer',   sfx:'mTackle'},
+  'Intimidate':   {dur:900,  hitAt:0.5,  kind:'leer',   sfx:'mTackle'},
+  'Glare':        {dur:900,  hitAt:0.5,  kind:'leer',   sfx:'mTackle'},
+  'Psy Pulse':    {dur:1080, hitAt:0.55, kind:'psybeam',sfx:'mSwift'},
+  // ---- Umbreon's Dark kit ----
+  'Dark Pulse':   {dur:1120, hitAt:0.55, kind:'darkpulse', sfx:'mBite'},
+  'Foul Play':    {dur:1080, hitAt:0.55, kind:'foulplay',  sfx:'mBite'},
+  'Snarl':        {dur:1000, hitAt:0.5,  kind:'snarl',     sfx:'mZap'},
+  'Moonlight':    {dur:1250, hitAt:0.55, kind:'moonbeam',  sfx:'heal'},
 };
 function playMoveFx(moveName, attacker, onHit, onDone){
   const cfg = MOVE_FX[moveName] || {dur:880,hitAt:0.45,kind:'lunge',sfx:'mTackle'};
@@ -3214,7 +3250,7 @@ function doPlayerMove(){
   const e=curEnemy();
   let {dmg,crit}=calcDmg(mv.pow, battle.player.lv);
   const mult=typeMult(mv.type, e.type);          // type effectiveness on the player's attack
-  dmg=Math.max(1, Math.round(dmg*mult));
+  dmg=Math.max(1, Math.round(dmg*mult*(battle.player.dmgMul||1)));
   const superEff=mult>1;
   const eff = mult>1.5 ? 'It\'s super effective!' : (mult===0 ? 'It doesn\'t affect '+e.name+'...' : (mult<1 ? 'It\'s not very effective...' : ''));
   const drained = mv.drain ? Math.max(1, Math.round(dmg*mv.drain)) : 0;
@@ -3252,13 +3288,15 @@ function enemyAttack(){
   // then Eevee falls for real -> the player loses this battle (leads into the evolution).
   const rook1Mew = battle.cfg.rookBattle1 && e.species==='mewtwo';
   let mode='normal';
-  if(rook1Mew){ battle.mewAtk++; mode = battle.bonded ? 'lose' : 'bond'; }
-  const mvName = e.moves[Math.floor(Math.random()*e.moves.length)];
+  // Mewtwo strikes 3 times before Eevee falls: 1=heavy blow, 2=down (Sylveon's bond revives), 3=the final fall
+  if(rook1Mew){ battle.mewAtk++; mode = battle.mewAtk>=3 ? 'lose' : (battle.mewAtk===2 ? 'bond' : 'heavy'); }
+  const mvName = (rook1Mew? (e.moves.filter(m=>!STATUS_MOVES[m])[0]||e.moves[0]) : e.moves[Math.floor(Math.random()*e.moves.length)]);
   bMsg('Foe '+e.name+' used '+mvName+'!', ()=>{
     if(mode==='normal' && STATUS_MOVES[mvName]){ audio.sfx('hitWeak'); bMsg(STATUS_MOVES[mvName], ()=>setTimeoutBattle(740, showMenu), 0); return; }
     const r=0.85+Math.random()*0.3;
     let dmg = Math.max(2, Math.round((e.atk + e.lv*0.3)*r*1.35));
-    if(mode==='bond'||mode==='lose') dmg = Math.max(dmg, battle.player.hp);   // drops Eevee to 0
+    if(mode==='heavy') dmg = Math.round(battle.player.hp*0.6);                 // big but survivable hit
+    if(mode==='bond'||mode==='lose') dmg = Math.max(dmg, battle.player.hp);    // drops Eevee to 0
     playMoveFx(mvName, 'enemy',
       ()=>{ audio.sfx(mode!=='normal'?'hitSuper':'hit'); applyDamageToPlayer(dmg); battleImpact(battle.PX, battle.PY, mode!=='normal'); addDmgFloat(battle.PX, battle.PY-14, dmg, mode!=='normal', true); },
       ()=>{ waitDrain(()=>{
@@ -3549,10 +3587,13 @@ function dblDraw(){
     grd.addColorStop(0,'#382f52'); grd.addColorStop(0.58,'#5a4a78'); grd.addColorStop(0.58,'#6a5640'); grd.addColorStop(1,'#46362a');
     g.fillStyle=grd; g.fillRect(0,0,VW,VH);
   }
-  battle.foes.forEach(f=>ellipse(f.x,f.y+17,32,9,'rgba(28,18,38,.5)'));
-  battle.allies.forEach(a=>ellipse(a.x,a.y+16,38,10,'rgba(28,18,38,.5)'));
+  // per-sprite R so every Pokémon reads the same visual size despite different art fill ratios
+  // (Eevee/Persian/Murkrow art fills ~0.97 of its canvas; Jolteon only ~0.72, so it needs a bigger R)
+  const allyR=[18,24];   // [Eevee, Jolteon]
+  battle.foes.forEach(f=>ellipse(f.x,f.y+17,30,9,'rgba(28,18,38,.5)'));
+  battle.allies.forEach((a,i)=>ellipse(a.x,a.y+16, i?34:30, 9,'rgba(28,18,38,.5)'));
   battle.foes.forEach((f,i)=>{ if(f.shown) drawBattleMon(f.species,f.x,f.y, 18, f.intro,f.blink,f.shake,f.faint, f.x); });
-  battle.allies.forEach((a,i)=>{ if(a.shown) drawBattleMon(a.species,a.x,a.y, 20, a.intro,a.blink,a.shake,a.faint, a.x*1.3); });
+  battle.allies.forEach((a,i)=>{ if(a.shown) drawBattleMon(a.species,a.x,a.y, allyR[i], a.intro,a.blink,a.shake,a.faint, a.x*1.3); });
   drawMoveFx();
   for(const pr of game.particles){ g.globalAlpha=clamp(1-pr.t/pr.life,0,1); rect(pr.x|0,pr.y|0,2,2,pr.col); g.globalAlpha=1; }
   for(const h of game.hearts){ drawHeart(h.x,h.y,3,clamp(1-h.t/h.life,0,1)); }
@@ -3711,6 +3752,74 @@ function drawMoveFx(){
     if(p>0.6){ for(let i=0;i<6;i++){ const pp=clamp((p-0.6)/0.4*1.6-i*0.11,0,1); if(pp<=0||pp>=1) continue;
       const hx=lerp(tx,ax,pp)+Math.sin(pp*8+i)*3, hy=lerp(ty,ay,pp)-Math.sin(pp*Math.PI)*12;
       drawHeart(hx,hy, 2.4, 0.9); } }
+  } else if(battle.fxKind==='slash'){
+    if(p>0.4 && p<0.72){ const o=(p-0.4)/0.32; g.strokeStyle='#fff'; g.lineWidth=2.4;
+      for(let i=0;i<3;i++){ const off=i*7-7, a=clamp(o*1.6-i*0.18,0,1); if(a<=0||a>=1) continue; g.globalAlpha=1-Math.abs(a-0.5)*1.6;
+        g.beginPath(); g.moveTo(tx-16+off, ty-16); g.lineTo(tx+10+off, ty+16); g.stroke(); }
+      g.globalAlpha=1; }
+  } else if(battle.fxKind==='peck'){
+    if(p>0.3 && p<0.66){ const o=Math.sin((p-0.3)/0.36*Math.PI); const jx=lerp(ax,tx,o);
+      tri([jx-3,ty-9],[jx-3,ty+9],[jx+14*(tx>ax?1:-1),ty],'#f4e9c0'); }   // sharp beak jab
+  } else if(battle.fxKind==='wrap'){
+    if(p>0.34 && p<0.8){ const o=(p-0.34)/0.46; g.strokeStyle='#9a7a52'; g.lineWidth=2;
+      for(let i=0;i<3;i++){ const rr=20-(o*9)-i*4 + Math.sin(anim/6+i)*1.5; g.globalAlpha=0.85;
+        g.beginPath(); g.ellipse(tx,ty,Math.max(3,rr),Math.max(2,rr*0.5),0,0,6.283); g.stroke(); }
+      g.globalAlpha=1; }
+  } else if(battle.fxKind==='leech'){
+    if(p>0.3 && p<0.55){ for(let i=-1;i<=1;i++) tri([tx-12,ty+i*7-3],[tx-12,ty+i*7+3],[tx+4,ty+i*7],'#c8e87a'); }  // mandibles bite
+    if(p>0.5){ for(let i=0;i<6;i++){ const pp=clamp((p-0.5)/0.5*1.5-i*0.12,0,1); if(pp<=0||pp>=1) continue;   // green life streams back
+      const hx=lerp(tx,ax,pp)+Math.sin(pp*9+i)*4, hy=lerp(ty,ay,pp)-Math.sin(pp*Math.PI)*14;
+      g.globalAlpha=0.85; circle(hx,hy,2.4,'#9fe05a'); g.globalAlpha=1; } }
+  } else if(battle.fxKind==='gas'){
+    if(p>0.3 && p<0.85){ for(let i=0;i<12;i++){ const a=(i/12)*6.28+anim*0.03, rr=4+((p-0.3)/0.55)*18; const px=tx+Math.cos(a)*rr*(0.7+Math.random()*0.5), py=ty+Math.sin(a)*rr*0.7-(p-0.3)*10;
+      g.globalAlpha=0.5; circle(px,py,3+Math.random()*3, i%2?'#9a5aa8':'#6a3a78'); g.globalAlpha=1; } }
+  } else if(battle.fxKind==='tailwhip'){
+    if(p>0.3 && p<0.75){ const o=(p-0.3)/0.45; g.strokeStyle='#ffe7a0'; g.lineWidth=2; g.globalAlpha=0.9;
+      g.beginPath(); g.arc(tx,ty,15, -0.6+Math.sin(o*9)*0.5, 0.6+Math.sin(o*9)*0.5); g.stroke(); g.globalAlpha=1;
+      for(let i=0;i<3;i++) drawStar(tx+10+Math.sin(anim/5+i)*4, ty-10+i*8, 2, '#fff0b0'); }
+  } else if(battle.fxKind==='sonic'){
+    for(let i=0;i<3;i++){ const pp=clamp(p*1.4-i*0.18,0,1); if(pp<=0||pp>=1) continue; g.globalAlpha=(1-pp)*0.8;
+      g.strokeStyle='#a0d8f0'; g.lineWidth=2; g.beginPath(); g.arc(tx,ty,6+pp*22,0,6.283); g.stroke(); } g.globalAlpha=1;
+  } else if(battle.fxKind==='screech'){
+    if(p>0.3 && p<0.75){ g.strokeStyle='#f0c0e0'; g.lineWidth=1.6;
+      for(let i=0;i<5;i++){ const rr=8+((p-0.3)/0.45)*16+i*3; g.globalAlpha=0.7; g.beginPath();
+        for(let a=0;a<6.3;a+=0.4){ const jag=rr+((a*7|0)%2?3:-3); const px=tx+Math.cos(a)*jag, py=ty+Math.sin(a)*jag*0.8; a?g.lineTo(px,py):g.moveTo(px,py); } g.closePath(); g.stroke(); }
+      g.globalAlpha=1; }
+  } else if(battle.fxKind==='spook'){
+    if(p>0.34 && p<0.7){ const o=(p-0.34)/0.36; g.globalAlpha=(1-Math.abs(o-0.5)*1.6)*0.8; circle(tx,ty,8+o*16,'#2a1838'); g.globalAlpha=1;
+      g.textAlign='center'; g.textBaseline='middle'; textShadow('!',tx,ty-2,'#fff','#000',14); g.textBaseline='alphabetic'; g.textAlign='left'; }
+  } else if(battle.fxKind==='leer'){
+    if(p>0.34 && p<0.78){ const o=(p-0.34)/0.44, a=Math.sin(o*Math.PI); g.globalAlpha=a*0.85;
+      const er='#e23b3b'; circle(tx-6,ty-3,3.4,er); circle(tx+6,ty-3,3.4,er);                 // glowing menacing eyes
+      circle(tx-6,ty-3,1.6,'#fff'); circle(tx+6,ty-3,1.6,'#fff');
+      g.globalAlpha=a*0.3; circle(tx,ty,18,'#e23b3b'); g.globalAlpha=1; }
+  } else if(battle.fxKind==='psybeam'){
+    if(p<0.6){ const pp=clamp(p/0.6,0,1); const bx=lerp(ax,tx,pp), by2=lerp(ay,ty,pp)-Math.sin(pp*Math.PI)*12;
+      for(let r=0;r<3;r++){ g.globalAlpha=0.7-r*0.2; circle(bx,by2,5-r*1.2, r%2?'#e05a9a':'#b070e0'); } g.globalAlpha=1; }
+    if(p>0.5 && p<0.8){ const o=(p-0.5)/0.3; for(let r=0;r<3;r++){ g.globalAlpha=(1-o)*0.6; g.strokeStyle='#e05a9a'; g.lineWidth=1.6; g.beginPath(); g.arc(tx,ty,6+o*18+r*5,0,6.283); g.stroke(); } g.globalAlpha=1; }
+  } else if(battle.fxKind==='darkpulse'){
+    if(p<0.6){ const pp=clamp(p/0.6,0,1); const bx=lerp(ax,tx,pp), by2=lerp(ay,ty,pp);    // dark orb travels
+      for(let r=0;r<3;r++){ g.globalAlpha=0.8-r*0.22; circle(bx,by2,6-r*1.6, r%2?'#7a3aa8':'#2a1038'); } g.globalAlpha=1; }
+    if(p>0.5 && p<0.85){ const o=(p-0.5)/0.35; for(let r=0;r<4;r++){ g.globalAlpha=(1-o)*0.7; g.strokeStyle= r%2?'#9a5ad0':'#3a1850'; g.lineWidth=2.2; g.beginPath(); g.arc(tx,ty,5+o*24+r*4,0,6.283); g.stroke(); }
+      for(let i=0;i<8;i++){ const a=i/8*6.28; g.globalAlpha=(1-o)*0.7; circle(tx+Math.cos(a)*(6+o*20), ty+Math.sin(a)*(6+o*20), 2.4,'#c8a0f0'); } g.globalAlpha=1; }
+  } else if(battle.fxKind==='foulplay'){
+    if(p>0.32 && p<0.78){ const o=(p-0.32)/0.46; g.globalAlpha=Math.sin(o*Math.PI)*0.85;       // shadow tendrils strike
+      for(let i=0;i<5;i++){ const a=(i/5)*6.28+anim*0.05, rr=18*(1-o)+4; g.strokeStyle='#2a1840'; g.lineWidth=2.4;
+        g.beginPath(); g.moveTo(tx+Math.cos(a)*rr*1.6, ty+Math.sin(a)*rr*1.6); g.lineTo(tx+Math.cos(a)*rr*0.4, ty+Math.sin(a)*rr*0.4); g.stroke(); }
+      g.globalAlpha=Math.sin(o*Math.PI)*0.6; g.strokeStyle='#fff'; g.lineWidth=2; g.beginPath(); g.moveTo(tx-14,ty-12); g.lineTo(tx+14,ty+12); g.stroke();
+      g.globalAlpha=1; }
+  } else if(battle.fxKind==='snarl'){
+    if(p>0.3 && p<0.78){ const o=(p-0.3)/0.48; for(let i=0;i<3;i++){ const pp=clamp(o*1.5-i*0.22,0,1); if(pp<=0||pp>=1) continue;
+      g.globalAlpha=(1-pp)*0.85; g.strokeStyle= i%2?'#6a3aa0':'#241038'; g.lineWidth=2.6;
+      const dir=tx>ax?1:-1; g.beginPath(); g.arc(lerp(ax,tx,pp*0.8), ty, 10+pp*8, -1.1, 1.1); g.stroke(); } g.globalAlpha=1; }
+  } else if(battle.fxKind==='moonbeam'){
+    if(p<0.5){ const pp=clamp(p/0.5,0,1); g.globalAlpha=0.8;                                   // silver crescent gathers, beam falls
+      const my=lerp(ty-40,ty,pp); circle(tx,my,5,'#eef2ff'); g.globalAlpha=0.4; circle(tx-1.5,my-1,4,'#c9d6ff'); g.globalAlpha=1; }
+    if(p>0.4 && p<0.72){ const o=(p-0.4)/0.32; g.globalAlpha=(1-Math.abs(o-0.5)*1.5)*0.5; g.fillStyle='#dfe7ff';
+      poly([[tx-7,ty-44],[tx+7,ty-44],[tx+13,ty],[tx-13,ty]],'#dfe7ff'); g.globalAlpha=1;
+      for(let i=0;i<6;i++) drawStar(tx+(Math.random()*22-11), ty+(Math.random()*20-10), 1.8,'#eef2ff'); }
+    if(p>0.62){ for(let i=0;i<5;i++){ const pp=clamp((p-0.62)/0.38*1.5-i*0.12,0,1); if(pp<=0||pp>=1) continue;
+      const hx=lerp(tx,ax,pp), hy=lerp(ty,ay,pp)-Math.sin(pp*Math.PI)*12; g.globalAlpha=0.9; circle(hx,hy,2.2,'#cfe0ff'); g.globalAlpha=1; } }
   }
 }
 // style: 'reg' (1v1) | 'mini' (compact, used in 2v2) | 'big' (final Mewtwo duel)
