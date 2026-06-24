@@ -413,6 +413,12 @@ const audio = {
     emotion:{tempo:330, lead:[659,0,784,0,659,587,523,0,587,0,494,0,523,587,523,0], bass:[147,0,110,0,131,0,98,0], arp:[330,392,494,587,494,392,330,392], drum:'h.......h.......'},
   },
   play(name){
+    // already on this exact track and it's still playing? leave it running so the music
+    // never cuts when the player walks between maps (used for the dramatic post-Rook theme).
+    if(name===this.track){
+      if(this.files && this.files.music[name]){ if(this.musicEl===this.files.music[name] && this.musicEl && !this.musicEl.paused) return; }
+      else if(this.loop) return;
+    }
     this.track=name;
     this.fanfareId=(this.fanfareId||0)+1;   // any track change cancels a pending fanfare resume
     // custom music file takes priority over the built-in chiptune
@@ -1601,7 +1607,7 @@ function buildMaps(){
     t[9][2]='x'; t[9][10]='x';                      // scorch marks
     t[h-1][6]='_';
     M.hideout = { theme:'hideout', w, h, tiles:t, spawn:{x:6,y:10,dir:'up'},
-      warps:[{x:6,y:11,to:'town',tx:23,ty:38,dir:'down'}] };
+      warps:[{x:6,y:11,to:'town',tx:4,ty:3,dir:'down'}] };
   }
 
   // ===== TOWN (large city hub with a downtown skyline) =====
@@ -1637,7 +1643,7 @@ function buildMaps(){
     house(38,4,7,5);  t[8][41]='D';  // POWER STATION  door (41,8)
     house(4,30,7,5);  t[34][7]='D';  // EMBER WAREHOUSE door (7,34)
     house(36,30,7,5); t[34][39]='D'; // MOONLIT GARDEN door (39,34)
-    house(21,36,4,2); t[37][23]='D'; // HIDEOUT cellar  door (23,37)
+    house(2,1,4,2);   t[2][4]='D';   // HIDEOUT cellar  door (4,2) - far top-left, a long walk from the garden exit
     // ---- decorative residences ----
     [[11,4,4,3],[3,13,4,3],[3,19,5,3],[3,24,4,3],[40,13,4,3],[39,19,5,3],[40,24,4,3],[13,30,5,3],[28,30,5,3]].forEach(b=>house(b[0],b[1],b[2],b[3]));
     // ---- greenery, ponds, signs ----
@@ -1668,14 +1674,14 @@ function buildMaps(){
         {x:41,y:3,t:'POWER STATION',c:'#8a5a10'},
         {x:7,y:29,t:'EMBER WAREHOUSE',c:'#8a3a10'},
         {x:39,y:29,t:'MOONLIT GARDEN',c:'#7a2a6a'},
-        {x:23,y:35,t:'????',c:'#555'},
+        {x:4,y:0,t:'????',c:'#555'},
       ],
       warps:[
         {x:7,y:7,to:'lab',tx:7,ty:9,dir:'up'},
         {x:41,y:8,to:'station',tx:6,ty:10,dir:'up',gate:'routeClear',hint:'The Power Station is sealed. A Team Rocket Grunt is lurking somewhere in town - find him and beat him first.'},
         {x:7,y:34,to:'warehouse',tx:6,ty:10,dir:'up',gate:'jolteonRescued',hint:'The Ember Warehouse is locked. The EVO TRACKER isn\'t pointing here yet.'},
         {x:39,y:34,to:'garden',tx:6,ty:10,dir:'up',gate:'flareonRescued',hint:'The Moonlit Garden gate is shut. The tracker hasn\'t pointed here yet.'},
-        {x:23,y:37,to:'hideout',tx:6,ty:10,dir:'up',gate:'gardenCleared',hint:'A sealed underground door hums faintly... it won\'t open yet.'},
+        {x:4,y:2,to:'hideout',tx:6,ty:10,dir:'up',gate:'gardenCleared',hint:'A sealed underground door hums faintly... it won\'t open yet.'},
       ] };
   }
 
@@ -1892,6 +1898,8 @@ function onPlayerArrive(){
   // warp check
   for(const wp of (game.map.warps||[])){
     if(wp.x===p.tx && wp.y===p.ty){
+      // ENDING: after choosing Sylveon, stepping out the lab door rolls the credits
+      if(F.endQuest && game.mapName==='lab'){ F.endQuest=false; game.state='cutscene'; startCredits(()=>{}); return; }
       if(wp.to==='__north'){ if(F.routeClear){ triggerNorth(); } return; }
       if(wp.gate && !F[wp.gate]){   // locked building: show a hint, don't enter
         if(!dlg.active && !activeSeq) runSeq([{type:'say',name:'Evo Tracker',text:wp.hint||'It\'s locked.'}],()=>{ game.state='play'; });
@@ -2043,7 +2051,7 @@ function setupScene(name){
 }
 /* ================= TOWN (explorable hub) ================= */
 function setupTown(){
-  audio.play('route');
+  audio.play(F.gameWon?'warm':'route');   // after the rescue, Sylveon's theme keeps playing across town
   if(!F.sawTown){ F.sawTown=true; showEstablishing('town','PALLET TOWN'); }   // painted establishing shot, first arrival only
   // town noticeboard near the lab / spawn
   placeEntity(newEntity({id:'board',kind:'obj',tx:8,ty:9,dir:'down',solid:true,visible:true,
@@ -2110,7 +2118,7 @@ function setupTown(){
   } else if(!F.gardenCleared){
     game.objective='Fairy energy nearby - go to the Moonlit Garden (south-east).';
   } else if(!F.gameWon){
-    game.objective='Sylveon\'s signal is underground - enter the sealed door (far south).';
+    game.objective='Sylveon\'s signal is underground - find the sealed door in the far TOP-LEFT (north-west) of town.';
   } else {
     game.objective = F.objText || 'Head home to Prof. Oak\'s lab (north-west of town).';
   }
@@ -2146,7 +2154,7 @@ function spawnCrystal(id, flag, tx, ty, ci){
 
 /* ================= LAB ================= */
 function setupLab(){
-  audio.play('lab');
+  audio.play(F.gameWon?'warm':'lab');   // post-rescue: Sylveon's theme continues unbroken into the lab
   if(!F.sawLab){ F.sawLab=true; showEstablishing('lab',"PROF. OAK'S LAB"); }
   if(!F.introDone){
     // chambers with 3 eeveelutions
@@ -2661,8 +2669,8 @@ function setupGarden(){
         {type:'move',id:'oakG',path:['down','down']},
         {type:'despawn',id:'oakG'},
         {type:'flag',set:'gardenCleared'},
-        {type:'say',name:'Evo Tracker',text:'Final signal locked: the sealed door in the far south of town. The Rocket Hideout is open now.'},
-        {type:'objective',text:'Leave the Moonlit Garden through the door (south), then enter the Hideout (far south of town).'},
+        {type:'say',name:'Evo Tracker',text:'Final signal locked: a sealed door in the far TOP-LEFT corner of town. The Rocket Hideout is open now - it\'s a long way across town.'},
+        {type:'objective',text:'Leave the Moonlit Garden (south door), cross town and enter the Hideout in the far TOP-LEFT (north-west).'},
       ], ()=>{ game.state='play'; });
     }}));
   if(!F.gardenIntro){ F.gardenIntro=true;
@@ -2723,6 +2731,7 @@ function startRookEncounter(){
 }
 function rookVictory(){
   runSeq([
+    {type:'music',name:'warm'},   // Sylveon's tender theme - it now plays unbroken all the way home
     {type:'say',name:'Admin Rook',text:'Impossible... My ultimate Pokémon, beaten by a newborn evolution?!'},
     {type:'say',name:'Oen',text:'Because Pokémon are not machines, Rook. They are partners.'},
     {type:'say',name:'Admin Rook',text:'Tch. Team Rocket will remember this!'},
@@ -2950,7 +2959,7 @@ function cinemaUpdate(dt){
     if(cinema.t>4800 || (consume('ok')&&cinema.t>1800)){ game.state='credits'; startCredits(()=>{}); }
   }
 }
-// Sylveon chosen: no cinema text - return to the lab and show Sylveon running to Oen, then credits
+// Sylveon chosen: Sylveon runs to Oen, then the player walks out the lab door to begin the journey (-> credits)
 function chooseSylveon(){
   game.state='cutscene'; game.fade=1; audio.play('warm'); clearPressed();
   runSeq([
@@ -2960,13 +2969,11 @@ function chooseSylveon(){
     {type:'face',id:'eSyl',dir:'down'},
     {type:'hearts',id:'player'},{type:'hearts',id:'eSyl'},
     {type:'func',fn:()=>audio.fanfare()},
-    {type:'wait',ms:1200},
-    {type:'say',name:'Prof. Oak',text:'Go on, Oen. Go out and explore the world of Pokémon with your new partner by your side.'},
-    {type:'wait',ms:600},
-    {type:'video',key:'ending'},                         // 4K ending film, then credits
-    {type:'fade',dir:'out',ms:800},
-    {type:'func',fn:()=>{ game.fade=0; startCredits(()=>{}); }},
-  ], ()=>{});
+    {type:'wait',ms:1000},
+    {type:'say',name:'Prof. Oak',text:'Sylveon chose you, Oen. Go on - step out that door and explore the world of Pokémon with your new partner.'},
+    {type:'func',fn:()=>{ F.endQuest=true; }},
+    {type:'objective',text:'Step out the lab door and begin your adventure!'},
+  ], ()=>{ game.state='play'; });
 }
 function cinemaBackdrop(){
   const t=anim;
@@ -4016,12 +4023,11 @@ function titleDraw(){
     } else if(Math.floor(anim/30)%2){ textShadow('Press SPACE / ENTER to start',VW/2,128,'#fff','#2a2a4a',9); }
     textShadow('A rescue made for Oen ♥',VW/2,146,'#f6a8c8','#5a2a4a',8);
   } else {
-    // completed cover: Poppy & Sylveon photo (no eeveelutions) + left-stacked menu
+    // completed cover: Poppy & Sylveon photo (no eeveelutions) + left-stacked menu - kept STATIC (no animation)
     const im=sceneImg('poppySylveonCut');
     if(im){ const ih=128, iw=ih*(im.naturalWidth/im.naturalHeight);
       ellipse(VW-6-iw/2, 56+ih-4, iw*0.34, 5, 'rgba(20,14,30,.30)');
-      g.drawImage(im, VW-iw-4, 52+Math.sin(anim/40)*1.4, iw, ih); }
-    spawnHeartsAuto(VW-48, 78);
+      g.drawImage(im, VW-iw-4, 52, iw, ih); }
     g.textAlign='left';
     const opts=['New Game','Continue'];
     for(let i=0;i<2;i++){ const oy=106+i*24, sel=game.titleSel===i;
@@ -4154,17 +4160,31 @@ const CREDIT_LINES=[
   'Made with love, for Oen.',
   '',
 ];
-function startCredits(cb){ credits.active=true; credits.t=0; credits.cb=cb; credits.phase='scroll'; credits.phaseT=0; game.state='credits'; audio.play('emotion'); }
+function startCredits(cb){ credits.active=true; credits.t=0; credits.cb=cb; credits.phase='blank'; credits.phaseT=0; game.state='credits'; audio.play('emotion'); }
 function markGameComplete(){ try{ localStorage.setItem('poke3lights_done','1'); }catch(e){} }
 function creditsUpdate(dt){
+  if(credits.phase==='blank'){                      // 5s of nothing before the text begins
+    credits.phaseT+=dt;
+    if(credits.phaseT>=5000 || consume('ok')){ credits.phase='scroll'; credits.t=0; credits.phaseT=0; }
+    return;
+  }
   if(credits.phase==='scroll'){
-    credits.t+=dt*0.0018;   // 0.8x scroll speed
+    credits.t+=dt*0.0018;
     if((anim%40)===0) spawnHearts(Math.random()*VW, VH+6, 1);
-    const totalH=CREDIT_LINES.length*18;
-    if(credits.t*14 > totalH-VH+30 || (consume('ok')&&credits.t>0.4)){ credits.phase='photo'; credits.phaseT=0; }
+    // scroll until the LAST line has travelled all the way up past the top of the screen
+    const lastY=(VH+10) - credits.t*14 + (CREDIT_LINES.length-1)*18;
+    if(lastY < -14 || (consume('ok')&&credits.t>0.4)){ credits.phase='hold'; credits.phaseT=0; }
     return;
   }
   credits.phaseT+=dt;
+  if(credits.phase==='hold'){                        // text gone; wait 5s on a quiet dark screen
+    if(credits.phaseT>=5000 || consume('ok')){ credits.phase='photofade'; credits.phaseT=0; }
+    return;
+  }
+  if(credits.phase==='photofade'){                   // the picture fades in
+    if(credits.phaseT>=1500){ credits.phase='photo'; credits.phaseT=0; }
+    return;
+  }
   if(credits.phase==='photo'){
     if((anim%34)===0) spawnHearts(Math.random()*VW, VH+6, 1);
     if(consume('ok')&&credits.phaseT>400){ audio.sfx('confirm'); markGameComplete(); credits.phase='card1'; credits.phaseT=0; }
@@ -4172,11 +4192,13 @@ function creditsUpdate(dt){
   }
   if(credits.phase==='card1'){ if(credits.phaseT>=7500){ audio.sfx('confirm'); credits.phase='card2'; credits.phaseT=0; } return; }
   if(credits.phase==='card2'){ if(credits.phaseT>=4000){ audio.fanfare(); credits.phase='thanks'; credits.phaseT=0; } return; }
-  if(credits.phase==='thanks'){ if(consume('ok')&&credits.phaseT>700){ credits.active=false; resetToTitle(); } return; }
+  if(credits.phase==='thanks'){ if(consume('ok')&&credits.phaseT>700){ credits.active=false; markGameComplete(); resetToTitle(); } return; }
 }
 function creditsDraw(){
   g.textAlign='center';
-  if(credits.phase==='scroll'){
+  if(credits.phase==='blank' || credits.phase==='hold'){
+    g.fillStyle='#140a1e'; g.fillRect(0,0,VW,VH);   // quiet dark screen
+  } else if(credits.phase==='scroll'){
     const grd=g.createLinearGradient(0,0,0,VH); grd.addColorStop(0,'#2a1838'); grd.addColorStop(1,'#5a2a4a');
     g.fillStyle=grd; g.fillRect(0,0,VW,VH);
     let y=(VH+10) - credits.t*14;
@@ -4188,16 +4210,19 @@ function creditsDraw(){
       y+=18;
     }
     if(Math.floor(anim/40)%2) text('SPACE  ▸  skip', VW/2, VH-8, 'rgba(255,255,255,.55)', 7);
-  } else if(credits.phase==='photo'){
-    const grd=g.createLinearGradient(0,0,0,VH); grd.addColorStop(0,'#2a1838'); grd.addColorStop(1,'#3a1f3a');
-    g.fillStyle=grd; g.fillRect(0,0,VW,VH);
+  } else if(credits.phase==='photofade' || credits.phase==='photo'){
+    g.fillStyle='#140a1e'; g.fillRect(0,0,VW,VH);
+    const a = credits.phase==='photo' ? 1 : clamp(credits.phaseT/1500,0,1);   // fade the picture in
+    g.globalAlpha=a;
     const im=sceneImg('poppySylveon');
     if(im) drawCover(im,1,0);
     else { drawMon('sylveon',VW/2-22,90,20); drawPoppy(VW/2+18,108,'down',0); }
-    // soft bottom scrim for the hint
-    const sc=g.createLinearGradient(0,VH-22,0,VH); sc.addColorStop(0,'rgba(20,10,26,0)'); sc.addColorStop(1,'rgba(20,10,26,.7)');
-    g.fillStyle=sc; g.fillRect(0,VH-22,VW,22);
-    if(Math.floor(anim/30)%2) textShadow('press SPACE to continue', VW/2, VH-8, '#fff', '#2a1020', 8);
+    g.globalAlpha=1;
+    if(credits.phase==='photo'){
+      const sc=g.createLinearGradient(0,VH-22,0,VH); sc.addColorStop(0,'rgba(20,10,26,0)'); sc.addColorStop(1,'rgba(20,10,26,.7)');
+      g.fillStyle=sc; g.fillRect(0,VH-22,VW,22);
+      if(Math.floor(anim/30)%2) textShadow('press SPACE to continue', VW/2, VH-8, '#fff', '#2a1020', 8);
+    }
   } else {
     // card-dispenser black screens
     g.fillStyle='#000'; g.fillRect(0,0,VW,VH);
