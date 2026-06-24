@@ -135,7 +135,7 @@ const ASSETS = {
              warehouse:'assets/area_warehouse.mp4', garden:'assets/area_garden.mp4', hideout:'assets/area_hideout.mp4' },
   _img:{},
 };
-const ASSET_VER='20260621d';   // bump whenever an asset file is replaced, so browsers refetch instead of serving a stale cached copy
+const ASSET_VER='20260621e';   // bump whenever an asset file is replaced, so browsers refetch instead of serving a stale cached copy
 function loadImg(key,src){ const im=new Image(); im.onload=()=>{ASSETS._img[key]=im;}; im.onerror=()=>{}; im.src=src+(src.indexOf('?')<0?'?v='+ASSET_VER:''); }
 function loadAssetImages(){
   for(const sp in ASSETS.mon){ if(ASSETS.mon[sp]) loadImg('mon:'+sp, ASSETS.mon[sp]); }
@@ -1626,7 +1626,7 @@ function buildMaps(){
     path(9,2,9,37); path(37,2,37,37);
     // ---- DOWNTOWN core: stone pavement + skyline + shops + plaza ----
     pave(14,2,32,26);
-    tower(15,2,4,7); tower(20,2,5,8); tower(27,2,4,6); tower(31,3,2,5);   // skyline
+    tower(15,2,4,7); tower(20,2,4,8); tower(27,2,4,6); tower(31,3,2,5);   // skyline (all even width so doors centre)
     shop(14,12,3); shop(30,12,3); shop(14,20,3); shop(30,20,3);          // storefronts
     setRect(t,22,15,2,2,'w');                                            // plaza fountain
     put([[17,15],[29,15],[17,25],[29,25],[23,11]],'L');                  // lampposts
