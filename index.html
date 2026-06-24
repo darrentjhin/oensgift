@@ -29,7 +29,7 @@
 </head>
 <body>
 <div id="wrap"><canvas id="screen" width="256" height="192"></canvas></div>
-<div id="hint">WASD / Arrows = move &nbsp;·&nbsp; Shift = run &nbsp;·&nbsp; Space / Enter = action &nbsp;·&nbsp; Esc = menu &nbsp;·&nbsp; M = mute</div>
+<div id="hint">WASD / Arrows = move &nbsp;·&nbsp; Shift = run &nbsp;·&nbsp; Space / Enter = action &nbsp;·&nbsp; Esc = menu &nbsp;·&nbsp; M = mute &nbsp;·&nbsp; H = hide goal</div>
 <div id="touch">
   <div class="dpad">
     <div class="btn" id="tc-up">▲</div>
@@ -59,10 +59,11 @@ const TEXT_SPEED_MUL = [0.6, 1, 2.0];          // Slow / Normal / Fast multiplie
 const TEXT_SPEED_LABEL = ['Slow','Normal','Fast'];
 const VOL_MUL = [0, 0.35, 0.65, 1.0];          // Off / Low / Med / High
 const VOL_LABEL = ['Off','Low','Med','High'];
-const settings = { textSpeed:1, shake:true, volume:3 };  // textSpeed/volume = index into the arrays above
+const settings = { textSpeed:1, shake:true, volume:3, objMin:false };  // textSpeed/volume = index into the arrays above
 try{ const s=JSON.parse(localStorage.getItem('poke3lights_settings')||'{}');
   if(typeof s.textSpeed==='number') settings.textSpeed=clampInt(s.textSpeed,0,2);
   if(typeof s.shake==='boolean') settings.shake=s.shake;
+  if(typeof s.objMin==='boolean') settings.objMin=s.objMin;
   if(typeof s.volume==='number') settings.volume=clampInt(s.volume,0,3); }catch(e){}
 function clampInt(v,a,b){ v=v|0; return v<a?a:v>b?b:v; }
 function saveSettings(){ try{ localStorage.setItem('poke3lights_settings', JSON.stringify(settings)); }catch(e){} }
@@ -131,7 +132,8 @@ const ASSETS = {
            jolteon:'assets/jolteon.mp4', flareon:'assets/flareon.mp4', sylveon:'assets/sylveon.mp4',
            theft:'assets/theft.mp4', title:'assets/title.mp4' },
   // looping AMBIENT videos played on area entry (the establishing shot animates). Missing -> still image.
-  areaVid: { town:'assets/title.mp4', lab:'assets/area_lab.mp4', station:'assets/area_station.mp4',
+  // (town deliberately omitted: title.mp4 has the game title baked in, which doubled up the "PALLET TOWN" card)
+  areaVid: { lab:'assets/area_lab.mp4', station:'assets/area_station.mp4',
              warehouse:'assets/area_warehouse.mp4', garden:'assets/area_garden.mp4', hideout:'assets/area_hideout.mp4' },
   _img:{},
 };
@@ -214,7 +216,7 @@ const KMAP = {
   ArrowUp:'up', KeyW:'up', ArrowDown:'down', KeyS:'down',
   ArrowLeft:'left', KeyA:'left', ArrowRight:'right', KeyD:'right',
   Enter:'ok', Space:'ok', KeyZ:'ok', KeyJ:'ok',
-  Escape:'menu', KeyM:'mute',
+  Escape:'menu', KeyM:'mute', KeyH:'objtoggle',
   ShiftLeft:'run', ShiftRight:'run'
 };
 addEventListener('keydown', e=>{
@@ -224,6 +226,7 @@ addEventListener('keydown', e=>{
   keys[k] = true;
   if(!audio.started) audio.start();
   if(k==='mute') setVolume(settings.volume===0 ? 3 : 0);   // M = quick mute toggle (Off <-> High)
+  if(k==='objtoggle' && !e.repeat){ settings.objMin=!settings.objMin; saveSettings(); if(audio.started) audio.sfx('cursor'); }   // H = collapse/expand objective bar
 });
 addEventListener('keyup', e=>{ const k=KMAP[e.code]; if(k){ e.preventDefault(); keys[k]=false; } });
 function consume(k){ if(pressed[k]){ pressed[k]=false; return true; } return false; }
@@ -237,17 +240,18 @@ cv.addEventListener('pointerdown', (ev)=>{
     if(titleComplete()){
       // left-stacked menu: New Game (top) / Continue (below)
       if(mx>=10 && mx<=120){
-        if(my>=96 && my<=118){ game.titleSel=0; audio.sfx('confirm'); startCharIntro(); }
-        else if(my>=120 && my<=142){ game.titleSel=1; audio.sfx('confirm'); const s=saveSystem.load(); if(s) restoreGame(s); else startCharIntro(); }
+        if(my>=96 && my<=118){ game.titleSel=0; audio.sfx('confirm'); startCardScan(); }
+        else if(my>=120 && my<=142){ game.titleSel=1; audio.sfx('confirm'); const s=saveSystem.load(); if(s) restoreGame(s); else startCardScan(); }
       }
     } else if(saveSystem.hasSave()){
       if(my>114 && my<140){
         audio.sfx('confirm');
-        if(mx < VW/2){ startCharIntro(); } else { const s=saveSystem.load(); if(s) restoreGame(s); }
+        if(mx < VW/2){ startCardScan(); } else { const s=saveSystem.load(); if(s) restoreGame(s); }
       }
-    } else { audio.sfx('confirm'); startCharIntro(); }
+    } else { audio.sfx('confirm'); startCardScan(); }
     return;
   }
+  if(game.state==='cardscan'){ pressed['ok']=true; return; }   // tap = SPACE (scan / advance)
   if(game.state==='charintro'){
     const s=CHARINTRO_START, k=CHARINTRO_BACK;
     if(mx>=s.x && mx<=s.x+s.w && my>=s.y && my<=s.y+s.h){ game.charSel=1; charIntroConfirm(); }
@@ -258,6 +262,9 @@ cv.addEventListener('pointerdown', (ev)=>{
   if(game.state==='riddle'){ riddleClick(mx,my); return; }
   if(game.paused) return;                          // pause menu stays keyboard-driven
   if(game.state==='battle'){ battlePointer(mx,my); return; }
+  // tapping the objective bar collapses/expands it (don't also fire an interact)
+  if(game.objRect){ const r=game.objRect;
+    if(mx>=r.x && mx<=r.x+r.w && my>=r.y && my<=r.y+r.h){ settings.objMin=!settings.objMin; saveSettings(); audio.sfx('cursor'); return; } }
   // dialogue, cutscenes, intro pages, story videos, cinema, credits: a click = SPACE (advance / skip)
   pressed['ok']=true;
 });
@@ -307,7 +314,8 @@ function uiBox(bx,by,bw,bh,accent){
 
 // ---------- pixel text ----------
 g.textBaseline = 'top';
-function setFont(px){ g.font = px+'px "Courier New", monospace'; }
+let fontBold=false;
+function setFont(px){ g.font = (fontBold?'bold ':'')+px+'px "Courier New", monospace'; }
 function tw(s){ return g.measureText(s).width; }
 function text(s,x,y,col,px){ setFont(px||8); g.fillStyle=col; g.fillText(s,x,y); }
 function textShadow(s,x,y,col,sh,px){ setFont(px||8); g.fillStyle=sh||'#000'; g.fillText(s,x+1,y+1); g.fillStyle=col; g.fillText(s,x,y); }
@@ -1838,6 +1846,24 @@ class Seq {
       case 'face': case 'setdir': { const e= act.id==='player'?game.player:findEnt(act.id); if(e) e.dir=act.dir; break; }
       case 'move': { const e= act.id==='player'?game.player:findEnt(act.id); if(!e){ break;} e.walkPath=act.path.slice(); this.busy=true;
         this.tick=()=>{ if(!e.stepping && (!e.walkPath||e.walkPath.length===0)) this.resolve(); }; break; }
+      // walk an entity over to Oen, landing on an EMPTY tile beside him (never on top of the player or an object)
+      case 'approach': { const e=findEnt(act.id), p=game.player; if(!e||!p){ break; }
+        const around=[[p.tx,p.ty+1,'up'],[p.tx,p.ty-1,'down'],[p.tx+1,p.ty,'left'],[p.tx-1,p.ty,'right']];
+        let target=null,bD=1e9;
+        for(const c of around){ const tx=c[0],ty=c[1];
+          if(!walkable(game.map,tx,ty)) continue;
+          if(tx===p.tx&&ty===p.ty) continue;
+          if(game.entities.some(o=>o!==e&&o.solid&&o.tx===tx&&o.ty===ty)) continue;
+          const d=Math.abs(tx-e.tx)+Math.abs(ty-e.ty); if(d<bD){ bD=d; target=c; } }
+        if(!target){ break; }                                  // nowhere clean to stand: leave it put
+        const path=[]; let cx=e.tx, cy=e.ty, guard=0;           // greedy vertical-then-horizontal path, skipping walls
+        while((cx!==target[0]||cy!==target[1]) && guard++<40){ let moved=false;
+          if(cy!==target[1]){ const ny=cy+(cy<target[1]?1:-1); if(walkable(game.map,cx,ny)){ path.push(cy<target[1]?'down':'up'); cy=ny; moved=true; } }
+          if(!moved && cx!==target[0]){ const nx=cx+(cx<target[0]?1:-1); if(walkable(game.map,nx,cy)){ path.push(cx<target[0]?'right':'left'); cx=nx; moved=true; } }
+          if(!moved) break; }
+        e.walkPath=path; this.busy=true;
+        this.tick=()=>{ if(!e.stepping && (!e.walkPath||e.walkPath.length===0)){
+          e.tx=target[0]; e.ty=target[1]; e.px=target[0]*TS; e.py=target[1]*TS; e.dir=target[2]; this.resolve(); } }; break; }
       case 'flash': { game.flash=1; game.flashCol=act.col||'#fff'; this.busy=true; let t=act.ms||300; this.tick=(dt)=>{ t-=dt; game.flash=clamp(t/(act.ms||300),0,1); if(t<=0){ game.flash=0; this.resolve(); } }; break; }
       case 'shake': { game.shake=act.ms||300; this.busy=true; let t=act.ms||300; this.tick=(dt)=>{ t-=dt; if(t<=0) this.resolve(); }; break; }
       case 'hearts': { const e= act.id==='player'?game.player:findEnt(act.id); if(e) spawnHearts(e.px+8,e.py); break; }
@@ -2012,16 +2038,26 @@ function drawWorld(){
     textShadow(L.t, lx, ly-1+bh2/2, L.c||'#2a2a3a', 'rgba(255,255,255,.6)', 8); } g.textAlign='left'; g.textBaseline='top'; }
 }
 function drawObjectiveHUD(){
-  if(!game.objective || dlg.active) return;
-  const txt=game.objective; const lines=wrap(txt,VW-42,8);
+  if(!game.objective || dlg.active || (typeof estActive==='function' && estActive())){ game.objRect=null; return; }
+  if(settings.objMin){          // collapsed: a small tab (click it / press H to expand)
+    const bw=22, bh=14; game.objRect={x:4,y:4,w:bw,h:bh};
+    rrect(4,4,bw,bh,3,'rgba(20,18,30,.85)');
+    g.strokeStyle='#f6d62e'; g.lineWidth=1; g.strokeRect(4.5,4.5,bw-1,bh-1);
+    g.fillStyle='#f6d62e';      // little checklist icon
+    for(let i=0;i<3;i++){ g.fillRect(8,7.5+i*3,2,1.4); g.fillRect(11,7.5+i*3,7,1.4); }
+    return;
+  }
+  const txt=game.objective; const lines=wrap(txt,VW-46,8);
   setFont(8);
   const widest=Math.max.apply(null, lines.map((l,i)=> tw((i?'  ':'▸ ')+l)));
-  const bw=Math.min(VW-8, widest+12), bh=lines.length*11+8;
+  const bw=Math.min(VW-8, widest+20), bh=lines.length*11+8;
   rrect(4,4,bw,bh,3,'rgba(20,18,30,.85)');
   g.strokeStyle='#f6d62e'; g.lineWidth=1; g.strokeRect(4.5,4.5,bw-1,bh-1);
   g.textBaseline='top';
   for(let i=0;i<lines.length;i++) text((i?'  ':'▸ ')+lines[i], 9, 9+i*11, '#f6d62e', 8);
   g.textBaseline='alphabetic';
+  g.fillStyle='#f6d62e'; g.fillRect(4+bw-12, 8, 7, 1.6);   // "–" minimize affordance (top-right)
+  game.objRect={x:4,y:4,w:bw,h:bh};                        // whole bar is clickable to collapse
 }
 
 /* =========================================================================
@@ -2145,6 +2181,9 @@ function spawnCrystal(id, flag, tx, ty, ci){
       g.globalAlpha=0.55; poly([[x+8,y+2.5],[x+8,y+13.5],[x+5.5,y+8]], '#ffffff'); g.globalAlpha=1;   // facet
       if(b>0.65){ rect(x+10,y+4.5,1,1,'#fff'); rect(x+5,y+10,1,1,'#fff'); } },             // sparkles
     talk:(e)=>{ F[flag]=true; audio.fanfare(); const n=crystalCount();
+      game.objective = n>=3   // keep the task bar count in sync the moment a crystal is picked up
+        ? 'Take the 3 Spring Crystals to the altar in the Ember Warehouse (south-west).'
+        : 'Find the 3 Spring Crystals scattered around Pallet Town ('+n+'/3), then take them to the warehouse altar.';
       runSeq([
         {type:'say',name:'',text:'Oen found a SPRING CRYSTAL!  ('+n+' of 3 found)'},
         {type:'despawn',id:id},
@@ -2413,7 +2452,7 @@ function setupStation(){
         {type:'func',fn:()=>{ F.jolteonFree=true; }},
         {type:'video',key:'jolteon'},
         {type:'spark',id:'joltC',col:C.yellow},
-        {type:'move',id:'joltC',path:['down','down','down','down','down']},
+        {type:'approach',id:'joltC'},
         {type:'say',name:'Jolteon',text:'Jolteon! (It shakes off the sparks and runs to Oen.)'},
         {type:'hearts',id:'player'},
         {type:'say',name:'Prof. Oak',text:'Great job, Oen! Jolteon is safe. I\'m sending it back to the lab now.'},
@@ -2567,8 +2606,7 @@ function setupWarehouse(){
       {type:'flash',col:C.orange,ms:250},
       {type:'say',name:'',text:'Oen opens the cooled cage.'},
       {type:'video',key:'flareon'},
-      {type:'move',id:'flaC',path:['down','down','down','down']},
-      {type:'face',id:'flaC',dir:'up'},
+      {type:'approach',id:'flaC'},
       {type:'say',name:'Flareon',text:'Fla... flare. (It presses its warm head gently against Oen.)'},
       {type:'hearts',id:'player'},
       {type:'say',name:'Prof. Oak',text:'Flareon is safe. Returning it to the lab now.'},
@@ -2602,15 +2640,28 @@ function setupWarehouse(){
         {type:'say',name:'Cooling Altar',text:'Three Spring Crystals must rest here to quell the flames. '+n+' of 3 are set. The rest are scattered across Pallet Town - go and find them.'},
       ],()=>game.state='play'); }
     }}));
+  // a small wooden TABLE with a hand-written NOTE, beside Flareon - the player must walk up and READ it
+  placeEntity(newEntity({id:'note',kind:'obj',tx:8,ty:3,dir:'down',solid:true,visible:true,
+    draw:(x,y)=>{ ellipse(x+8,y+15,6,2,C.shadow);
+      rect(x+3,y+11,1.6,4,'#5a4028'); rect(x+11.4,y+11,1.6,4,'#5a4028');     // table legs
+      rect(x+2,y+8.5,12,3,'#7a5a3a'); rect(x+2,y+8.5,12,1,'#9a7a4a');         // table top
+      const lift=Math.sin(anim/18)*0.5;                                       // paper rests, faint glow to draw the eye
+      g.globalAlpha=0.35+0.25*(0.5+0.5*Math.sin(anim/14)); circle(x+8,y+5.5,5,'#fff0c0'); g.globalAlpha=1;
+      rect(x+5,y+3.5+lift,6,5,'#f4efe0'); rect(x+5,y+3.5+lift,6,1,'#fffaf0');  // paper note
+      rect(x+6,y+5+lift,4,0.7,'#a89a78'); rect(x+6,y+6.3+lift,4,0.7,'#a89a78'); rect(x+6,y+7.4+lift,2.6,0.7,'#a89a78'); },
+    talk:(e)=>{ runSeq([
+      {type:'say',name:'',text:'A weathered NOTE rests on the table beside Flareon. Oen leans in to read it...'},
+      {type:'say',name:'Old Note',text:'"This shrine wards the flame. Set the three SPRING CRYSTALS into the altar\'s slots to quell the fire. When raiders came, the crystals were scattered across Pallet Town for safekeeping."'},
+      {type:'func',fn:()=>{ F.readNote=true; game.objective='Find the 3 Spring Crystals scattered in town, then present them at the warehouse altar.'; }},
+    ],()=>game.state='play'); }}));
   if(!F.warehouseIntro){ F.warehouseIntro=true; F.flareonQuest=true;
     runSeq([
       {type:'say',name:'Evo Tracker',text:'Fire energy very close. This is the Ember Warehouse.'},
-      {type:'say',name:'',text:'Flareon is trapped behind a roaring wall of flame. Before it stands a cold stone ALTAR with three empty crystal slots.'},
-      {type:'say',name:'',text:'A weathered SIGN is bolted beside the altar. Oen leans in to read it...'},
-      {type:'say',name:'Old Sign',text:'"This shrine wards the flame. Set the three SPRING CRYSTALS into its slots to quell the fire. When raiders came, the crystals were scattered across Pallet Town for safekeeping."'},
-      {type:'objective',text:'Find the 3 Spring Crystals scattered in town, then present them at the warehouse altar.'},
+      {type:'say',name:'',text:'Flareon is trapped behind a roaring wall of flame. Before it stands a cold stone ALTAR with three empty crystal slots - and a small TABLE with a hand-written NOTE sits beside Flareon.'},
+      {type:'objective',text:'Read the NOTE on the table beside Flareon.'},
     ],()=>{ game.state='play'; });
-  } else { game.objective = crystalCount()>=3 ? 'Present the 3 Spring Crystals at the altar to free Flareon.' : 'Find the Spring Crystals in town ('+crystalCount()+'/3), then return to the altar.'; }
+  } else if(!F.readNote){ game.objective='Read the NOTE on the table beside Flareon.'; }
+  else { game.objective = crystalCount()>=3 ? 'Present the 3 Spring Crystals at the altar to free Flareon.' : 'Find the Spring Crystals in town ('+crystalCount()+'/3), then return to the altar.'; }
 }
 
 /* ================= GARDEN (Sylveon's signal) ================= */
@@ -2656,6 +2707,8 @@ function setupGarden(){
         {type:'say',name:'Oen',text:'Here, Eevee... take this power. We\'ll face Rook together!'},
         {type:'levelup',to:25,stone:true},
         {type:'say',name:'Oen',text:'Whoa... Eevee surged all the way to Lv 25! I can feel how much stronger it is now!'},
+        {type:'func',fn:()=>{ F.maxPotions=5; audio.sfx('confirm'); }},
+        {type:'say',name:'Prof. Oak',text:'And take these - 5 MAX POTIONS. If Eevee ever tires in battle, open your BAG and one will heal it completely.'},
         {type:'say',name:'Prof. Oak',text:'Incredible. With that power and the bond you two share, you finally stand a chance against Admin Rook.'},
         {type:'say',name:'Admin Rook',text:'Tch. Useless, both of them. Fine - I\'ll handle this myself, at the hideout.'},
         {type:'sfx',name:'spark'},{type:'flash',col:C.pink,ms:300},
@@ -2712,7 +2765,10 @@ function setupHideout(){
 function startRookEncounter(){
   startVsIntro('Admin Rook', ()=>{
     startBattle({trainer:'Admin Rook', kind:'rook', music:'boss', rookBattle1:true, bigBars:true,
-      enemies:[{species:'charizard'},{species:'rayquaza'},{species:'mewtwo',hpMul:6,atkMul:1.1,lv:40}]},   // Mewtwo 420 HP - same as the rematch
+      // HP sits just under Eevee's 195; attacks are capped (see enemyAttack) and each foe mixes in a no-damage scare move
+      enemies:[{species:'charizard', hp:150, lv:30, moves:['Ember','Bite','Growl']},
+               {species:'rayquaza',  hp:162, lv:32, moves:['Swift','Bite','Leer']},
+               {species:'mewtwo',    hp:185, lv:40, atkMul:1.0, moves:['Psy Pulse','Swift','Bite']}]},
       ()=>{ rookVictory(); },                       // onWin (effectively unreachable in battle 1)
       ()=>{ startEvo(()=>{                            // onLose -> evolution -> (Oen reacts) -> rematch
         runSeq([
@@ -2722,8 +2778,8 @@ function startRookEncounter(){
           {type:'say',name:'Oen',text:'Let\'s go, Umbreon. It\'s time to end this - together!'},
         ], ()=>{
           startBattle({trainer:'Admin Rook', kind:'rook', music:'boss', rookFinal:true, playerSpecies:'umbreon', bigBars:true,
-            // a long, climactic duel: Mewtwo at 420 HP, leaning on Leer/Screech so the fight lasts ~2 min
-            enemies:[{species:'mewtwo', hpMul:6, atkMul:0.85, lv:40, moves:['Leer','Swift','Screech','Psy Pulse','Growl']}]},
+            // a dramatic duel: Mewtwo hits for REAL damage most turns (capped so Umbreon survives), with one scare move for flavour
+            enemies:[{species:'mewtwo', hp:188, atkMul:1.25, lv:40, moves:['Psy Pulse','Swift','Bite','Psy Pulse','Screech']}]},
             ()=>{ rookVictory(); });
         });
       }); });
@@ -2739,9 +2795,7 @@ function rookVictory(){
     {type:'despawn',id:'rookH'},
     {type:'flash',col:C.pink,ms:300},{type:'shake',ms:300},{type:'sfx',name:'spark'},
     {type:'say',name:'',text:'The Evo Amplifier breaks down. Sylveon\'s cage opens!'},
-    {type:'video',key:'sylveon'},
-    {type:'move',id:'sylH',path:['down','down']},
-    {type:'face',id:'sylH',dir:'down'},
+    {type:'approach',id:'sylH'},
     {type:'hearts',id:'player'},{type:'hearts',id:'sylH'},
     {type:'func',fn:()=>audio.fanfare()},
     {type:'say',name:'Sylveon',text:'Sylveon! (It wraps its ribbons gently around Oen\'s arm.)'},
@@ -2847,7 +2901,8 @@ function evoDraw(){
   }
   g.textAlign='center';
   const cap = t<3400 ? 'A strange light pours in through the windows...' : t<7200 ? 'Eevee is evolving!' : t<8900 ? '' : 'Eevee evolved into UMBREON!';
-  if(cap){ g.globalAlpha=0.82; rrect(12,VH-32,VW-24,22,6,'#0a0a14'); g.globalAlpha=1; textShadow(cap,VW/2,VH-26,'#ffe6f0','#2a1020',9); }
+  if(cap){ g.globalAlpha=0.82; rrect(12,VH-32,VW-24,22,6,'#0a0a14'); g.globalAlpha=1;
+    g.textBaseline='middle'; fitText(cap,VW/2,VH-21,'#ffe6f0',9,VW-30); g.textBaseline='alphabetic'; }   // centred in its box
   if(t>6200 && Math.floor(anim/30)%2) text('SPACE',VW/2,VH-6,'#9aa','#000',7);
   g.textAlign='left';
 }
@@ -2859,6 +2914,7 @@ function startLevelUp(toLv, opts, cb){
   lvUp.from=eeveeLv(); lvUp.to=toLv; lvUp.cb=cb||null; lvUp.t=0; lvUp.stone=!!opts.stone;
   lvUp.species=opts.species||'eevee';
   lvUp.dur = lvUp.stone ? 4600 : 1900;
+  game.estDur=0;   // cancel any lingering area establishing card so it can't overlap the level-up text
   game.state='levelup'; audio.sfx(lvUp.stone?'heal':'win'); clearPressed();
 }
 function lvUpFinish(){ F.eeveeLv=lvUp.to; const cb=lvUp.cb; lvUp.cb=null; game.state='cutscene'; if(cb) cb(); }
@@ -3111,7 +3167,7 @@ function eeveeMaxHp(lv){ return 60 + Math.round((lv-10)*9); }   // lv10:60  lv15
 function eeveeLv(){ return F.eeveeLv || 10; }
 function startBattle(cfg, onWin, onLose){
   battle.active=true; battle.cfg=cfg; battle.onWin=onWin; battle.onLose=onLose||null; battle.prevTrack=audio.track;
-  battle.enemies=(cfg.enemies||[]).map(s=>{ const d=ENEMY[s.species]; const hp=Math.round(d.hp*1.4*(s.hpMul||1));
+  battle.enemies=(cfg.enemies||[]).map(s=>{ const d=ENEMY[s.species]; const hp=(s.hp!=null)?s.hp:Math.round(d.hp*1.4*(s.hpMul||1));
     return {species:s.species,name:MON[s.species].name,lv:(s.lv||d.lv),hp:hp,max:hp,atk:Math.round(d.atk*(s.atkMul||1)),type:d.type,moves:(s.moves||d.moves).slice()}; });
   battle.ei=0;
   if(cfg.playerSpecies==='umbreon'){
@@ -3155,6 +3211,13 @@ function beginPlayerSend(){
 }
 function showMenu(){ battle.phase='mainmenu'; battle.mainSel=0; }
 function showFight(){ battle.phase='fightmenu'; }
+function useMaxPotion(){   // BAG -> Max Potion: full heal, costs the turn (enemy then attacks)
+  if(!(F.maxPotions>0)){ bMsg('Oen has no items to use right now!', ()=>showMenu(), 0); return; }
+  if(battle.player.hp>=battle.player.max){ bMsg(battle.player.name+'\'s HP is already full!', ()=>showMenu(), 0); return; }
+  F.maxPotions--; audio.sfx('heal');
+  battle.player.hp=battle.player.max; spawnHearts(battle.PX,battle.PY-12,8);
+  bMsg('Oen used a MAX POTION! '+battle.player.name+' was fully healed.  ('+F.maxPotions+' left)', ()=> setTimeoutBattle(820, doEnemyTurn), 0);
+}
 function calcDmg(pow,lv){ const base=pow*0.18+lv*0.5; const crit=Math.random()<0.12; const r=0.85+Math.random()*0.3; return {dmg:Math.max(2,Math.round(base*(crit?1.5:1)*r)), crit}; }
 function applyDamageToEnemy(dmg){ const e=curEnemy(); e.hp=Math.max(0,e.hp-dmg); battle.eBlink=420; battle.eShake=320; }
 function applyDamageToPlayer(dmg){ battle.player.hp=Math.max(0,battle.player.hp-dmg); battle.pBlink=420; battle.pShake=320; }
@@ -3302,6 +3365,8 @@ function enemyAttack(){
     if(mode==='normal' && STATUS_MOVES[mvName]){ audio.sfx('hitWeak'); bMsg(STATUS_MOVES[mvName], ()=>setTimeoutBattle(740, showMenu), 0); return; }
     const r=0.85+Math.random()*0.3;
     let dmg = Math.max(2, Math.round((e.atk + e.lv*0.3)*r*1.35));
+    // Boss attacks are nerfed to a capped chip range so Eevee/Umbreon can't be killed, yet hits still read as dramatic
+    if(battle.cfg.kind==='rook' && mode==='normal') dmg = clamp(dmg, Math.round(battle.player.max*0.10), Math.round(battle.player.max*0.16));
     if(mode==='heavy') dmg = Math.round(battle.player.hp*0.6);                 // big but survivable hit
     if(mode==='bond'||mode==='lose') dmg = Math.max(dmg, battle.player.hp);    // drops Eevee to 0
     playMoveFx(mvName, 'enemy',
@@ -3534,8 +3599,8 @@ function dblIntroSeq(){
 }
 function dblUpdate(dt){
   const p=battle.phase;
-  if(p==='fx'){ battle.pt+=dt; if(battle.startFx>0) battle.startFx-=dt/900;
-    if(battle.pt>=900){ battle.startFx=0; dblIntroSeq(); } return; }
+  if(p==='fx'){ battle.pt+=dt; if(battle.startFx>0) battle.startFx-=dt/2000;   // 2-second battle-start blip
+    if(battle.pt>=2000){ battle.startFx=0; dblIntroSeq(); } return; }
   if(p==='drainwait'){ if(!battle.drainGate){ const cb=battle.afterDrain; battle.afterDrain=null; if(cb)cb(); } return; }
   if(p==='pause'){ battle.pauseT-=dt; if(battle.pauseT<=0){ const cb=battle.pauseCb; battle.pauseCb=null; if(cb)cb(); } return; }
   if(p==='moveanim'){ return; }
@@ -3660,8 +3725,8 @@ function battleUpdate(dt){
     return;
   }
   if(battle.phase==='fx'){
-    battle.pt+=dt; if(battle.startFx>0) battle.startFx-=dt/900;
-    if(battle.pt>=900){ battle.startFx=0; bMsg('You are challenged by '+(battle.cfg.trainer||'a Trainer')+'!', ()=>beginEnemySend(true), 0); }
+    battle.pt+=dt; if(battle.startFx>0) battle.startFx-=dt/2000;   // 2-second battle-start blip (battle theme starts with it)
+    if(battle.pt>=2000){ battle.startFx=0; bMsg('You are challenged by '+(battle.cfg.trainer||'a Trainer')+'!', ()=>beginEnemySend(true), 0); }
     return;
   }
   if(battle.phase==='drainwait'){ if(!battle.drainGate){ const cb=battle.afterDrain; battle.afterDrain=null; if(cb) cb(); } return; }
@@ -3687,7 +3752,7 @@ function battleUpdate(dt){
     else if(consume('down')&&battle.mainSel<2){ battle.mainSel+=2; audio.sfx('cursor'); }
     if(consume('ok')){ audio.sfx('confirm');
       if(battle.mainSel===0) showFight();
-      else if(battle.mainSel===1) bMsg('Oen has no items to use right now!', ()=>showMenu(), 0);
+      else if(battle.mainSel===1) useMaxPotion();
       else if(battle.mainSel===2) bMsg('Eevee is raring to go! There\'s no one else to switch in.', ()=>showMenu(), 0);
       else bMsg('No! There\'s no running from a Trainer battle!', ()=>showMenu(), 0);
     }
@@ -3856,16 +3921,19 @@ function drawMainMenu(by){
   text('What will',14,by+12,'#283048',8);
   fitText(battle.player.name+' do?',14,by+26,'#283048',8,134);
   const mx=160, mw=VW-mx-4; uiBox(mx,by,mw,46);
-  const cmds=['FIGHT','BAG','POKéMON','RUN'];
+  const cmds=['FIGHT', F.maxPotions>0?('BAG('+F.maxPotions+')'):'BAG','POKéMON','RUN'];
   for(let i=0;i<4;i++){ const cx=mx+14+(i%2)*42, cy=by+12+Math.floor(i/2)*18;
     if(i===battle.mainSel){ poly([[cx-9,cy],[cx-9,cy+7],[cx-4,cy+3]],'#e23b3b'); }
     text(cmds[i],cx,cy,'#283048',8); }
 }
 function drawFightMenu(by){
   uiBox(4,by,176,46);
+  const umbra = battle.player.species==='umbreon';   // Umbreon's whole kit reads BOLD, like raw power
+  if(umbra) fontBold=true;
   for(let i=0;i<4;i++){ const mv=battle.player.moves[i]; const cx=18+(i%2)*86, cy=by+12+Math.floor(i/2)*18;
     if(i===battle.moveSel){ poly([[cx-9,cy],[cx-9,cy+7],[cx-4,cy+3]],'#e23b3b'); }
     fitText(mv.name,cx,cy, mv.pp>0?'#283048':'#b04040',8, (i%2?180:104)-cx-3); }
+  fontBold=false;
   const ix=184, iw=VW-ix-4; uiBox(ix,by,iw,46);
   const mv=battle.player.moves[battle.moveSel];
   const typeCol={Normal:'#8a8a7a',Dark:'#6a5a7a',Electric:'#d8a818',Fire:'#e8602a',Poison:'#9a4aa8',Flying:'#6a9ad0',Dragon:'#5a6ad8',Psychic:'#e05a9a',Fighting:'#c04030'}[mv.type]||'#3a78c8';
@@ -4043,6 +4111,92 @@ function titleDraw(){
 let heartTimer=0;
 function spawnHeartsAuto(x,y){ heartTimer++; if(heartTimer%50===0) spawnHearts(x,y,1); }
 
+/* ---- Card scanner: live camera, hold up the Poppy card, SPACE to scan -> always verifies ---- */
+const cardScan = { el:null, stream:null, snap:null, phase:'live', t:0, err:false };
+const CARD_W=92, CARD_H=128, CARD_X=(VW-92)/2, CARD_Y=(VH-128)/2-6;   // card-shaped guide box
+function startCardScan(){
+  if(!audio.started) audio.start();
+  game.state='cardscan'; clearPressed();
+  cardScan.phase='live'; cardScan.t=0; cardScan.err=false;
+  if(!cardScan.el){ const v=document.createElement('video'); v.playsInline=true; v.setAttribute('playsinline',''); v.muted=true; cardScan.el=v; }
+  if(navigator.mediaDevices && navigator.mediaDevices.getUserMedia){
+    navigator.mediaDevices.getUserMedia({ video:{ facingMode:'user' }, audio:false }).then(stream=>{
+      if(game.state!=='cardscan'){ stream.getTracks().forEach(t=>t.stop()); return; }   // bailed out while waiting
+      cardScan.stream=stream; cardScan.el.srcObject=stream;
+      const p=cardScan.el.play(); if(p&&p.catch) p.catch(()=>{});
+    }).catch(()=>{ cardScan.err=true; });                  // denied / no camera -> still let SPACE "scan"
+  } else { cardScan.err=true; }
+}
+function stopCardScan(){
+  if(cardScan.stream){ try{ cardScan.stream.getTracks().forEach(t=>t.stop()); }catch(e){} cardScan.stream=null; }
+  if(cardScan.el){ try{ cardScan.el.pause(); }catch(e){} cardScan.el.srcObject=null; }
+}
+function snapCard(){   // freeze the current frame (mirrored, like the live preview) into an offscreen canvas
+  const v=cardScan.el, c=cardScan.snap || (cardScan.snap=document.createElement('canvas'));
+  const iw=(v&&v.videoWidth)||VW, ih=(v&&v.videoHeight)||VH;
+  c.width=iw; c.height=ih; const cx=c.getContext('2d');
+  if(v && v.readyState>=2){ cx.save(); cx.translate(iw,0); cx.scale(-1,1); cx.drawImage(v,0,0,iw,ih); cx.restore(); }
+  else { cx.fillStyle='#0a0812'; cx.fillRect(0,0,iw,ih); }
+}
+function cardScanUpdate(dt){
+  cardScan.t+=dt;
+  if(consume('menu')){ audio.sfx('cancel'); stopCardScan(); game.state='title'; return; }   // Esc -> back to title
+  if(cardScan.phase==='live'){
+    if(consume('ok')){ snapCard(); stopCardScan(); cardScan.phase='scanning'; cardScan.t=0; audio.sfx('confirm'); }
+  } else if(cardScan.phase==='scanning'){
+    if(cardScan.t>=1500){ cardScan.phase='verified'; cardScan.t=0; audio.fanfare(); }
+  } else if(cardScan.phase==='verified'){
+    if(cardScan.t>=1400 || (consume('ok')&&cardScan.t>500)){ startCharIntro(); }   // -> Oen/Poppy intro page
+  }
+}
+function cardBracket(x,y,w,h,len,col){   // corner-bracket frame around the guide box
+  g.strokeStyle=col; g.lineWidth=2; g.beginPath();
+  g.moveTo(x,y+len); g.lineTo(x,y); g.lineTo(x+len,y);
+  g.moveTo(x+w-len,y); g.lineTo(x+w,y); g.lineTo(x+w,y+len);
+  g.moveTo(x+w,y+h-len); g.lineTo(x+w,y+h); g.lineTo(x+w-len,y+h);
+  g.moveTo(x+len,y+h); g.lineTo(x,y+h); g.lineTo(x,y+h-len);
+  g.stroke();
+}
+function cardScanDraw(){
+  g.fillStyle='#070610'; g.fillRect(0,0,VW,VH);
+  // camera feed (live, mirrored) or the frozen snapshot once scanning
+  if(cardScan.phase==='live'){
+    const v=cardScan.el;
+    if(v && v.readyState>=2){ g.save(); g.translate(VW,0); g.scale(-1,1); drawCover(v,1,0); g.restore(); }
+    else { g.textAlign='center'; text(cardScan.err?'Camera unavailable':'Starting camera…', VW/2, VH/2, '#7a86b0', 9); g.textAlign='left'; }
+  } else if(cardScan.snap){ drawCover(cardScan.snap,1,0); }
+  // dim vignette so the UI text reads over the video
+  g.fillStyle='rgba(8,6,18,.34)'; g.fillRect(0,0,VW,VH);
+  g.fillStyle='#070610'; g.fillRect(0,0,VW,15); g.fillRect(0,VH-19,VW,19);
+  g.textAlign='center';
+  textShadow('CARD  SCANNER', VW/2, 11, '#bfe0ff', '#0a1830', 9);
+
+  if(cardScan.phase==='live'){
+    const pulse=0.5+0.5*Math.sin(anim/12);
+    cardBracket(CARD_X,CARD_Y,CARD_W,CARD_H,16, 'rgba(120,210,255,'+(0.45+pulse*0.5).toFixed(2)+')');
+    if(Math.floor(anim/26)%2) textShadow('Hold up your card  ·  press SPACE to scan', VW/2, VH-7, '#fff', '#0a1830', 8);
+  } else if(cardScan.phase==='scanning'){
+    cardBracket(CARD_X,CARD_Y,CARD_W,CARD_H,16, 'rgba(120,210,255,.85)');
+    const prog=Math.min(1,cardScan.t/1500), sy=CARD_Y+CARD_H*prog;
+    const grd=g.createLinearGradient(0,sy-12,0,sy+12); grd.addColorStop(0,'rgba(120,230,255,0)');
+    grd.addColorStop(0.5,'rgba(150,240,255,.55)'); grd.addColorStop(1,'rgba(120,230,255,0)');
+    g.fillStyle=grd; g.fillRect(CARD_X,sy-12,CARD_W,24);
+    g.strokeStyle='rgba(190,250,255,.95)'; g.lineWidth=1.5; g.beginPath(); g.moveTo(CARD_X,sy); g.lineTo(CARD_X+CARD_W,sy); g.stroke();
+    const n=Math.floor(cardScan.t/300)%4; let d=''; for(let i=0;i<n;i++) d+='.';
+    textShadow('SCANNING'+d, VW/2, VH-7, '#bfe0ff', '#0a1830', 9);
+  } else { // verified
+    const a=Math.min(1,cardScan.t/180);
+    g.fillStyle='rgba(40,200,120,'+(0.22*a).toFixed(2)+')'; g.fillRect(0,0,VW,VH);
+    cardBracket(CARD_X,CARD_Y,CARD_W,CARD_H,16, 'rgba(90,240,150,.95)');
+    g.strokeStyle='#7dffb0'; g.lineWidth=3; g.lineCap='round'; g.beginPath();   // check mark
+    g.moveTo(VW/2-13,VH/2-2); g.lineTo(VW/2-3,VH/2+9); g.lineTo(VW/2+15,VH/2-13); g.stroke(); g.lineCap='butt';
+    textShadow('VERIFIED', VW/2, VH/2+30, '#9affc0', '#06301a', 12);
+    textShadow('Poppy card accepted ♥', VW/2, VH-7, '#f6a8c8', '#3a1028', 8);
+  }
+  g.textAlign='left';
+  for(const h of game.hearts){ drawHeart(h.x,h.y,3,clamp(1-h.t/h.life,0,1)); }
+}
+
 /* ---- Character intro page (after New Game): Oen/Poppy portrait + two buttons ---- */
 const CHARINTRO_BACK  = { x:10,  y:166, w:118, h:20 };   // "I forgot something..." -> back to title
 const CHARINTRO_START = { x:128, y:166, w:118, h:20 };   // "Start Adventure" -> begin
@@ -4181,8 +4335,8 @@ function creditsUpdate(dt){
     if(credits.phaseT>=5000 || consume('ok')){ credits.phase='photofade'; credits.phaseT=0; }
     return;
   }
-  if(credits.phase==='photofade'){                   // the picture fades in
-    if(credits.phaseT>=1500){ credits.phase='photo'; credits.phaseT=0; }
+  if(credits.phase==='photofade'){                   // the picture fades in slowly
+    if(credits.phaseT>=3000){ credits.phase='photo'; credits.phaseT=0; }
     return;
   }
   if(credits.phase==='photo'){
@@ -4196,11 +4350,12 @@ function creditsUpdate(dt){
 }
 function creditsDraw(){
   g.textAlign='center';
+  // the same warm pink wash backs every phase, so blank -> scroll -> photo all flow together
+  const pink=g.createLinearGradient(0,0,0,VH); pink.addColorStop(0,'#2a1838'); pink.addColorStop(1,'#5a2a4a');
   if(credits.phase==='blank' || credits.phase==='hold'){
-    g.fillStyle='#140a1e'; g.fillRect(0,0,VW,VH);   // quiet dark screen
+    g.fillStyle=pink; g.fillRect(0,0,VW,VH);
   } else if(credits.phase==='scroll'){
-    const grd=g.createLinearGradient(0,0,0,VH); grd.addColorStop(0,'#2a1838'); grd.addColorStop(1,'#5a2a4a');
-    g.fillStyle=grd; g.fillRect(0,0,VW,VH);
+    g.fillStyle=pink; g.fillRect(0,0,VW,VH);
     let y=(VH+10) - credits.t*14;
     for(const ln of CREDIT_LINES){
       if(y>-10 && y<VH+10){
@@ -4211,8 +4366,9 @@ function creditsDraw(){
     }
     if(Math.floor(anim/40)%2) text('SPACE  ▸  skip', VW/2, VH-8, 'rgba(255,255,255,.55)', 7);
   } else if(credits.phase==='photofade' || credits.phase==='photo'){
-    g.fillStyle='#140a1e'; g.fillRect(0,0,VW,VH);
-    const a = credits.phase==='photo' ? 1 : clamp(credits.phaseT/1500,0,1);   // fade the picture in
+    g.fillStyle=pink; g.fillRect(0,0,VW,VH);
+    const p = credits.phase==='photo' ? 1 : clamp(credits.phaseT/3000,0,1);   // slow, gentle reveal of the hug
+    const a = p*p*(3-2*p);                                                     // smoothstep ease for a soft fade-in
     g.globalAlpha=a;
     const im=sceneImg('poppySylveon');
     if(im) drawCover(im,1,0);
@@ -4250,6 +4406,7 @@ function resetToTitle(){ for(const k in F) delete F[k]; game.state='title'; game
 function newGame(){ // wipe all progress and start fresh from the intro
   for(const k in F) delete F[k];
   try{ localStorage.removeItem('poke3lights_done'); }catch(e){}   // clear the "completed" flag so the cover reverts to the original trio
+  saveSystem.delete();   // wipe the old save so Continue can't jump back to the previous run
   game.map=null; game.player=null; game.entities=[]; game.objective='';
   game.hearts=[]; game.particles=[]; game.fade=0; game.flash=0; game.shake=0; game.travelText='';
   battle.active=false; battle.double=false; mini.active=false; riddle.active=false;
@@ -4397,10 +4554,11 @@ function update(dt){
         if(consume('up')||consume('down')||consume('left')||consume('right')){ game.titleSel=game.titleSel?0:1; audio.sfx('cursor'); }
         if(consume('ok')){ audio.sfx('confirm');
           if(game.titleSel===1){ const s=saveSystem.load(); if(s){ restoreGame(s); break; } }
-          startCharIntro();
+          startCardScan();
         }
-      } else if(consume('ok')){ audio.sfx('confirm'); startCharIntro(); }
+      } else if(consume('ok')){ audio.sfx('confirm'); startCardScan(); }
       break;
+    case 'cardscan': cardScanUpdate(dt); break;
     case 'charintro': charIntroUpdate(dt); break;
     case 'intro': introUpdate(dt); break;
     case 'play': playUpdate(dt); break;
@@ -4425,6 +4583,7 @@ function render(){
   g.fillStyle='#000'; g.fillRect(0,0,VW,VH);
   switch(game.state){
     case 'title': titleDraw(); break;
+    case 'cardscan': cardScanDraw(); break;
     case 'charintro': charIntroDraw(); break;
     case 'intro': introDraw(); break;
     case 'play': drawWorld(); drawInteractPrompt(); drawObjectiveHUD(); break;
@@ -4439,7 +4598,7 @@ function render(){
     case 'cinema': cinemaDraw(); break;
     case 'credits': creditsDraw(); break;
   }
-  if(estActive()) estDraw();
+  if(estActive() && (game.state==='play'||game.state==='cutscene')) estDraw();   // never overlay full-screen states (level-up, battle…) or its text doubles up
   if(game.paused) pauseDraw();
   // travel text overlay
   if(game.travelText){ g.fillStyle='rgba(0,0,0,.85)'; g.fillRect(0,0,VW,VH); g.textAlign='center'; textShadow(game.travelText,VW/2,VH/2-4,'#f6d62e','#000',9);
