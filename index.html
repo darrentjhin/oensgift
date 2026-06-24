@@ -1614,8 +1614,8 @@ function buildMaps(){
       if(bh>=4){ setRect(t,x,y+1,bw,1,'E'); setRect(t,x,y+2,bw,bh-2,'B'); }   // eave + walls (taller buildings)
       else setRect(t,x,y+1,bw,bh-1,'B'); };
     const tower=(x,y,bw,bh)=>{ setRect(t,x,y,bw,1,'r'); setRect(t,x,y+1,bw,bh-1,'G');
-      // centered (symmetric) entrance, TALL: 2 tiles high. width = 1 (odd towers) or 2 (even towers) so it sits dead-centre
-      if(bh>=3){ const dw=(bw%2===0)?2:1, dx0=x+((bw-dw)>>1), rows=Math.min(2,bh-1);
+      // UNIFORM entrance on every tower: 2 tiles wide x 2 tiles tall, centred
+      if(bh>=3 && bw>=2){ const dw=2, dx0=x+Math.round((bw-dw)/2), rows=Math.min(2,bh-1);
         for(let r=0;r<rows;r++) for(let c=0;c<dw;c++){ const yy=y+bh-1-r, xx=dx0+c; if(inb(xx,yy)) t[yy][xx]='g'; } }
       else if(bh>=2){ const dx=x+((bw-1)>>1); if(inb(dx,y+bh-1)) t[y+bh-1][dx]='g'; } };
     const shop=(x,y,bw)=>{ setRect(t,x,y,bw,1,'R'); setRect(t,x,y+1,bw,1,'A'); };
@@ -2058,6 +2058,12 @@ function setupTown(){
     ,talk:(e)=>{ runSeq([
       {type:'say',name:'Town Map',text:'PALLET TOWN.  NW: Prof. Oak\'s Lab.  NE: Old Power Station.  SW: Ember Warehouse.  SE: Moonlit Garden.  The building names float above their roofs - follow the labels.'},
     ],()=>game.state='play'); }}));
+  // Flareon rescue: 3 Spring Crystals scattered across town (middle / west edge / south-east)
+  if(F.flareonQuest && !F.flareonRescued){
+    spawnCrystal('cryst1','gotCrystal1', 26, 22, 0);   // downtown plaza - middle
+    spawnCrystal('cryst2','gotCrystal2', 3,  16, 1);   // far west edge
+    spawnCrystal('cryst3','gotCrystal3', 34, 31, 2);   // south-east corner
+  }
   if(!F.routeClear){
     // the Grunt only exists AFTER the kid tips you off (talk to the kid first)
     function spawnGrunt(){
@@ -2097,7 +2103,9 @@ function setupTown(){
   } else if(!F.jolteonRescued){
     game.objective='Enter the Old Power Station (north-east) and rescue Jolteon.';
   } else if(!F.flareonRescued){
-    game.objective='Fire energy detected - go to the Ember Warehouse (south-west) and rescue Flareon.';
+    game.objective = F.flareonQuest
+      ? 'Find the 3 Spring Crystals scattered around Pallet Town ('+crystalCount()+'/3), then take them to the altar in the Ember Warehouse.'
+      : 'Fire energy detected - go to the Ember Warehouse (south-west) and rescue Flareon.';
   } else if(!F.gardenCleared){
     game.objective='Fairy energy nearby - go to the Moonlit Garden (south-east).';
   } else if(!F.gameWon){
@@ -2113,6 +2121,27 @@ function npc(id,sub,tx,ty,dir,lines){
     talk:(e)=>{ runSeq([{type:'say',pages:lines}], ()=>{ game.state='play'; }); }}));
 }
 function mon(id,sub,tx,ty,R){ return placeEntity(newEntity({id,kind:'mon',sub,tx,ty,solid:true,R:R||6})); }
+
+/* ---- Flareon rescue: 3 Spring Crystals scattered in town, presented at the warehouse altar ---- */
+function crystalCount(){ return (F.gotCrystal1?1:0)+(F.gotCrystal2?1:0)+(F.gotCrystal3?1:0); }
+const CRYSTAL_COL=['#7fe0ff','#a6c4ff','#c8f4ff'];
+function spawnCrystal(id, flag, tx, ty, ci){
+  if(F[flag]) return;                                   // already collected
+  const col=CRYSTAL_COL[ci]||'#7fe0ff';
+  placeEntity(newEntity({id,kind:'obj',tx,ty,dir:'down',solid:true,visible:true,
+    draw:(x,y)=>{ const b=0.5+0.5*Math.sin((anim+tx*9+ty*5)/14);
+      ellipse(x+8,y+14,4,1.5,'rgba(8,16,34,.3)');
+      g.globalAlpha=0.30+b*0.42; circle(x+8,y+8,7+b*1.6,col); g.globalAlpha=1;            // pulsing glow
+      poly([[x+8,y+2.5],[x+12,y+8],[x+8,y+13.5],[x+4,y+8]], col);                         // gem body
+      g.globalAlpha=0.55; poly([[x+8,y+2.5],[x+8,y+13.5],[x+5.5,y+8]], '#ffffff'); g.globalAlpha=1;   // facet
+      if(b>0.65){ rect(x+10,y+4.5,1,1,'#fff'); rect(x+5,y+10,1,1,'#fff'); } },             // sparkles
+    talk:(e)=>{ F[flag]=true; audio.fanfare(); const n=crystalCount();
+      runSeq([
+        {type:'say',name:'',text:'Oen found a SPRING CRYSTAL!  ('+n+' of 3 found)'},
+        {type:'despawn',id:id},
+        {type:'say',name:'Evo Tracker', text: n>=3 ? 'All three Spring Crystals gathered! Bring them to the altar in the Ember Warehouse.' : (3-n)+' Spring Crystal'+((3-n)>1?'s':'')+' still scattered around Pallet Town.'},
+      ],()=>game.state='play'); }}));
+}
 
 /* ================= LAB ================= */
 function setupLab(){
@@ -2514,13 +2543,12 @@ function setupWarehouse(){
   audio.play('tense');
   if(!F.sawWarehouse){ F.sawWarehouse=true; showEstablishing('warehouse','EMBER WAREHOUSE'); }
   const fla=mon('flaC','flareon',6,2,6); fla.solid=true;
-  // a control console: solve the cooling RIDDLE to release Flareon
+  // present the 3 Spring Crystals at the altar -> the flames die -> Grunt Cole -> free Flareon
   function rescueFlareon(){
     runSeq([
-      {type:'sfx',name:'spark'},
-      {type:'say',name:'',text:'The furnace hisses and cools. But someone blocks the cage...'},
+      {type:'say',name:'',text:'As the last flames sputter out, a figure steps from behind the crates...'},
       {type:'spawn',entity:{id:'cole',kind:'char',sub:'grunt',tx:7,ty:7,dir:'down'}},
-      {type:'say',name:'Grunt Cole',text:'You saved Jolteon, didn\'t you? Not happening again. Let\'s turn up the heat!'},
+      {type:'say',name:'Grunt Cole',text:'You doused my fire with some old shrine trick? Not bad. But you\'re not taking Flareon!'},
       {type:'battle',cfg:{trainer:'Grunt Cole', kind:'grunt', enemies:[{species:'koffing'},{species:'houndour'}]}},
       {type:'levelup',to:13},
       {type:'say',name:'Grunt Cole',text:'My plan... burned out.'},
@@ -2543,20 +2571,36 @@ function setupWarehouse(){
       {type:'objective',text:'Leave the Ember Warehouse - walk out through the door (south).'},
     ], ()=>{ game.state='play'; });
   }
-  placeEntity(newEntity({id:'console',kind:'obj',tx:6,ty:6,dir:'down',solid:true,visible:true,
-    draw:(x,y)=>{ ellipse(x+8,y+15,6,2,C.shadow); rect(x+2,y+2,12,12,'#3a4250'); rect(x+3,y+3,10,5,'#b04020'); rect(x+4,y+9,3,3,'#5a6270'); rect(x+9,y+9,3,3,'#5a6270'); },
+  // the COOLING ALTAR with three crystal slots
+  placeEntity(newEntity({id:'altar',kind:'obj',tx:6,ty:6,dir:'down',solid:true,visible:true,
+    draw:(x,y)=>{ ellipse(x+8,y+15,7,2,C.shadow);
+      rect(x+2,y+9,12,5,'#544c5e'); rect(x+2,y+9,12,1.4,'#6a6276');     // altar base
+      rect(x+3.5,y+4,9,5,'#615970'); rect(x+3.5,y+4,9,1.2,'#74698a');    // altar pedestal
+      const got=[F.gotCrystal1,F.gotCrystal2,F.gotCrystal3];
+      for(let i=0;i<3;i++){ const gx=x+4.5+i*3.5, gy=y+6;
+        if(got[i]){ const b=0.5+0.5*Math.sin((anim+i*22)/12); g.globalAlpha=0.4+b*0.45; circle(gx,gy,2.6,CRYSTAL_COL[i]); g.globalAlpha=1;
+          poly([[gx,gy-2.2],[gx+1.5,gy],[gx,gy+2.2],[gx-1.5,gy]],CRYSTAL_COL[i]); }
+        else { circle(gx,gy,1.4,'#2e2838'); g.strokeStyle='#3e3850'; g.lineWidth=0.8; g.beginPath(); g.arc(gx,gy,1.7,0,6.283); g.stroke(); } } },
     talk:(e)=>{
-      if(F.warehouseSolved){ runSeq([{type:'say',name:'',text:'The cooling system is stable now.'}],()=>game.state='play'); return; }
-      runSeq([{type:'say',name:'Cooling Console',text:'Furnace pressure is critical! Vent each glowing valve before it blows to pump coolant into Flareon\'s cage. Keep venting until the coolant gauge is full.'}],
-        ()=>{ startRiddle('COOLANT CONTROL', rescueFlareon); });
+      if(F.warehouseSolved){ runSeq([{type:'say',name:'',text:'The flames are out. The altar rests quietly.'}],()=>game.state='play'); return; }
+      const n=crystalCount();
+      if(n>=3){ runSeq([
+        {type:'say',name:'Cooling Altar',text:'The three Spring Crystals click into place and resonate as one...'},
+        {type:'sfx',name:'spark'},{type:'flash',col:'#7fe0ff',ms:320},{type:'shake',ms:300},
+        {type:'say',name:'',text:'A wave of cold mist sweeps the warehouse - the wall of fire hisses and dies down!'},
+      ],()=>{ rescueFlareon(); }); }
+      else { runSeq([
+        {type:'say',name:'Cooling Altar',text:'Three Spring Crystals must rest here to quell the flames. '+n+' of 3 are set. The rest are scattered across Pallet Town - go and find them.'},
+      ],()=>game.state='play'); }
     }}));
-  if(!F.warehouseIntro){ F.warehouseIntro=true;
+  if(!F.warehouseIntro){ F.warehouseIntro=true; F.flareonQuest=true;
     runSeq([
       {type:'say',name:'Evo Tracker',text:'Fire energy very close. This is the Ember Warehouse.'},
-      {type:'say',name:'Prof. Oak',text:'Oen, Flareon\'s temperature is climbing dangerously. Work the cooling console - vent the pressure valves to flush the coolant and free Flareon.'},
-      {type:'objective',text:'Use the cooling console and vent the valves to free Flareon.'},
+      {type:'say',name:'',text:'Flareon is trapped behind a roaring wall of flame. Before it stands a cold stone ALTAR with three empty crystal slots.'},
+      {type:'say',name:'Prof. Oak',text:'That\'s an old fire-warding shrine, Oen. It needs three Spring Crystals to douse the flames - but Team Rocket scattered them across Pallet Town. Find all three and bring them back to this altar.'},
+      {type:'objective',text:'Find the 3 Spring Crystals scattered in town, then present them at the warehouse altar.'},
     ],()=>{ game.state='play'; });
-  } else { game.objective='Use the cooling console to vent the valves and free Flareon.'; }
+  } else { game.objective = crystalCount()>=3 ? 'Present the 3 Spring Crystals at the altar to free Flareon.' : 'Find the Spring Crystals in town ('+crystalCount()+'/3), then return to the altar.'; }
 }
 
 /* ================= GARDEN (Sylveon's signal) ================= */
