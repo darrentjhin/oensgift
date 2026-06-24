@@ -4025,9 +4025,9 @@ function titleDraw(){
   } else {
     // completed cover: Poppy & Sylveon photo (no eeveelutions) + left-stacked menu - kept STATIC (no animation)
     const im=sceneImg('poppySylveonCut');
-    if(im){ const ih=128, iw=ih*(im.naturalWidth/im.naturalHeight);
-      ellipse(VW-6-iw/2, 56+ih-4, iw*0.34, 5, 'rgba(20,14,30,.30)');
-      g.drawImage(im, VW-iw-4, 52, iw, ih); }
+    if(im){ const ih=116, iw=ih*(im.naturalWidth/im.naturalHeight), iy=72;   // pushed down so it clears the title text
+      ellipse(VW-6-iw/2, iy+ih-4, iw*0.34, 5, 'rgba(20,14,30,.30)');
+      g.drawImage(im, VW-iw-4, iy, iw, ih); }
     g.textAlign='left';
     const opts=['New Game','Continue'];
     for(let i=0;i<2;i++){ const oy=106+i*24, sel=game.titleSel===i;
@@ -4249,6 +4249,7 @@ function creditsDraw(){
 function resetToTitle(){ for(const k in F) delete F[k]; game.state='title'; game.map=null; game.player=null; game.entities=[]; game.objective=''; game.intro=0; game.introT=0; audio.play('warm'); }
 function newGame(){ // wipe all progress and start fresh from the intro
   for(const k in F) delete F[k];
+  try{ localStorage.removeItem('poke3lights_done'); }catch(e){}   // clear the "completed" flag so the cover reverts to the original trio
   game.map=null; game.player=null; game.entities=[]; game.objective='';
   game.hearts=[]; game.particles=[]; game.fade=0; game.flash=0; game.shake=0; game.travelText='';
   battle.active=false; battle.double=false; mini.active=false; riddle.active=false;
