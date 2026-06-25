@@ -170,7 +170,7 @@ function estDraw(){
   // place-name card
   g.globalAlpha=a; g.textAlign='center';
   fitText(game.estName,VW/2,VH/2-6,'#fff7e6',16,VW-28,true);
-  if(t>700 && Math.floor(anim/30)%2) text('SPACE',VW/2,VH-26,'#e8e0d0',8);
+  if(t>700 && Math.floor(anim/52)%2) text('SPACE',VW/2,VH-26,'#e8e0d0',8);
   g.textAlign='left'; g.globalAlpha=1;
 }
 // draw an image OR video to fully cover the VW x VH screen (object-fit: cover), centred.
@@ -207,7 +207,7 @@ function videoDraw(){ g.fillStyle='#000'; g.fillRect(0,0,VW,VH);
   const v=story.el; let drew=false;
   if(v && v.readyState>=2) drew=drawCover(v,1,0);
   g.fillStyle='#000'; g.fillRect(0,0,VW,13); g.fillRect(0,VH-13,VW,13);   // cinematic letterbox
-  if(story.t>900 && Math.floor(anim/30)%2){ g.textAlign='center'; text('SPACE  ▸  skip', VW/2, VH-9, '#e8e0d0', 7); g.textAlign='left'; } }
+  if(story.t>900 && Math.floor(anim/52)%2){ g.textAlign='center'; text('SPACE  ▸  skip', VW/2, VH-9, '#e8e0d0', 7); g.textAlign='left'; } }
 loadAssetImages();
 
 // ---------- input ----------
@@ -322,7 +322,7 @@ function textShadow(s,x,y,col,sh,px){ setFont(px||8); g.fillStyle=sh||'#000'; g.
 // draw a single line, auto-shrinking the font until it fits maxw (never overflows its box)
 function fitText(s,x,y,col,px,maxw,shadow){ let p=px||8; setFont(p);
   while(p>5 && tw(s)>maxw){ p-=0.5; setFont(p); }
-  if(shadow){ g.fillStyle='#fff'; g.fillText(s,x+0.7,y+0.7); }
+  if(shadow){ g.fillStyle='rgba(0,0,0,.6)'; g.fillText(s,x+1,y+1); }   // clean dark drop shadow (a white offset read as doubled text)
   g.fillStyle=col; g.fillText(s,x,y); }
 function wrap(s,maxw,px){
   setFont(px||8);
@@ -1263,7 +1263,7 @@ function gardenTile(ch,sx,sy,alt,tx,ty){
     circle(sx+8,sy+8,3+ph,'rgba(246,168,200,'+(0.25+ph*0.3)+')');
     circle(sx+8,sy+8,2,'#f8c8dc'); circle(sx+8,sy+8,1,C.yellow);
   } else if(ch==='g'){ rect(sx,sy,TS,TS,'#16303f'); g.fillStyle='#22485a'; for(let i=0;i<4;i++){ const gx=sx+3+i*3; tri([gx,sy+15],[gx-1,sy+10],[gx+1,sy+10],'#22485a'); } }
-  else if(ch==='w'){ rect(sx,sy,TS,TS,'#173d52'); rect(sx, sy+((Math.floor(anim/24)%2)?5:9),TS,2,'rgba(200,220,255,.3)'); }
+  else if(ch==='w'){ rect(sx,sy,TS,TS,'#173d52'); rect(sx, sy+((Math.floor(anim/42)%2)?5:9),TS,2,'rgba(200,220,255,.3)'); }
   else if(ch==='p'){ rect(sx,sy,TS,TS,'#3a4a52'); }
   else if(ch==='#'){ rect(sx,sy,TS,TS,'#16303f'); }
   else if(ch==='_'){ rect(sx,sy,TS,TS,'#2a3a42'); }
@@ -1805,7 +1805,7 @@ function dlgDraw(){
   g.textBaseline='alphabetic';
   // calm blinking advance arrow
   const full=page.lines.join('\n').length;
-  if((dlg.reveal|0)>=full && Math.floor(anim/34)%2){ const ay=by+bh-9+(Math.floor(anim/17)%2?0:1); poly([[bx+bw-14,ay-3],[bx+bw-8,ay-3],[bx+bw-11,ay+1]],'#4a73c0'); }
+  if((dlg.reveal|0)>=full && Math.floor(anim/58)%2){ const ay=by+bh-9+(Math.floor(anim/30)%2?0:1); poly([[bx+bw-14,ay-3],[bx+bw-8,ay-3],[bx+bw-11,ay+1]],'#4a73c0'); }
 }
 
 /* =========================================================================
@@ -2903,7 +2903,7 @@ function evoDraw(){
   const cap = t<3400 ? 'A strange light pours in through the windows...' : t<7200 ? 'Eevee is evolving!' : t<8900 ? '' : 'Eevee evolved into UMBREON!';
   if(cap){ g.globalAlpha=0.82; rrect(12,VH-32,VW-24,22,6,'#0a0a14'); g.globalAlpha=1;
     g.textBaseline='middle'; fitText(cap,VW/2,VH-21,'#ffe6f0',9,VW-30); g.textBaseline='alphabetic'; }   // centred in its box
-  if(t>6200 && Math.floor(anim/30)%2) text('SPACE',VW/2,VH-6,'#9aa','#000',7);
+  if(t>6200 && Math.floor(anim/52)%2) text('SPACE',VW/2,VH-6,'#9aa','#000',7);
   g.textAlign='left';
 }
 
@@ -2957,7 +2957,7 @@ function lvUpDraw(){
     fitText('Eevee grew to Lv '+lvUp.to+'!', cx, VH-22, '#fff', 9, VW-30, true);
     g.textBaseline='alphabetic';
   }
-  if(t>800 && Math.floor(anim/30)%2) text('SPACE', cx, VH-6, '#9aa', '#000', 7);
+  if(t>800 && Math.floor(anim/52)%2) text('SPACE', cx, VH-6, '#9aa', '#000', 7);
   g.textAlign='left';
 }
 
@@ -3070,7 +3070,7 @@ function cinemaDraw(){
       if(dim) text('stays at the lab',xs[i],yy+R+6,'#c9b6c9',8);
       g.textAlign='left';
     }
-    g.textAlign='center'; if(Math.floor(anim/30)%2) textShadow('◀  ▶   choose       SPACE  confirm',VW/2,VH-16,'#ffe0f0','#3a1a4a',9); g.textAlign='left';
+    g.textAlign='center'; if(Math.floor(anim/52)%2) textShadow('◀  ▶   choose       SPACE  confirm',VW/2,VH-16,'#ffe0f0','#3a1a4a',9); g.textAlign='left';
   } else if(cinema.phase==='decline'){
     const i=cinema.declineWho, t=cinema.t, p=clamp(t/700,0,1);
     const cx=lerp([60,128,196][i],128,p), cy=lerp(104,92,p), R=lerp(20,32,p);
@@ -3092,7 +3092,7 @@ function cinemaDraw(){
     if(t>300) l1='Sylveon races straight into Oen\'s arms!';
     if(t>2000){ l1='Its ribbons curl around you, glowing with joy.'; l2='♥'; hl=true; }
     cinemaTextBox(l1,l2,hl);
-    if(t>1800 && Math.floor(anim/30)%2){ g.textAlign='center'; text('SPACE',VW/2,VH-12,'#fff',8); g.textAlign='left'; }
+    if(t>1800 && Math.floor(anim/52)%2){ g.textAlign='center'; text('SPACE',VW/2,VH-12,'#fff',8); g.textAlign='left'; }
   }
   for(const h of cinema.hearts){ drawHeart(h.x,h.y,3+Math.sin(anim/10)*0.6,clamp(h.life/700,0,1)); }
 }
@@ -3960,7 +3960,7 @@ function drawBattleMsg(by){
   g.textBaseline='alphabetic';
   g.restore();
   const done=battle.msgReveal>=battle.msg.length;
-  if(done && battle.msgCb && !battle.drainGate && battle.msgAuto===0 && Math.floor(anim/34)%2){
+  if(done && battle.msgCb && !battle.drainGate && battle.msgAuto===0 && Math.floor(anim/58)%2){
     poly([[VW-18,mby+42],[VW-12,mby+42],[VW-15,mby+46]],'#4a73c0');
   }
 }
@@ -4086,9 +4086,9 @@ function titleDraw(){
       const opts=['New Game','Continue'];
       for(let i=0;i<2;i++){ const ox=VW/2-40+i*70, sel=game.titleSel===i;
         textShadow(opts[i], ox, 126, sel?'#ffe24a':'#cfd6ff', '#2a2a4a', 9);
-        if(sel && Math.floor(anim/24)%2) textShadow('▸', ox-12, 126, '#ffe24a','#2a2a4a',9);
+        if(sel && Math.floor(anim/42)%2) textShadow('▸', ox-12, 126, '#ffe24a','#2a2a4a',9);
       }
-    } else if(Math.floor(anim/30)%2){ textShadow('Press SPACE / ENTER to start',VW/2,128,'#fff','#2a2a4a',9); }
+    } else if(Math.floor(anim/52)%2){ textShadow('Press SPACE / ENTER to start',VW/2,128,'#fff','#2a2a4a',9); }
     textShadow('A rescue made for Oen ♥',VW/2,146,'#f6a8c8','#5a2a4a',8);
   } else {
     // completed cover: Poppy & Sylveon photo (no eeveelutions) + left-stacked menu - kept STATIC (no animation)
@@ -4099,7 +4099,7 @@ function titleDraw(){
     g.textAlign='left';
     const opts=['New Game','Continue'];
     for(let i=0;i<2;i++){ const oy=106+i*24, sel=game.titleSel===i;
-      if(sel && Math.floor(anim/24)%2) textShadow('▸', 14, oy, '#ffe24a','#2a2a4a',12);
+      if(sel && Math.floor(anim/42)%2) textShadow('▸', 14, oy, '#ffe24a','#2a2a4a',12);
       textShadow(opts[i], 30, oy, sel?'#ffe24a':'#dfe4ff', '#2a2a4a', 12);
     }
     textShadow('A rescue made for Oen ♥', 24, 164, '#f6a8c8','#5a2a4a',8);
@@ -4169,12 +4169,12 @@ function cardScanDraw(){
   g.fillStyle='rgba(8,6,18,.34)'; g.fillRect(0,0,VW,VH);
   g.fillStyle='#070610'; g.fillRect(0,0,VW,15); g.fillRect(0,VH-19,VW,19);
   g.textAlign='center';
-  textShadow('CARD  SCANNER', VW/2, 11, '#bfe0ff', '#0a1830', 9);
+  textShadow('SCAN PLAYER ID', VW/2, 11, '#bfe0ff', '#0a1830', 9);
 
   if(cardScan.phase==='live'){
     const pulse=0.5+0.5*Math.sin(anim/12);
     cardBracket(CARD_X,CARD_Y,CARD_W,CARD_H,16, 'rgba(120,210,255,'+(0.45+pulse*0.5).toFixed(2)+')');
-    if(Math.floor(anim/26)%2) textShadow('Hold up your card  ·  press SPACE to scan', VW/2, VH-7, '#fff', '#0a1830', 8);
+    if(Math.floor(anim/46)%2) textShadow('Hold up your card  ·  press SPACE to scan', VW/2, VH-7, '#fff', '#0a1830', 8);
   } else if(cardScan.phase==='scanning'){
     cardBracket(CARD_X,CARD_Y,CARD_W,CARD_H,16, 'rgba(120,210,255,.85)');
     const prog=Math.min(1,cardScan.t/1500), sy=CARD_Y+CARD_H*prog;
@@ -4220,7 +4220,7 @@ function charIntroButton(b, label, primary, sel){
   g.textAlign='center'; g.textBaseline='middle';
   const col = primary ? '#3a2410' : (sel?'#fff':'#c9d0e8');
   fitText(label, b.x+b.w/2, b.y+b.h/2+0.5, col, 9, b.w-12);
-  if(sel && Math.floor(anim/24)%2){ g.fillStyle='#ffe24a'; poly([[b.x+5,b.y+b.h/2-3],[b.x+5,b.y+b.h/2+3],[b.x+9,b.y+b.h/2]],'#ffe24a'); }
+  if(sel && Math.floor(anim/42)%2){ g.fillStyle='#ffe24a'; poly([[b.x+5,b.y+b.h/2-3],[b.x+5,b.y+b.h/2+3],[b.x+9,b.y+b.h/2]],'#ffe24a'); }
   g.textBaseline='alphabetic'; g.textAlign='left';
 }
 function charIntroDraw(){
@@ -4273,11 +4273,11 @@ function introDraw(){
   let count=reveal, yy = panel? VH-22-(lines.length-1)*12 : VH/2 - lines.length*7;
   for(const ln of lines){ const show=ln.slice(0,Math.max(0,count)); g.textAlign='center'; textShadow(show,VW/2,yy, panel?'#fdfdff':'#dfe2ff','#000', panel?9:10); count-=ln.length; if(count<0)count=0; yy+= panel?12:14; }
   g.textAlign='center';
-  if(Math.floor(anim/16)%2) text('▼',VW/2,VH-6, panel?'#ffe6c0':'#8888cc', panel?8:9);
+  if(Math.floor(anim/30)%2) text('▼',VW/2,VH-6, panel?'#ffe6c0':'#8888cc', panel?8:9);
   g.textAlign='left';
 }
 function introUpdate(dt){
-  game.introT+=dt/12;
+  game.introT+=dt/24;   // half-speed reveal: the background story reads more slowly
   const page=INTRO_PAGES[game.intro];
   if(consume('ok')){
     if(game.introT/1.2 < page.length){ game.introT=page.length*1.2; }
@@ -4364,7 +4364,7 @@ function creditsDraw(){
       }
       y+=18;
     }
-    if(Math.floor(anim/40)%2) text('SPACE  ▸  skip', VW/2, VH-8, 'rgba(255,255,255,.55)', 7);
+    if(Math.floor(anim/64)%2) text('SPACE  ▸  skip', VW/2, VH-8, 'rgba(255,255,255,.55)', 7);
   } else if(credits.phase==='photofade' || credits.phase==='photo'){
     g.fillStyle=pink; g.fillRect(0,0,VW,VH);
     const p = credits.phase==='photo' ? 1 : clamp(credits.phaseT/3000,0,1);   // slow, gentle reveal of the hug
@@ -4377,7 +4377,7 @@ function creditsDraw(){
     if(credits.phase==='photo'){
       const sc=g.createLinearGradient(0,VH-22,0,VH); sc.addColorStop(0,'rgba(20,10,26,0)'); sc.addColorStop(1,'rgba(20,10,26,.7)');
       g.fillStyle=sc; g.fillRect(0,VH-22,VW,22);
-      if(Math.floor(anim/30)%2) textShadow('press SPACE to continue', VW/2, VH-8, '#fff', '#2a1020', 8);
+      if(Math.floor(anim/52)%2) textShadow('press SPACE to continue', VW/2, VH-8, '#fff', '#2a1020', 8);
     }
   } else {
     // card-dispenser black screens
@@ -4395,7 +4395,7 @@ function creditsDraw(){
     } else { // thanks
       textShadow('Thanks for playing', VW/2, VH/2-2, '#f6a8c8', '#2a1020', 13);
       drawHeart(VW/2, VH/2+16, 5, 1);
-      if(Math.floor(anim/30)%2) text('press SPACE', VW/2, VH-14, 'rgba(255,255,255,.6)', 8);
+      if(Math.floor(anim/52)%2) text('press SPACE', VW/2, VH-14, 'rgba(255,255,255,.6)', 8);
     }
     g.textBaseline='alphabetic';
   }
@@ -4519,7 +4519,7 @@ function bootDraw(){
   rrect(bx,byy,bw,6,3,'rgba(255,255,255,.16)');
   const p=clamp(Math.max(boot.t/boot.min, bootProgress()),0,1);
   if(p>0) rrect(bx,byy,Math.max(6,bw*p),6,3,'#9fd0f0');
-  if(Math.floor(anim/24)%2) text('Loading…', VW/2, byy+17, '#bfb8e0', 8);
+  if(Math.floor(anim/42)%2) text('Loading…', VW/2, byy+17, '#bfb8e0', 8);
   g.textAlign='left'; g.globalAlpha=1;
 }
 
