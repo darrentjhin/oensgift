@@ -258,7 +258,6 @@ cv.addEventListener('pointerdown', (ev)=>{
     else if(mx>=k.x && mx<=k.x+k.w && my>=k.y && my<=k.y+k.h){ game.charSel=0; charIntroConfirm(); }
     return;
   }
-  if(game.state==='minigame'){ miniClick(mx,my); return; }
   if(game.state==='catch'){ pressed['ok']=true; return; }   // tap = SPACE (throw / advance)
   if(game.paused) return;                          // pause menu stays keyboard-driven
   if(game.state==='battle'){ battlePointer(mx,my); return; }
@@ -2475,100 +2474,6 @@ function triggerNorth(){
   ], ()=>{ game.state='play'; });
 }
 
-/* =========================================================================
-   JOLTEON MINIGAME - "POWER REROUTE": catch falling electric pulses in 3 lanes
-   to charge the cage open. 3 staged generators (L/R/M) get faster.
-   ========================================================================= */
-const mini={ active:false, onWin:null, title:'', stage:0, t:0, charge:0, pulses:[], spawnT:0,
-  combo:0, best:0, flash:0, hitFx:[], laneFlash:[0,0,0], shake:0, lanes:3,
-  spawnEvery:860, fallSpd:0.05, perHit:1.15 };
-const LANE_ARR=['◀','▼','▶'], LANE_LET=['A','S','D'];
-function miniGeom(){
-  const bw=224, bx=(VW-bw)/2, by=12, bh=168;
-  const laneW=40, gap=10, totalW=mini.lanes*laneW+(mini.lanes-1)*gap;
-  const lx0=Math.round(VW/2-totalW/2);
-  const topY=by+52, hitY=by+bh-26;
-  return {bx,by,bw,bh,laneW,gap,lx0,topY,hitY};
-}
-function laneX(i){ const G=miniGeom(); return G.lx0+i*(G.laneW+G.gap); }
-function startMiniGame(title, onWin, len){
-  mini.active=true; mini.onWin=onWin; mini.title=title||'POWER REROUTE';
-  mini.stage=clamp((len||4)-4,0,2);
-  mini.t=0; mini.charge=0; mini.pulses=[]; mini.spawnT=500; mini.combo=0; mini.best=0;
-  mini.flash=0; mini.hitFx=[]; mini.laneFlash=[0,0,0]; mini.shake=0;
-  const spMul=[1, 1.35, 1.65][mini.stage]||1;   // gen 1 normal, gen 2 +35% faster, gen 3 +65% faster
-  mini.spawnEvery=Math.round(860/spMul);        // faster spawns each generator
-  mini.fallSpd  =0.050*spMul;                   // faster fall each generator
-  mini.perHit   =5.0;                      // ~20 catches to fill -> ~18s a stage (cut to ~20% length)
-  game.state='minigame'; clearPressed(); audio.sfx('confirm');
-}
-function miniWin(){ mini.active=false; audio.sfx('spark'); const cb=mini.onWin; mini.onWin=null; game.state='play'; clearPressed(); if(cb) cb(); }
-function miniSpark(cx,cy,col){ for(let s=0;s<7;s++) mini.hitFx.push({x:cx,y:cy,vx:(Math.random()-0.5)*2.6,vy:(Math.random()-0.5)*2.6,t:0,life:300,col:col||'#f6d62e'}); }
-function miniHit(lane){
-  if(!mini.active) return; const G=miniGeom();
-  let best=-1,bestY=-1;
-  for(let i=0;i<mini.pulses.length;i++){ const p=mini.pulses[i]; if(p.lane!==lane||p.dead) continue;
-    if(p.y>=G.hitY-24 && p.y<=G.hitY+14 && p.y>bestY){ best=i; bestY=p.y; } }
-  if(best>=0){
-    mini.pulses[best].dead=true;
-    mini.charge=clamp(mini.charge+mini.perHit,0,100);
-    mini.combo++; if(mini.combo>mini.best) mini.best=mini.combo;
-    mini.flash=130; mini.laneFlash[lane]=130; audio.sfx('cursor');
-    miniSpark(laneX(lane)+G.laneW/2,G.hitY,'#bfe6ff');
-    if(mini.charge>=100) miniWin();
-  } else { mini.combo=0; mini.shake=7; audio.sfx('cancel'); }
-}
-function miniClick(mx,my){ const G=miniGeom();
-  for(let i=0;i<mini.lanes;i++){ const lx=laneX(i); if(mx>=lx-G.gap/2 && mx<=lx+G.laneW+G.gap/2){ miniHit(i); return; } } }
-function miniUpdate(dt){
-  mini.t+=dt; if(mini.flash>0) mini.flash-=dt; if(mini.shake>0) mini.shake-=dt*0.04;
-  for(let i=0;i<3;i++) if(mini.laneFlash[i]>0) mini.laneFlash[i]-=dt; else if(mini.laneFlash[i]<0) mini.laneFlash[i]+=dt;
-  if(consume('menu')){ mini.active=false; game.state='play'; clearPressed(); return; }
-  const G=miniGeom();
-  mini.spawnT-=dt;
-  if(mini.spawnT<=0){ mini.spawnT=mini.spawnEvery*(0.78+Math.random()*0.44);
-    mini.pulses.push({lane:(Math.random()*mini.lanes)|0, y:G.topY-4, dead:false}); }
-  for(const p of mini.pulses){ if(p.dead) continue; p.y+=mini.fallSpd*dt;
-    if(p.y>G.hitY+18){ p.dead=true; mini.combo=0; mini.charge=clamp(mini.charge-0.35,0,100); mini.laneFlash[p.lane]=-160; } }
-  mini.pulses=mini.pulses.filter(p=>!p.dead);
-  for(const f of mini.hitFx){ f.x+=f.vx*(dt/16); f.y+=f.vy*(dt/16); f.t+=dt; }
-  mini.hitFx=mini.hitFx.filter(f=>f.t<f.life);
-  if(consume('left')) miniHit(0);
-  if(consume('down')) miniHit(1);
-  if(consume('right')) miniHit(2);
-}
-function miniDraw(){
-  drawWorld();
-  g.globalAlpha=0.64; rect(0,0,VW,VH,'#070a14'); g.globalAlpha=1;
-  const G=miniGeom();
-  const ox=mini.shake>0?(Math.random()*2-1)*mini.shake:0;
-  uiBox(G.bx,G.by,G.bw,G.bh);
-  g.textAlign='center';
-  textShadow(mini.title,VW/2,G.by+8,'#173a5a','#bfe6ff',8);
-  text('Stage '+(mini.stage+1)+'/3 - catch pulses to charge the cage',VW/2,G.by+20,'#6a86aa',7);
-  // charge bar
-  const barX=G.bx+12, barY=G.by+28, barW=G.bw-24, barH=10;
-  rrect(barX,barY,barW,barH,3,'#10141f');
-  const cg=g.createLinearGradient(barX,0,barX+barW,0); cg.addColorStop(0,'#c79a18'); cg.addColorStop(1,'#f6d62e');
-  g.fillStyle=cg; rpath(barX+1,barY+1,Math.max(0,(barW-2)*mini.charge/100),barH-2,2); g.fill();
-  textShadow('CHARGE '+(mini.charge|0)+'%',VW/2,barY+1,'#1a2030', mini.flash>0?'#fff7c0':'#cfe0f4',7);
-  // lanes
-  for(let i=0;i<mini.lanes;i++){ const lx=laneX(i)+ox, lf=mini.laneFlash[i];
-    rrect(lx,G.topY,G.laneW,G.hitY-G.topY+18,3, lf<0?'#3a1620':'#0e1320');
-    rect(lx,G.hitY,G.laneW,2, lf>0?'#eaf6ff':'#3f6390');
-    rrect(lx,G.hitY+6,G.laneW,16,3,'#16203a'); rrect(lx+1,G.hitY+7,G.laneW-2,14,2, lf>0?'#2a5a8a':'#23314e');
-    textShadow(LANE_ARR[i]+' '+LANE_LET[i], lx+G.laneW/2, G.hitY+10, '#cfe6ff','#000',8);
-  }
-  // pulses
-  for(const p of mini.pulses){ if(p.dead) continue; const px=laneX(p.lane)+G.laneW/2+ox, py=p.y, near=Math.abs(py-G.hitY)<24;
-    circle(px,py,7,near?'rgba(191,230,255,.45)':'rgba(110,170,235,.28)');
-    circle(px,py,3.6,near?'#eaf6ff':'#9fd0f0');
-    g.strokeStyle=near?'#ffffff':'#cfe6ff'; g.lineWidth=1; g.beginPath(); g.moveTo(px-2,py-2); g.lineTo(px+0.5,py); g.lineTo(px-1,py); g.lineTo(px+2,py+2.5); g.stroke();
-  }
-  for(const f of mini.hitFx){ g.globalAlpha=clamp(1-f.t/f.life,0,1); circle(f.x,f.y,1.4,f.col); } g.globalAlpha=1;
-  if(mini.combo>2) textShadow('COMBO x'+mini.combo,VW/2,G.topY-8,'#f6d62e','#000',8);
-  g.textAlign='left';
-}
 
 /* =========================================================================
    YAMPER CATCH - Mezastar-style ball spinner. One throw per encounter:
@@ -4601,7 +4506,7 @@ function newGame(){ // wipe all progress and start fresh from the intro
   saveSystem.delete();   // wipe the old save so Continue can't jump back to the previous run
   game.map=null; game.player=null; game.entities=[]; game.objective='';
   game.hearts=[]; game.particles=[]; game.fade=0; game.flash=0; game.shake=0; game.travelText='';
-  battle.active=false; battle.double=false; mini.active=false;
+  battle.active=false; battle.double=false;
   game.intro=0; game.introT=0;
   if(!audio.started) audio.start();
   // opening cinematic film, then the illustrated text intro (falls straight to text if no video)
@@ -4759,7 +4664,6 @@ function update(dt){
       if(activeSeq){ activeSeq.update(dt); if(activeSeq.done && game.state==='cutscene' && !dlg.active){ /* seq sets state */ } }
       break;
     case 'battle': battleUpdate(dt); break;
-    case 'minigame': miniUpdate(dt); break;
     case 'catch': catchUpdate(dt); break;
     case 'vsintro': vsUpdate(dt); break;
     case 'video': videoUpdate(dt); break;
@@ -4768,7 +4672,7 @@ function update(dt){
     case 'cinema': cinemaUpdate(dt); break;
     case 'credits': creditsUpdate(dt); break;
   }
-  if(game.player && (game.state==='play'||game.state==='cutscene'||game.state==='minigame')) updateCamera();
+  if(game.player && (game.state==='play'||game.state==='cutscene')) updateCamera();
 }
 function render(){
   g.setTransform(RES,0,0,RES,0,0);   // HD super-sample: draw in logical coords, scaled up
@@ -4781,7 +4685,6 @@ function render(){
     case 'play': drawWorld(); drawInteractPrompt(); drawObjectiveHUD(); break;
     case 'cutscene': drawWorld(); dlgDraw(); break;
     case 'battle': battleDraw(); break;
-    case 'minigame': miniDraw(); break;
     case 'catch': catchDraw(); break;
     case 'vsintro': vsDraw(); break;
     case 'video': videoDraw(); break;
