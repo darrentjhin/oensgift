@@ -2226,11 +2226,13 @@ function setupTown(){
   npc('towns3','gal',   22,24,'up',   [{name:'Girl',text:'The downtown lights were strung up for the festival. Aren\'t they pretty when they glow?'}]).idle=true;
   npc('towns4','oldman',18,16,'down', [{name:'Old Man',text:'That Eevee of yours wouldn\'t take any stone. It simply wants to be itself. There is a quiet courage in that.'}]).idle=true;
   spawnYamper();   // the keeper's Yamper roams town until caught
-  // Flareon rescue: 3 Spring Crystals scattered across town (middle / west edge / south-east)
+  // Flareon rescue: 5 Spring Crystals scattered across town
   if(F.flareonQuest && !F.flareonRescued){
     spawnCrystal('cryst1','gotCrystal1', 26, 22, 0);   // downtown plaza - middle
     spawnCrystal('cryst2','gotCrystal2', 3,  16, 1);   // far west edge
     spawnCrystal('cryst3','gotCrystal3', 34, 31, 2);   // south-east corner
+    spawnCrystal('cryst4','gotCrystal4', 40, 16, 3);   // east
+    spawnCrystal('cryst5','gotCrystal5', 14, 33, 4);   // south
   }
   if(!F.routeClear){
     // the Grunt only exists AFTER the kid tips you off (talk to the kid first)
@@ -2276,7 +2278,7 @@ function setupTown(){
     else { game.objective='Enter the Old Power Station (north-east) and rescue Jolteon.'; }
   } else if(!F.flareonRescued){
     game.objective = F.flareonQuest
-      ? 'Find the 3 Spring Crystals scattered around Pallet Town ('+crystalCount()+'/3), then take them to the altar in the Ember Warehouse.'
+      ? 'Find the 5 Spring Crystals scattered around Pallet Town ('+crystalCount()+'/5), then take them to the altar in the Ember Warehouse.'
       : 'Fire energy detected - go to the Ember Warehouse (south-west) and rescue Flareon.';
   } else if(!F.gardenCleared){
     game.objective='Fairy energy nearby - go to the Moonlit Garden (south-east).';
@@ -2320,8 +2322,8 @@ function spawnYamper(){
   const y=mon('yamper','yamper',s[0],s[1],6); y.solid=true;
   y.talk=(e)=>{ if(F.yamperPoints==null) F.yamperPoints=50; startCatch(F.yamperPoints, yamperResult); };
 }
-function crystalCount(){ return (F.gotCrystal1?1:0)+(F.gotCrystal2?1:0)+(F.gotCrystal3?1:0); }
-const CRYSTAL_COL=['#7fe0ff','#a6c4ff','#c8f4ff'];
+function crystalCount(){ return (F.gotCrystal1?1:0)+(F.gotCrystal2?1:0)+(F.gotCrystal3?1:0)+(F.gotCrystal4?1:0)+(F.gotCrystal5?1:0); }
+const CRYSTAL_COL=['#7fe0ff','#a6c4ff','#c8f4ff','#9ad8ff','#bfeaff'];
 function spawnCrystal(id, flag, tx, ty, ci){
   if(F[flag]) return;                                   // already collected
   const col=CRYSTAL_COL[ci]||'#7fe0ff';
@@ -2333,13 +2335,13 @@ function spawnCrystal(id, flag, tx, ty, ci){
       g.globalAlpha=0.55; poly([[x+8,y+2.5],[x+8,y+13.5],[x+5.5,y+8]], '#ffffff'); g.globalAlpha=1;   // facet
       if(b>0.65){ rect(x+10,y+4.5,1,1,'#fff'); rect(x+5,y+10,1,1,'#fff'); } },             // sparkles
     talk:(e)=>{ F[flag]=true; audio.fanfare(); const n=crystalCount();
-      game.objective = n>=3   // keep the task bar count in sync the moment a crystal is picked up
-        ? 'Take the 3 Spring Crystals to the altar in the Ember Warehouse (south-west).'
-        : 'Find the 3 Spring Crystals scattered around Pallet Town ('+n+'/3), then take them to the warehouse altar.';
+      game.objective = n>=5   // keep the task bar count in sync the moment a crystal is picked up
+        ? 'Take the 5 Spring Crystals to the altar in the Ember Warehouse (south-west).'
+        : 'Find the 5 Spring Crystals scattered around Pallet Town ('+n+'/5), then take them to the warehouse altar.';
       runSeq([
-        {type:'say',name:'',text:'Oen found a SPRING CRYSTAL!  ('+n+' of 3 found)'},
+        {type:'say',name:'',text:'Oen found a SPRING CRYSTAL!  ('+n+' of 5 found)'},
         {type:'despawn',id:id},
-        {type:'say',name:'Evo Tracker', text: n>=3 ? 'All three Spring Crystals gathered! Bring them to the altar in the Ember Warehouse.' : (3-n)+' Spring Crystal'+((3-n)>1?'s':'')+' still scattered around Pallet Town.'},
+        {type:'say',name:'Evo Tracker', text: n>=5 ? 'All five Spring Crystals gathered! Bring them to the altar in the Ember Warehouse.' : (5-n)+' Spring Crystal'+((5-n)>1?'s':'')+' still scattered around Pallet Town.'},
       ],()=>game.state='play'); }}));
 }
 
@@ -2713,21 +2715,21 @@ function setupWarehouse(){
     draw:(x,y)=>{ ellipse(x+8,y+15,7,2,C.shadow);
       rect(x+2,y+9,12,5,'#544c5e'); rect(x+2,y+9,12,1.4,'#6a6276');     // altar base
       rect(x+3.5,y+4,9,5,'#615970'); rect(x+3.5,y+4,9,1.2,'#74698a');    // altar pedestal
-      const got=[F.gotCrystal1,F.gotCrystal2,F.gotCrystal3];
-      for(let i=0;i<3;i++){ const gx=x+4.5+i*3.5, gy=y+6;
-        if(got[i]){ const b=0.5+0.5*Math.sin((anim+i*22)/12); g.globalAlpha=0.4+b*0.45; circle(gx,gy,2.6,CRYSTAL_COL[i]); g.globalAlpha=1;
-          poly([[gx,gy-2.2],[gx+1.5,gy],[gx,gy+2.2],[gx-1.5,gy]],CRYSTAL_COL[i]); }
-        else { circle(gx,gy,1.4,'#2e2838'); g.strokeStyle='#3e3850'; g.lineWidth=0.8; g.beginPath(); g.arc(gx,gy,1.7,0,6.283); g.stroke(); } } },
+      const got=[F.gotCrystal1,F.gotCrystal2,F.gotCrystal3,F.gotCrystal4,F.gotCrystal5];
+      for(let i=0;i<5;i++){ const gx=x+3.2+i*2.4, gy=y+6;
+        if(got[i]){ const b=0.5+0.5*Math.sin((anim+i*22)/12); g.globalAlpha=0.4+b*0.45; circle(gx,gy,2,CRYSTAL_COL[i]); g.globalAlpha=1;
+          poly([[gx,gy-1.9],[gx+1.2,gy],[gx,gy+1.9],[gx-1.2,gy]],CRYSTAL_COL[i]); }
+        else { circle(gx,gy,1.1,'#2e2838'); g.strokeStyle='#3e3850'; g.lineWidth=0.7; g.beginPath(); g.arc(gx,gy,1.4,0,6.283); g.stroke(); } } },
     talk:(e)=>{
       if(F.warehouseSolved){ runSeq([{type:'say',name:'',text:'The flames are out. The altar rests quietly.'}],()=>game.state='play'); return; }
       const n=crystalCount();
-      if(n>=3){ runSeq([
-        {type:'say',name:'Cooling Altar',text:'The three Spring Crystals click into place and resonate as one...'},
+      if(n>=5){ runSeq([
+        {type:'say',name:'Cooling Altar',text:'The five Spring Crystals click into place and resonate as one...'},
         {type:'sfx',name:'spark'},{type:'flash',col:'#7fe0ff',ms:320},{type:'shake',ms:300},
         {type:'say',name:'',text:'A wave of cold mist sweeps the warehouse - the wall of fire hisses and dies down!'},
       ],()=>{ rescueFlareon(); }); }
       else { runSeq([
-        {type:'say',name:'Cooling Altar',text:'Three Spring Crystals must rest here to quell the flames. '+n+' of 3 are set. The rest are scattered across Pallet Town - go and find them.'},
+        {type:'say',name:'Cooling Altar',text:'Five Spring Crystals must rest here to quell the flames. '+n+' of 5 are set. The rest are scattered across Pallet Town - go and find them.'},
       ],()=>game.state='play'); }
     }}));
   // a small wooden TABLE with a hand-written NOTE, beside Flareon - the player must walk up and READ it
@@ -2741,17 +2743,17 @@ function setupWarehouse(){
       rect(x+6,y+5+lift,4,0.7,'#a89a78'); rect(x+6,y+6.3+lift,4,0.7,'#a89a78'); rect(x+6,y+7.4+lift,2.6,0.7,'#a89a78'); },
     talk:(e)=>{ runSeq([
       {type:'say',name:'',text:'A weathered NOTE rests on the table beside Flareon. Oen leans in to read it...'},
-      {type:'say',name:'Old Note',text:'"This shrine wards the flame. Set the three SPRING CRYSTALS into the altar\'s slots to quell the fire. When raiders came, the crystals were scattered across Pallet Town for safekeeping."'},
-      {type:'func',fn:()=>{ F.readNote=true; game.objective='Find the 3 Spring Crystals scattered in town, then present them at the warehouse altar.'; }},
+      {type:'say',name:'Old Note',text:'"This shrine wards the flame. Set the five SPRING CRYSTALS into the altar\'s slots to quell the fire. When raiders came, the crystals were scattered across Pallet Town for safekeeping."'},
+      {type:'func',fn:()=>{ F.readNote=true; game.objective='Find the 5 Spring Crystals scattered in town, then present them at the warehouse altar.'; }},
     ],()=>game.state='play'); }}));
   if(!F.warehouseIntro){ F.warehouseIntro=true; F.flareonQuest=true;
     runSeq([
       {type:'say',name:'Evo Tracker',text:'Fire energy very close. This is the Ember Warehouse.'},
-      {type:'say',name:'',text:'Flareon is trapped behind a roaring wall of flame. Before it stands a cold stone ALTAR with three empty crystal slots - and a small TABLE with a hand-written NOTE sits beside Flareon.'},
+      {type:'say',name:'',text:'Flareon is trapped behind a roaring wall of flame. Before it stands a cold stone ALTAR with five empty crystal slots - and a small TABLE with a hand-written NOTE sits beside Flareon.'},
       {type:'objective',text:'Read the NOTE on the table beside Flareon.'},
     ],()=>{ game.state='play'; });
   } else if(!F.readNote){ game.objective='Read the NOTE on the table beside Flareon.'; }
-  else { game.objective = crystalCount()>=3 ? 'Present the 3 Spring Crystals at the altar to free Flareon.' : 'Find the Spring Crystals in town ('+crystalCount()+'/3), then return to the altar.'; }
+  else { game.objective = crystalCount()>=5 ? 'Present the 5 Spring Crystals at the altar to free Flareon.' : 'Find the Spring Crystals in town ('+crystalCount()+'/5), then return to the altar.'; }
 }
 
 /* ================= GARDEN (Sylveon's signal) ================= */
