@@ -1110,6 +1110,7 @@ function drawTile(ch, theme, sx, sy, tx, ty){
     case 'garden': gardenTile(ch,sx,sy,alt,tx,ty); break;
     case 'hideout': hideoutTile(ch,sx,sy,alt,tx,ty); break;
     case 'town': townTile(ch,sx,sy,alt,tx,ty); break;
+    case 'home': homeTile(ch,sx,sy,alt); break;
   }
 }
 function floorGrid(sx,sy,base,line){ rect(sx,sy,TS,TS,base); g.fillStyle=line; g.fillRect(sx,sy,TS,1); g.fillRect(sx,sy,1,TS); }
@@ -1539,6 +1540,19 @@ function townTile(ch,sx,sy,alt,tx,ty){
     ellipse(sx+8,sy+3.6,4.4,3.8,'#5fb03f'); ellipse(sx+6.5,sy+2.8,1.8,1.4,'#8ace6a');
     rect(sx+3,sy+11.5,10,4,'#8a5a36'); rect(sx+3,sy+11.5,10,1,'#a67044'); rect(sx+3,sy+14.5,10,1,'#5a3a20'); rect(sx+4,sy+12.5,2,1.4,'#a67044'); return; }   // planter box
 }
+function homeTile(ch,sx,sy,alt){   // cozy cabin interior: warm wood floor + plaster walls
+  rect(sx,sy,TS,TS, alt?'#b78c54':'#ab8049');                              // wood plank floor
+  g.fillStyle='rgba(92,62,30,.32)'; g.fillRect(sx,sy+TS-1,TS,1); g.fillStyle='rgba(255,230,180,.10)'; g.fillRect(sx,sy,TS,1);
+  if(ch==='#'){ // plaster wall with wood wainscot
+    rect(sx,sy,TS,TS,'#e3cca0'); rect(sx,sy,TS,2,'#efe0c2');
+    rect(sx,sy+TS-6,TS,6,'#9a6e3e'); rect(sx,sy+TS-6,TS,1.4,'#b3854e'); rect(sx,sy+TS-1,TS,1,'#6e4a24'); }
+  else if(ch==='D'){ // front door (exit)
+    rect(sx,sy,TS,TS,'#e3cca0'); rrect(sx+2.5,sy+1.5,11,13.5,1.5,'#5a3a1e'); rect(sx+3.5,sy+2.5,9,12,'#7a5230'); rect(sx+3.5,sy+2.5,9,1.4,'#9a7142');
+    rect(sx+7.7,sy+2.5,0.6,12,'#5a3a20'); rect(sx+10,sy+8.5,1.4,2,'#f6d62e'); rect(sx+2.5,sy+TS-1.4,11,1.4,'#caa978'); }
+  else if(ch==='w'){ // window with daylight + curtains
+    rect(sx,sy,TS,TS,'#e3cca0'); rrect(sx+2,sy+2,12,9,1,'#6e4a28'); rect(sx+3,sy+3,10,7,'#bfe2fb'); rect(sx+3,sy+3,10,3.4,'#dcf0fc');
+    rect(sx+7.5,sy+3,1,7,'#6e4a28'); rect(sx+3,sy+6.4,10,1,'#6e4a28'); rect(sx+2,sy+1.5,2,9,'#c0444a'); rect(sx+12,sy+1.5,2,9,'#c0444a'); }
+}
 
 /* =========================================================================
    MAP BUILDING
@@ -1724,6 +1738,7 @@ function buildMaps(){
     house(2,1,4,2);   t[2][4]='D';   // HIDEOUT cellar  door (4,2) - far top-left, a long walk from the garden exit
     // ---- decorative residences ----
     [[11,4,4,3],[3,13,4,3],[3,19,5,3],[3,24,4,3],[40,13,4,3],[39,19,5,3],[40,24,4,3],[13,30,5,3],[28,30,5,3]].forEach(b=>house(b[0],b[1],b[2],b[3]));
+    t[26][4]='D';   // KEEPER'S HOUSE door (the retired station keeper lives here)
     // ---- greenery, ponds, signs ----
     grassPut([[2,3],[44,3],[44,38],[2,38],[12,9],[34,9],[12,27],[34,27],[20,30],[35,27],[10,36],[44,18]],'T');
     grassPut([[8,12],[42,12],[8,23],[42,23],[19,33],[33,33],[6,38],[40,38]],'f');
@@ -1755,15 +1770,27 @@ function buildMaps(){
         {x:41,y:3,t:'POWER STATION',c:'#8a5a10'},
         {x:7,y:29,t:'EMBER WAREHOUSE',c:'#8a3a10'},
         {x:39,y:29,t:'MOONLIT GARDEN',c:'#7a2a6a'},
+        {x:4,y:23,t:'KEEPER\'S HOUSE',c:'#6a4a2a'},
         {x:4,y:0,t:'????',c:'#555'},
       ],
       warps:[
         {x:7,y:7,to:'lab',tx:7,ty:9,dir:'up'},
+        {x:4,y:26,to:'keeper',tx:4,ty:7,dir:'up'},
         {x:41,y:8,to:'station',tx:6,ty:10,dir:'up',gate:'routeClear',hint:'The Power Station is sealed. A Team Rocket Grunt is lurking somewhere in town - find him and beat him first.'},
         {x:7,y:34,to:'warehouse',tx:6,ty:10,dir:'up',gate:'jolteonRescued',hint:'The Ember Warehouse is locked. The EVO TRACKER isn\'t pointing here yet.'},
         {x:39,y:34,to:'garden',tx:6,ty:10,dir:'up',gate:'flareonRescued',hint:'The Moonlit Garden gate is shut. The tracker hasn\'t pointed here yet.'},
         {x:4,y:2,to:'hideout',tx:6,ty:10,dir:'up',gate:'gardenCleared',hint:'A sealed underground door hums faintly... it won\'t open yet.'},
       ] };
+  }
+
+  // ===== KEEPER'S HOUSE (cozy cabin interior) =====
+  {
+    const w=9,h=9, t=makeGrid(w,h,'.');
+    setBorder(t,'#');
+    t[0][2]='w'; t[0][6]='w';        // two windows set into the back wall
+    t[h-1][4]='D';                    // exit door, bottom-centre
+    M.keeper = { theme:'home', w, h, tiles:t, spawn:{x:4,y:7,dir:'up'},
+      warps:[{x:4,y:8,to:'town',tx:4,ty:27,dir:'down'}] };
   }
 
   return M;
@@ -2174,6 +2201,7 @@ function setupScene(name){
   else if(name==='warehouse'){ setupWarehouse(); }
   else if(name==='garden'){ setupGarden(); }
   else if(name==='hideout'){ setupHideout(); }
+  else if(name==='keeper'){ setupKeeper(); }
 }
 /* ================= TOWN (explorable hub) ================= */
 function setupTown(){
@@ -2592,6 +2620,53 @@ function catchDraw(){
   else if(mez.phase==='fled'){ text('Yamper wriggled free and dashed off!', VW/2, 172, '#ffd0a0', 8);
     if(Math.floor(anim/30)%2) text('press SPACE', VW/2, 185, '#9aa', 7); }
   g.textAlign='left';
+}
+
+/* ================= KEEPER'S HOUSE (Yamper quest) ================= */
+function setupKeeper(){
+  audio.play('warm');
+  // ---- cosy furniture (objects) ----
+  placeEntity(newEntity({id:'kfire',kind:'obj',tx:1,ty:1,dir:'down',solid:true,visible:true,
+    draw:(x,y)=>{ rect(x+1,y+1,14,14,'#7a5230'); rect(x+1,y+1,14,2,'#9a6b40'); rect(x+3,y+6,10,9,'#241812');
+      const fl=(Math.sin(anim/9)+1)/2; circle(x+8,y+11,3.4,'rgba(246,128,48,'+(0.22+fl*0.3).toFixed(2)+')');
+      ellipse(x+8,y+12,3,4+fl,C.orange); ellipse(x+8,y+13,1.6,2.6+fl,C.yellow); rect(x+2,y+13,12,2,'#3a2418'); } }));
+  placeEntity(newEntity({id:'kbed',kind:'obj',tx:1,ty:6,dir:'down',solid:true,visible:true,
+    draw:(x,y)=>{ rect(x+1,y+4,14,11,'#6e4a2a'); rect(x+1,y+6,14,9,'#cfd7e6'); rect(x+1,y+6,14,2,'#e6ecf6'); rrect(x+2,y+3,6,5,1.5,'#f0f2f8'); rect(x+1,y+13,14,2,'#8a4a5a'); } }));
+  placeEntity(newEntity({id:'ktable',kind:'obj',tx:6,ty:5,dir:'down',solid:true,visible:true,
+    draw:(x,y)=>{ ellipse(x+8,y+15,6,2,C.shadow); rect(x+4,y+11,1.6,4,'#5a3a20'); rect(x+10.4,y+11,1.6,4,'#5a3a20'); rect(x+2,y+8,12,3,'#8a5e36'); rect(x+2,y+8,12,1,'#a67044');
+      circle(x+6,y+7,1.4,'#e8554e'); circle(x+10,y+7,1.4,'#f6d62e'); } }));   // table with a fruit bowl
+  placeEntity(newEntity({id:'kplant',kind:'obj',tx:7,ty:1,dir:'down',solid:true,visible:true,
+    draw:(x,y)=>{ ellipse(x+8,y+15,4,1.4,C.shadow); rect(x+5,y+10,6,5,'#b5673a'); rect(x+5,y+10,6,1.4,'#cf7d4a'); ellipse(x+8,y+7,4.6,5,'#3f7d2c'); ellipse(x+6,y+5,2.6,3,'#4e9636'); ellipse(x+10,y+6,2.2,2.8,'#5fb03f'); } }));
+  placeEntity(newEntity({id:'krug',kind:'obj',tx:4,ty:4,dir:'down',solid:false,visible:true,
+    draw:(x,y)=>{ g.globalAlpha=0.9; rrect(x-6,y+2,28,16,3,'#9a3a4a'); rrect(x-4,y+4,24,12,2,'#b8505e'); g.strokeStyle='#d8a0aa'; g.lineWidth=0.8; g.strokeRect(x-2,y+6,24,8); g.globalAlpha=1; } }));
+  // ---- the old keeper ----
+  const talk=(e)=>{
+    if(!F.yamperQuest){
+      runSeq([
+        {type:'say',name:'Keeper',text:'Oh! A visitor. I\'m the old keeper of the Power Station - retired now. You\'re after the master breaker to free that poor Jolteon, aren\'t you?'},
+        {type:'say',name:'Keeper',text:'I\'ll lend it gladly... but do an old man one kindness first. I\'ve always dreamed of a YAMPER to keep me company. My legs can\'t chase one down anymore.'},
+        {type:'say',name:'Keeper',text:'There\'s a lively little Yamper darting around Pallet Town. Catch it for me, and the breaker is yours.'},
+        {type:'func',fn:()=>{ F.yamperQuest=true; if(F.yamperPoints==null) F.yamperPoints=50; F.yamperSpot=0; }},
+        {type:'objective',text:'Catch a Yamper for the keeper - it roams Pallet Town. Throw once and it bolts, so find it again and again until it\'s caught.'},
+      ],()=>game.state='play');
+    } else if(!F.yamperCaught){
+      runSeq([{type:'say',name:'Keeper',text:'Any luck with that Yamper? It\'s a quick one - each throw and it bolts off. Keep finding it. (It\'s worn down to '+(F.yamperPoints||50)+'/50.)'}],()=>game.state='play');
+    } else if(!F.gotBreaker){
+      runSeq([
+        {type:'say',name:'Keeper',text:'You caught it! Come here, little Yamper... oh, what a joy. Thank you, Oen - truly.'},
+        {type:'hearts',id:'player'},
+        {type:'func',fn:()=>{ F.gotBreaker=true; audio.fanfare(); }},
+        {type:'say',name:'',text:'Oen received the MASTER BREAKER!'},
+        {type:'say',name:'Keeper',text:'Take it to the station and throw the breaker to cut the power to that cage. Go on - Jolteon\'s counting on you.'},
+        {type:'objective',text:'Take the MASTER BREAKER to the Power Station and free Jolteon.'},
+      ],()=>game.state='play');
+    } else {
+      runSeq([{type:'say',name:'Keeper',text:'Yamper and I are the best of friends now. Off you go - Jolteon\'s waiting!'}],()=>game.state='play');
+    }
+  };
+  placeEntity(newEntity({id:'keeper',kind:'char',sub:'oldman',tx:4,ty:2,dir:'down',solid:true,talk}));
+  // Yamper curled up beside the keeper once it's his
+  if(F.yamperCaught) mon('keeperYam','yamper',5,2,6);
 }
 
 /* ================= STATION (Jolteon) ================= */
