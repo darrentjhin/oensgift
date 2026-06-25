@@ -2241,10 +2241,12 @@ function setupTown(){
       placeEntity(newEntity({id:'rgrunt',kind:'char',sub:'grunt',tx:3,ty:37,dir:'down',solid:true,
         talk:(e)=>{
           runSeq([
+            {type:'music',name:'battle'},   // kick the battle theme the instant the showdown starts
             {type:'say',name:'Rocket Grunt',text:'Tch... you actually found my hideyhole. Nosy brat.'},
             {type:'say',name:'Rocket Grunt',text:'The Power Station is Team Rocket property now. You\'re not getting the key!'},
             {type:'battle',cfg:{trainer:'Rocket Grunt', kind:'grunt', taunts:['Tch! Quit dodging and let my Zubat at you!','You think you can just waltz past Team Rocket?!','Grr... you\'re more stubborn than I figured!'], enemies:[{species:'rattata'},{species:'zubat'}]}},
             {type:'levelup',to:11},
+            {type:'music',name:'route'},     // back to the overworld theme after the fight
             {type:'say',name:'Rocket Grunt',text:'Ugh, fine! Take the key... but you\'re too late, Jolteon is already powering the station.'},
             {type:'flag',set:'routeClear'},
             {type:'move',id:'rgrunt',path:['up','up','right','right']},
@@ -2590,8 +2592,11 @@ function setupKeeper(){
       runSeq([{type:'say',name:'Keeper',text:'Any luck with that Yamper? It\'s a quick one - each throw and it bolts off. Keep finding it. (It\'s worn down to '+(F.yamperPoints||50)+'/50.)'}],()=>game.state='play');
     } else if(!F.gotBreaker){
       runSeq([
-        {type:'say',name:'Keeper',text:'You caught it! Come here, little Yamper... oh, what a joy. Thank you, Oen - truly.'},
-        {type:'hearts',id:'player'},
+        {type:'say',name:'Keeper',text:'You caught it! Here, Oen - hand the little one over...'},
+        {type:'say',name:'',text:'Oen gives the Yamper to the old keeper.'},
+        {type:'spawn',entity:{id:'keeperYam',kind:'mon',sub:'yamper',tx:5,ty:2,solid:true,R:6}},   // now Yamper is finally in the house
+        {type:'say',name:'Keeper',text:'Oh, what a joy. Come here, little Yamper. Thank you, Oen - truly.'},
+        {type:'hearts',id:'keeperYam'},
         {type:'func',fn:()=>{ F.gotBreaker=true; audio.fanfare(); }},
         {type:'say',name:'',text:'Oen received the MASTER BREAKER!'},
         {type:'say',name:'Keeper',text:'Take it to the station and throw the breaker to cut the power to that cage. Go on - Jolteon\'s counting on you.'},
@@ -2602,8 +2607,8 @@ function setupKeeper(){
     }
   };
   placeEntity(newEntity({id:'keeper',kind:'char',sub:'oldman',tx:4,ty:2,dir:'down',solid:true,talk}));
-  // Yamper curled up beside the keeper once it's his
-  if(F.yamperCaught) mon('keeperYam','yamper',5,2,6);
+  // Yamper curled up beside the keeper only once it's actually been handed over
+  if(F.gotBreaker) mon('keeperYam','yamper',5,2,6);
 }
 
 /* ================= STATION (Jolteon) ================= */
@@ -4187,8 +4192,7 @@ function titleDraw(){
         textShadow(opts[i], ox, 126, sel?'#ffe24a':'#cfd6ff', '#2a2a4a', 9);
         if(sel && Math.floor(anim/42)%2) textShadow('▸', ox-12, 126, '#ffe24a','#2a2a4a',9);
       }
-    } else if(Math.floor(anim/52)%2){ textShadow('Press SPACE / ENTER to start',VW/2,128,'#fff','#2a2a4a',9); }
-    textShadow('A rescue made for Oen ♥',VW/2,146,'#f6a8c8','#5a2a4a',8);
+    } else if(Math.floor(anim/52)%2){ textShadow('Press SPACE / ENTER to start',VW/2,146,'#fff','#2a2a4a',9); }
   } else {
     // completed cover: Poppy & Sylveon photo (no eeveelutions) + left-stacked menu - kept STATIC (no animation)
     const im=sceneImg('poppySylveonCut');
