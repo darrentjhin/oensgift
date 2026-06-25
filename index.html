@@ -2662,27 +2662,32 @@ function setupStation(){
       if(armed && Math.floor(anim/14)%2){ circle(x+8,y+3,3,'rgba(246,214,46,.4)'); } } ,
     talk:(e)=>{
       if(F.stationSolved){ runSeq([{type:'say',name:'',text:'The breaker is thrown and the cage is dead. Jolteon is free.'}],()=>game.state='play'); return; }
-      if(!F.gotBreaker){ F.needBreaker=true;
-        runSeq([
-          {type:'say',name:'Evo Tracker',text:'This panel powers Jolteon\'s cage - but the MASTER BREAKER slot is empty. Without it, the cage stays live.'},
-          {type:'say',name:'Prof. Oak',text:'The station\'s old keeper took the master breaker home when he retired. Find him in town, Oen.'},
-          {type:'objective',text:'Find the retired station keeper - the KEEPER\'S HOUSE is on the WEST side of town.'},
-        ],()=>game.state='play');
+      if(!F.gotBreaker){
+        if(!F.needBreaker){ F.needBreaker=true;
+          runSeq([
+            {type:'say',name:'',text:'Oen studies the control panel. A heavy slot in the centre is stamped "MASTER BREAKER" - but it sits empty. The cage won\'t cut without it.'},
+            {type:'say',name:'',text:'A faded sticker on the casing reads: "Master breaker checked out by the old KEEPER. - see his house, west side of town."'},
+            {type:'say',name:'Oen',text:'So that\'s it... I need the Keeper\'s breaker. One of the houses on the west side. I\'ll go find him.'},
+            {type:'objective',text:'Find the KEEPER\'S HOUSE on the WEST side of town and get the master breaker.'},
+          ],()=>game.state='play');
+        } else {
+          runSeq([{type:'say',name:'Oen',text:'Still no master breaker. The Keeper\'s house is on the west side of town - I should go.'}],()=>game.state='play');
+        }
         return;
       }
       freeJolteon();
     }}));
-  // entry dialog once
-  if(!F.stationIntro){ F.stationIntro=true; F.needBreaker=true;
+  // entry dialog once - no hand-holding from Oak; Oen works it out by inspecting the panel herself
+  if(!F.stationIntro){ F.stationIntro=true;
     runSeq([
-      {type:'say',name:'Evo Tracker',text:'Electric energy very close. This is the Old Power Station.'},
-      {type:'say',name:'Prof. Oak',text:'There\'s Jolteon - trapped in a live electric cage. We have to cut the power to free it.'},
-      {type:'say',name:'',text:'The cage runs off a big CONTROL PANEL in the middle of the room... but its master-breaker slot is empty.'},
-      {type:'say',name:'Prof. Oak',text:'The station\'s retired keeper kept the master breaker. He lives in one of the houses in town - go and ask him.'},
-      {type:'objective',text:'Find the retired station keeper - the KEEPER\'S HOUSE is on the WEST side of town.'},
+      {type:'say',name:'',text:'The Old Power Station hums with trapped electricity. At the far end, Jolteon is caged in a crackling field.'},
+      {type:'say',name:'Oen',text:'That big CONTROL PANEL in the middle of the room must run the cage. Let me take a closer look.'},
+      {type:'objective',text:'Inspect the cage CONTROL PANEL in the middle of the room.'},
     ],()=>{ game.state='play'; });
   } else if(!F.jolteonRescued){
-    game.objective = F.gotBreaker ? 'Use the MASTER BREAKER on the cage CONTROL PANEL (centre of the room).' : 'Get the master breaker from the keeper (WEST side of town), then return here.';
+    game.objective = F.gotBreaker ? 'Use the MASTER BREAKER on the cage CONTROL PANEL (centre of the room).'
+      : F.needBreaker ? 'Find the KEEPER\'S HOUSE on the WEST side of town and get the master breaker.'
+      : 'Inspect the cage CONTROL PANEL in the middle of the room.';
   }
 }
 
@@ -4260,7 +4265,9 @@ function cardScanUpdate(dt){
   if(cardScan.phase==='live'){
     if(consume('ok')){ snapCard(); stopCardScan(); cardScan.phase='scanning'; cardScan.t=0; audio.sfx('confirm'); }
   } else if(cardScan.phase==='scanning'){
-    if(cardScan.t>=1500){ cardScan.phase='verified'; cardScan.t=0; audio.fanfare(); }
+    if(cardScan.t>=1500){ cardScan.phase='processing'; cardScan.t=0; audio.sfx('confirm'); }
+  } else if(cardScan.phase==='processing'){
+    if(cardScan.t>=8000){ cardScan.phase='verified'; cardScan.t=0; audio.fanfare(); }   // 0-100% over 8 seconds
   } else if(cardScan.phase==='verified'){
     if(cardScan.t>=1400 || (consume('ok')&&cardScan.t>500)){ startCharIntro(); }   // -> Oen/Poppy intro page
   }
@@ -4300,6 +4307,16 @@ function cardScanDraw(){
     g.strokeStyle='rgba(190,250,255,.95)'; g.lineWidth=1.5; g.beginPath(); g.moveTo(CARD_X,sy); g.lineTo(CARD_X+CARD_W,sy); g.stroke();
     const n=Math.floor(cardScan.t/300)%4; let d=''; for(let i=0;i<n;i++) d+='.';
     textShadow('SCANNING'+d, VW/2, VH-7, '#bfe0ff', '#0a1830', 9);
+  } else if(cardScan.phase==='processing'){
+    cardBracket(CARD_X,CARD_Y,CARD_W,CARD_H,16, 'rgba(120,210,255,.7)');
+    const pct=Math.min(100, Math.floor(cardScan.t/80));   // 8000ms -> 100%
+    const bx=CARD_X+5, bw=CARD_W-10, by=CARD_Y+CARD_H-14;
+    rrect(bx-2,by-2,bw+4,9,2,'rgba(8,16,30,.85)');
+    const grd=g.createLinearGradient(bx,0,bx+bw,0); grd.addColorStop(0,'#3aa0e0'); grd.addColorStop(1,'#7df0ff');
+    g.fillStyle=grd; rpath(bx,by,Math.max(0,bw*pct/100),5,2); g.fill();
+    if(pct<100 && Math.floor(anim/8)%3===0){ g.fillStyle='rgba(255,255,255,.5)'; g.fillRect(bx+bw*pct/100-2,by,2,5); }   // leading sparkle
+    textShadow('PROCESSING  '+pct+'%', VW/2, by-6, '#cfeaff', '#0a1830', 9);
+    textShadow('Verifying player ID…', VW/2, VH-7, '#9fc4e8', '#0a1830', 8);
   } else { // verified
     const a=Math.min(1,cardScan.t/180);
     g.fillStyle='rgba(40,200,120,'+(0.22*a).toFixed(2)+')'; g.fillRect(0,0,VW,VH);
