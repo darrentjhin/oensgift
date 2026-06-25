@@ -1079,9 +1079,9 @@ function drawTile(ch, theme, sx, sy, tx, ty){
     case 'lab': labTile(ch,sx,sy,alt); break;
     case 'route': routeTile(ch,sx,sy,alt,tx,ty); break;
     case 'station': stationTile(ch,sx,sy,alt,tx,ty); break;
-    case 'warehouse': warehouseTile(ch,sx,sy,alt); break;
+    case 'warehouse': warehouseTile(ch,sx,sy,alt,tx,ty); break;
     case 'garden': gardenTile(ch,sx,sy,alt,tx,ty); break;
-    case 'hideout': hideoutTile(ch,sx,sy,alt); break;
+    case 'hideout': hideoutTile(ch,sx,sy,alt,tx,ty); break;
     case 'town': townTile(ch,sx,sy,alt,tx,ty); break;
   }
 }
@@ -1153,7 +1153,11 @@ function routeTile(ch,sx,sy,alt,tx,ty){
 function stationTile(ch,sx,sy,alt,tx,ty){
   rect(sx,sy,TS,TS, alt?'#3a3e4c':'#333744');
   g.fillStyle='#2a2d38'; g.fillRect(sx,sy,TS,1); g.fillRect(sx,sy,1,TS);
-  if(ch==='#'){ rect(sx,sy,TS,TS,'#4a4030'); rect(sx,sy,TS,4,'#5a5040'); rect(sx,sy+TS-3,TS,3,'#352d20'); for(let i=0;i<4;i++) rect(sx+1+i*4,sy+4,1,TS-7,'#2a241a'); }
+  if(ch==='.'){ const d=(tx*5+ty*9)%9;   // metallic floor panels: occasional rivets / sheen / scuff
+    if(d===0){ rect(sx+2,sy+2,1,1,'#4a4f5e'); rect(sx+TS-3,sy+2,1,1,'#4a4f5e'); rect(sx+2,sy+TS-3,1,1,'#4a4f5e'); rect(sx+TS-3,sy+TS-3,1,1,'#4a4f5e'); }
+    else if(d===3){ g.fillStyle='rgba(130,160,210,.06)'; g.fillRect(sx+3,sy+7,TS-6,2); }
+    else if(d===6){ rect(sx+5,sy+10,6,1,'#2a2d38'); } }
+  else if(ch==='#'){ rect(sx,sy,TS,TS,'#4a4030'); rect(sx,sy,TS,4,'#5a5040'); rect(sx,sy+TS-3,TS,3,'#352d20'); for(let i=0;i<4;i++) rect(sx+1+i*4,sy+4,1,TS-7,'#2a241a'); }
   else if(ch==='M'){ rect(sx,sy,TS,TS,'#52596b'); rect(sx+2,sy+1,TS-4,TS-2,'#6a7184'); rect(sx+4,sy+3,8,5,'#2a2d38');
     // each generator's lights turn solid green once that one is shut
     const lbl=(tx===2&&ty===3)?'L':(tx===10&&ty===3)?'R':(tx===4&&ty===6)?'M':null;
@@ -1197,10 +1201,14 @@ function stationTile(ch,sx,sy,alt,tx,ty){
     for(let i=-2;i<6;i++){ g.fillStyle=(i%2)?'#f6d62e':'#1a1d26'; g.beginPath(); g.moveTo(sx+i*4,sy); g.lineTo(sx+i*4+3,sy); g.lineTo(sx+i*4+3-TS,sy+TS); g.lineTo(sx+i*4-TS,sy+TS); g.closePath(); g.fill(); } g.restore();
   }
 }
-function warehouseTile(ch,sx,sy,alt){
+function warehouseTile(ch,sx,sy,alt,tx,ty){
   rect(sx,sy,TS,TS, alt?'#6a6258':'#625a50');
   g.fillStyle='#4f483f'; g.fillRect(sx,sy,TS,1); g.fillRect(sx,sy,1,TS);
-  if(ch==='#'){ rect(sx,sy,TS,TS,'#7a6a52'); rect(sx,sy,TS,4,'#8c7a5e'); for(let i=0;i<2;i++) rect(sx,sy+5+i*5,TS,1,'#5a4d38'); }
+  if(ch==='.'){ const d=(tx*7+ty*5)%9;   // worn concrete: hairline cracks / oil specks / grit
+    if(d===0){ g.strokeStyle='rgba(60,52,42,.5)'; g.lineWidth=0.6; g.beginPath(); g.moveTo(sx+3,sy+5); g.lineTo(sx+8,sy+9); g.lineTo(sx+7,sy+13); g.stroke(); }
+    else if(d===3){ g.globalAlpha=0.18; ellipse(sx+9,sy+9,3.5,2.2,'#241c14'); g.globalAlpha=1; }
+    else if(d===6){ rect(sx+4,sy+11,2,1,'#544c42'); rect(sx+11,sy+5,1,1,'#544c42'); } }
+  else if(ch==='#'){ rect(sx,sy,TS,TS,'#7a6a52'); rect(sx,sy,TS,4,'#8c7a5e'); for(let i=0;i<2;i++) rect(sx,sy+5+i*5,TS,1,'#5a4d38'); }
   else if(ch==='c'){ rect(sx+1,sy+1,TS-2,TS-2,'#b08a4a'); rect(sx+1,sy+1,TS-2,2,'#c8a05a'); g.strokeStyle='#7a5a28'; g.strokeRect(sx+1.5,sy+1.5,TS-3,TS-3); g.beginPath(); g.moveTo(sx+2,sy+2); g.lineTo(sx+TS-2,sy+TS-2); g.moveTo(sx+TS-2,sy+2); g.lineTo(sx+2,sy+TS-2); g.stroke(); }
   else if(ch==='F'){ rect(sx,sy,TS,TS,'#3a3028'); rect(sx+2,sy+2,TS-4,TS-4,'#5a4a3a'); const fl=Math.floor(anim/8)%2; ellipse(sx+8,sy+11,4,fl?5:4,C.orange); ellipse(sx+8,sy+12,2,fl?3:2,C.yellow); }
   else if(ch==='V'){ rect(sx,sy,TS,TS, alt?'#6a6258':'#625a50'); circle(sx+8,sy+8,5,'#9aa0b0'); circle(sx+8,sy+8,4,'#c0c6d4'); rect(sx+7,sy+2,2,12,'#6a7080'); rect(sx+2,sy+7,12,2,'#6a7080'); }
@@ -1238,7 +1246,11 @@ function warehouseTile(ch,sx,sy,alt){
 }
 function gardenTile(ch,sx,sy,alt,tx,ty){
   rect(sx,sy,TS,TS, alt?'#1f3a4a':'#1b3342');
-  if(ch==='T'){ ellipse(sx+8,sy+6,8,7,'#16303f'); ellipse(sx+8,sy+4,6,5,'#234657'); rect(sx+6,sy+11,4,5,'#2a2018'); }
+  if(ch==='.'){ const d=(tx*7+ty*9)%8;   // moonlit ground: dappled light / reeds / a stray petal
+    if(d===0){ g.globalAlpha=0.10; circle(sx+6,sy+7,3,'#bfe2ff'); g.globalAlpha=1; }
+    else if(d===3){ rect(sx+11,sy+9,1,4,'#22485a'); rect(sx+12,sy+8,1,5,'#22485a'); }
+    else if(d===5){ circle(sx+4,sy+11,0.9,'rgba(246,168,200,.4)'); } }
+  else if(ch==='T'){ ellipse(sx+8,sy+6,8,7,'#16303f'); ellipse(sx+8,sy+4,6,5,'#234657'); rect(sx+6,sy+11,4,5,'#2a2018'); }
   else if(ch==='f'){ // glowing flower
     const ph=(Math.sin((anim+tx*30+ty*20)/20)+1)/2;
     circle(sx+8,sy+8,3+ph,'rgba(246,168,200,'+(0.25+ph*0.3)+')');
@@ -1283,10 +1295,14 @@ function gardenTile(ch,sx,sy,alt,tx,ty){
     circle(sx+4,sy+5,1,'rgba(246,168,200,.6)'); circle(sx+10,sy+8,1,'rgba(248,200,220,.5)'); circle(sx+7,sy+12,1,'rgba(246,168,200,.45)'); circle(sx+13,sy+12,0.8,'rgba(248,200,220,.4)');
   }
 }
-function hideoutTile(ch,sx,sy,alt){
+function hideoutTile(ch,sx,sy,alt,tx,ty){
   rect(sx,sy,TS,TS, alt?'#26262f':'#202028');
   g.fillStyle='#16161c'; g.fillRect(sx,sy,TS,1); g.fillRect(sx,sy,1,TS);
-  if(ch==='#'){ rect(sx,sy,TS,TS,'#3a2330'); rect(sx,sy,TS,4,'#4a2d3e'); rect(sx+1,sy+5,TS-2,1,'#2a1822'); text('R',sx+5,sy+7,'#6a3a50',8); }
+  if(ch==='.'){ const d=(tx*5+ty*7)%9;   // grimy hideout floor: scratches / grime / a faint red reflection
+    if(d===0){ g.strokeStyle='rgba(10,10,14,.5)'; g.lineWidth=0.6; g.beginPath(); g.moveTo(sx+3,sy+6); g.lineTo(sx+9,sy+10); g.stroke(); }
+    else if(d===3){ g.globalAlpha=0.12; ellipse(sx+8,sy+9,4,2.5,'#000'); g.globalAlpha=1; }
+    else if(d===6){ const gl=(Math.sin((anim+tx*9)/30)+1)/2; circle(sx+11,sy+5,0.9,'rgba(216,106,150,'+(0.10+gl*0.12).toFixed(2)+')'); } }
+  else if(ch==='#'){ rect(sx,sy,TS,TS,'#3a2330'); rect(sx,sy,TS,4,'#4a2d3e'); rect(sx+1,sy+5,TS-2,1,'#2a1822'); text('R',sx+5,sy+7,'#6a3a50',8); }
   else if(ch==='M'){ rect(sx,sy,TS,TS,'#33333f'); rect(sx+1,sy+1,TS-2,TS-2,'#44445a'); const on=Math.floor(anim/10)%2; rect(sx+3,sy+3,3,3,on?C.pink:'#6a3a50'); rect(sx+9,sy+3,3,3,on?C.lblue:'#2a4a5a'); rect(sx+3,sy+9,TS-6,3,'#222'); }
   else if(ch==='A'){ // amplifier core
     rect(sx,sy,TS,TS,'#2a2a36'); const ph=(Math.sin(anim/12)+1)/2;
