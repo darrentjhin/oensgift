@@ -117,7 +117,7 @@ const ASSETS = {
            charizard:'assets/charizard.png', rayquaza:'assets/rayquaza.png', mewtwo:'assets/mewtwo.png',
            rattata:'assets/rattata_mon.png', zubat:'assets/zubat_mon.png', magnemite:'assets/magnemite_mon.png',
            voltorb:'assets/voltorb_mon.png', koffing:'assets/koffing_mon.png', houndour:'assets/houndour_mon.png',
-           ekans:'', murkrow:'assets/murkrow_mon.png', persian:'assets/persian_mon.png' },
+           murkrow:'assets/murkrow_mon.png', persian:'assets/persian_mon.png' },
   char:  { oen:'', oak:'', asst:'', kid:'', grunt:'', rook:'' },
   // full-screen painted backdrops (4K AI art, downscaled): title, establishing shots,
   // battle arenas, evolution cinematic, and illustrated intro story panels.
@@ -259,7 +259,6 @@ cv.addEventListener('pointerdown', (ev)=>{
     return;
   }
   if(game.state==='minigame'){ miniClick(mx,my); return; }
-  if(game.state==='riddle'){ riddleClick(mx,my); return; }
   if(game.paused) return;                          // pause menu stays keyboard-driven
   if(game.state==='battle'){ battlePointer(mx,my); return; }
   // tapping the objective bar collapses/expands it (don't also fire an interact)
@@ -926,38 +925,6 @@ function mHoundour(x,y,R){
   poly([[x+R*0.42,y-R*0.42],[x+R*0.14,y-R*0.32],[x+R*0.16,y-R*0.22],[x+R*0.42,y-R*0.3]],ey);
   circle(x-R*0.26,y-R*0.32,R*0.04,'#ffd0d0'); circle(x+R*0.26,y-R*0.32,R*0.04,'#ffd0d0');
 }
-function mEkans(x,y,R){
-  const p=C.purple, pd=C.dpurple, yl=C.yellow;
-  // coiled body
-  ellipse(x,y+R*0.55,R*0.92,R*0.42,p);
-  ellipse(x,y+R*0.55,R*0.6,R*0.26,pd);
-  ellipse(x-R*0.1,y+R*0.2,R*0.7,R*0.34,p);
-  // yellow rattle tail poking out (left)
-  poly([[x-R*0.78,y+R*0.04],[x-R*1.06,y-R*0.14],[x-R*1.06,y+R*0.32],[x-R*0.78,y+R*0.32]],yl);
-  rect(x-R*1.06,y-R*0.14,R*0.06,R*0.46,pd);
-  // neck rising to the head (right)
-  g.fillStyle=p; g.beginPath();
-  g.moveTo(x+R*0.08,y+R*0.36); g.quadraticCurveTo(x+R*0.72,y+R*0.2,x+R*0.56,y-R*0.46);
-  g.quadraticCurveTo(x+R*0.44,y-R*0.04,x-R*0.06,y+R*0.16); g.closePath(); g.fill();
-  // yellow neck band
-  g.fillStyle=yl; g.beginPath();
-  g.moveTo(x+R*0.2,y+R*0.1); g.quadraticCurveTo(x+R*0.64,y-R*0.02,x+R*0.52,y-R*0.32);
-  g.lineTo(x+R*0.36,y-R*0.28); g.quadraticCurveTo(x+R*0.48,y-R*0.02,x+R*0.16,y+R*0.04);
-  g.closePath(); g.fill();
-  // head
-  ellipse(x+R*0.5,y-R*0.55,R*0.42,R*0.34,p);
-  ellipse(x+R*0.68,y-R*0.5,R*0.26,R*0.22,p); // snout
-  // menacing slit eye
-  ellipse(x+R*0.42,y-R*0.66,R*0.12,R*0.15,'#fff');
-  rect(x+R*0.4,y-R*0.76,R*0.05,R*0.2,'#1a1420');
-  // mouth
-  rect(x+R*0.5,y-R*0.4,R*0.4,R*0.04,'#1a1420');
-  // forked tongue
-  g.strokeStyle=C.red; g.lineWidth=R*0.06; g.lineCap='round'; g.beginPath();
-  g.moveTo(x+R*0.84,y-R*0.38); g.lineTo(x+R*1.12,y-R*0.44);
-  g.lineTo(x+R*1.26,y-R*0.54); g.moveTo(x+R*1.12,y-R*0.44); g.lineTo(x+R*1.26,y-R*0.36);
-  g.stroke(); g.lineWidth=1; g.lineCap='butt';
-}
 function mMurkrow(x,y,R){
   const k='#211d2e', kd='#15121f', yb=C.yellow, ey=C.red;
   // upswept notched tail feathers (behind)
@@ -1093,7 +1060,7 @@ const MON = {
   rattata:{f:mRattata,name:'Rattata'}, zubat:{f:mZubat,name:'Zubat'},
   magnemite:{f:mMagnemite,name:'Magnemite'}, voltorb:{f:mVoltorb,name:'Voltorb'},
   koffing:{f:mKoffing,name:'Koffing'}, houndour:{f:mHoundour,name:'Houndour'},
-  ekans:{f:mEkans,name:'Ekans'}, murkrow:{f:mMurkrow,name:'Murkrow'},
+  murkrow:{f:mMurkrow,name:'Murkrow'},
   persian:{f:mPersian,name:'Persian'},
   charizard:{f:mCharizard,name:'Charizard'}, rayquaza:{f:mRayquaza,name:'Rayquaza'}, mewtwo:{f:mMewtwo,name:'Mewtwo'},
 };
@@ -2571,101 +2538,6 @@ function setupStation(){
 }
 
 /* ================= WAREHOUSE (Flareon) ================= */
-/* =========================================================================
-   FLAREON MINIGAME - "COOLANT CONTROL": vent the flaring pressure valves to
-   cool the furnace and fill the coolant gauge. Forgiving, ~5 min, click+SPACE.
-   (kept the state name 'riddle' + object/fn names so the dispatch is untouched)
-   ========================================================================= */
-const riddle={ active:false, onWin:null, title:'', t:0, coolant:0, temp:30, valves:[], spawnT:0,
-  combo:0, best:0, flash:0, overheat:0, hitFx:[], vcount:6, ox:VW/2, oy:78, ringR:48 };
-function valvePos(i){ const a=-Math.PI/2 + i*(Math.PI*2/riddle.vcount);
-  return {x:riddle.ox+Math.cos(a)*riddle.ringR, y:riddle.oy+Math.sin(a)*riddle.ringR*0.72}; }
-function startRiddle(title, onWin){
-  riddle.active=true; riddle.onWin=onWin; riddle.title=title||'COOLANT CONTROL';
-  riddle.t=0; riddle.coolant=0; riddle.temp=30; riddle.spawnT=700; riddle.combo=0; riddle.best=0;
-  riddle.flash=0; riddle.overheat=0; riddle.hitFx=[];
-  riddle.valves=[]; for(let i=0;i<riddle.vcount;i++) riddle.valves.push({i,flaring:false,timer:0,max:1,cool:0});
-  game.state='riddle'; clearPressed(); audio.sfx('confirm');
-}
-function riddleWin(){ riddle.active=false; audio.sfx('spark'); const cb=riddle.onWin; riddle.onWin=null; game.state='play'; clearPressed(); if(cb) cb(); }
-function riddleSpark(x,y,col){ for(let s=0;s<8;s++) riddle.hitFx.push({x,y,vx:(Math.random()-0.5)*2.4,vy:-(0.3+Math.random()*1.6),t:0,life:340,col}); }
-function riddleVent(i){
-  if(!riddle.active) return; const v=riddle.valves[i]; if(!v) return;
-  if(v.flaring){ v.flaring=false; v.cool=240;
-    riddle.coolant=clamp(riddle.coolant+2.5,0,100);   // ~40% as hard: ~40 vents to win instead of ~100
-    riddle.temp=clamp(riddle.temp-5,0,100);
-    riddle.combo++; if(riddle.combo>riddle.best) riddle.best=riddle.combo;
-    riddle.flash=120; audio.sfx('cursor'); const p=valvePos(i); riddleSpark(p.x,p.y,'#9fe0ff');
-    if(riddle.coolant>=100) riddleWin();
-  } else { riddle.combo=0; audio.sfx('cancel'); riddle.temp=clamp(riddle.temp+1.5,0,100); }
-}
-function riddleVentUrgent(){ let best=-1,bt=1e9; for(const v of riddle.valves){ if(v.flaring && v.timer<bt){ bt=v.timer; best=v.i; } }
-  if(best>=0) riddleVent(best); else audio.sfx('cancel'); }
-function riddleClick(mx,my){ for(let i=0;i<riddle.vcount;i++){ const p=valvePos(i); const dx=mx-p.x,dy=my-p.y; if(dx*dx+dy*dy<=12*12){ riddleVent(i); return; } } }
-function riddleUpdate(dt){
-  riddle.t+=dt; if(riddle.flash>0) riddle.flash-=dt; if(riddle.overheat>0) riddle.overheat-=dt;
-  if(consume('menu')){ riddle.active=false; game.state='play'; clearPressed(); return; }
-  const prog=riddle.coolant/100;
-  const spawnEvery=1100-prog*420;          // flares come faster as you progress
-  const flareLife =2400-prog*500;          // (eased) more time to react
-  const maxFlares =2+Math.round(prog*2);   // up to 4 at once near the end
-  riddle.spawnT-=dt;
-  const activeN=riddle.valves.filter(v=>v.flaring).length;
-  if(riddle.spawnT<=0 && activeN<maxFlares){
-    riddle.spawnT=spawnEvery*(0.7+Math.random()*0.6);
-    const idle=riddle.valves.filter(v=>!v.flaring && v.cool<=0);
-    if(idle.length){ const v=idle[(Math.random()*idle.length)|0]; v.flaring=true; v.max=flareLife; v.timer=flareLife; }
-  }
-  for(const v of riddle.valves){ if(v.cool>0) v.cool-=dt;
-    if(v.flaring){ v.timer-=dt; if(v.timer<=0){ v.flaring=false; v.cool=220; riddle.combo=0; riddle.temp=clamp(riddle.temp+3,0,100); const p=valvePos(v.i); riddleSpark(p.x,p.y,'#f08030'); } } }
-  // passive: the furnace keeps reheating; coolant slowly slips (~40% as hard: slower reheat & drain)
-  const flaringN=riddle.valves.filter(v=>v.flaring).length;
-  riddle.temp=clamp(riddle.temp + (0.0006 + flaringN*0.0006)*dt, 0, 100);
-  riddle.coolant=clamp(riddle.coolant - 0.0002*dt, 0, 100);
-  if(riddle.temp>=100 && riddle.overheat<=0){ riddle.overheat=1500; riddle.coolant=clamp(riddle.coolant-7,0,100); riddle.temp=62; riddle.combo=0;
-    for(const v of riddle.valves){ v.flaring=false; v.cool=320; } audio.sfx('cancel'); }
-  for(const f of riddle.hitFx){ f.x+=f.vx*(dt/16); f.y+=f.vy*(dt/16); f.t+=dt; } riddle.hitFx=riddle.hitFx.filter(f=>f.t<f.life);
-  consume('ok');   // spacebar does NOT vent (must click each valve) - swallow it so it can't queue
-}
-function riddleDraw(){
-  drawWorld();
-  g.globalAlpha=0.6; rect(0,0,VW,VH,'#1a0c06'); g.globalAlpha=1;
-  const bw=224, bx=(VW-bw)/2, by=10, bh=176; uiBox(bx,by,bw,bh);
-  g.textAlign='center'; g.textBaseline='top';
-  fitText(riddle.title,VW/2,by+8,'#a8431a',9,bw-24,true);   // title, padded from the frame and shrunk to fit
-  text('Vent each glowing valve before it blows!',VW/2,by+22,'#9a6a4a',7);
-  g.textBaseline='alphabetic';
-  const fx=riddle.ox, fy=riddle.oy, heat=riddle.temp/100, fl=(Math.sin(anim/5)+1)/2;
-  // furnace
-  rrect(fx-14,fy-12,28,26,3,'#3a2a22'); rect(fx-12,fy-10,24,8,'#241812');
-  ellipse(fx,fy-2,7+heat*6,9+heat*7+fl*2,'rgba(246,128,48,'+(0.5+heat*0.4)+')');
-  ellipse(fx,fy,4+heat*4,6+heat*5,'#f6d62e');
-  if(riddle.overheat>0 && Math.floor(anim/4)%2) ellipse(fx,fy-2,17,19,'rgba(232,60,40,.5)');
-  // valves
-  for(let i=0;i<riddle.vcount;i++){ const p=valvePos(i), v=riddle.valves[i];
-    circle(p.x,p.y,9,'#2a2018'); circle(p.x,p.y,7.5,'#4a4250');
-    g.strokeStyle='#6a6276'; g.lineWidth=1.4; g.beginPath(); g.arc(p.x,p.y,7.5,0,6.283); g.stroke();
-    g.strokeStyle='#7a8290'; g.lineWidth=1; for(let s=0;s<4;s++){ const a=s*Math.PI/2; g.beginPath(); g.moveTo(p.x,p.y); g.lineTo(p.x+Math.cos(a)*6,p.y+Math.sin(a)*6); g.stroke(); }
-    if(v.flaring){ const fr=clamp(v.timer/v.max,0,1);
-      circle(p.x,p.y,10,'rgba(246,128,48,'+(0.3+0.4*fl)+')'); circle(p.x,p.y,5,'#f6a030'); circle(p.x,p.y,2.5,'#ffe45c');
-      g.strokeStyle= fr<0.35?'#e23b3b':'#ffd24a'; g.lineWidth=2; g.beginPath(); g.arc(p.x,p.y,11,-Math.PI/2,-Math.PI/2+fr*6.283); g.stroke();
-    } else if(v.cool>0){ circle(p.x,p.y,4,'rgba(159,224,255,.7)'); }
-  }
-  for(const f of riddle.hitFx){ g.globalAlpha=clamp(1-f.t/f.life,0,1); circle(f.x,f.y,1.4,f.col); } g.globalAlpha=1;
-  // temperature gauge
-  const tgX=bx+14, tgY=by+bh-44, tgW=bw-28, tgH=9;
-  text('FURNACE TEMP', tgX+tgW/2, tgY-9, heat>0.8?'#e23b3b':'#9a6a4a',7);
-  rrect(tgX,tgY,tgW,tgH,3,'#241812'); const tg=g.createLinearGradient(tgX,0,tgX+tgW,0); tg.addColorStop(0,'#f6d62e'); tg.addColorStop(0.6,'#f08030'); tg.addColorStop(1,'#e23b3b');
-  g.fillStyle=tg; rpath(tgX+1,tgY+1,Math.max(0,(tgW-2)*heat),tgH-2,2); g.fill();
-  // coolant gauge
-  const cX=bx+14, cY=by+bh-22, cW=bw-28, cH=10;
-  text('COOLANT '+(riddle.coolant|0)+'%', cX+cW/2, cY-9, '#4a8aa0',7);
-  rrect(cX,cY,cW,cH,3,'#0e1b22'); const cg=g.createLinearGradient(cX,0,cX+cW,0); cg.addColorStop(0,'#3a8aa8'); cg.addColorStop(1,'#7fe0ff');
-  g.fillStyle=cg; rpath(cX+1,cY+1,Math.max(0,(cW-2)*riddle.coolant/100),cH-2,2); g.fill();
-  if(riddle.overheat>0) textShadow('OVERHEAT!  valves reset',VW/2,fy+40,'#fff','#e23b3b',8);
-  else text('Click each glowing valve to vent it!',VW/2,fy+38,'#8a6a4a',7);
-  g.textAlign='left';
-}
 
 function setupWarehouse(){
   audio.play('warehouse');
@@ -3202,7 +3074,6 @@ const ENEMY={
   voltorb:{lv:6,hp:20,atk:5,type:'Electric',moves:['Spark','Tackle']},
   koffing:{lv:7,hp:22,atk:5,type:'Poison',moves:['Tackle','Smog']},
   houndour:{lv:7,hp:22,atk:5,type:'Fire',moves:['Ember','Bite']},
-  ekans:{lv:7,hp:22,atk:5,type:'Poison',moves:['Wrap','Bite']},
   murkrow:{lv:8,hp:24,atk:6,type:'Flying',moves:['Peck','Astonish']},
   persian:{lv:10,hp:32,atk:6,type:'Normal',moves:['Scratch','Bite','Screech']},
   charizard:{lv:30,hp:46,atk:12,type:'Fire',moves:['Ember','Bite','Scratch']},
@@ -4489,7 +4360,7 @@ function newGame(){ // wipe all progress and start fresh from the intro
   saveSystem.delete();   // wipe the old save so Continue can't jump back to the previous run
   game.map=null; game.player=null; game.entities=[]; game.objective='';
   game.hearts=[]; game.particles=[]; game.fade=0; game.flash=0; game.shake=0; game.travelText='';
-  battle.active=false; battle.double=false; mini.active=false; riddle.active=false;
+  battle.active=false; battle.double=false; mini.active=false;
   game.intro=0; game.introT=0;
   if(!audio.started) audio.start();
   // opening cinematic film, then the illustrated text intro (falls straight to text if no video)
@@ -4648,7 +4519,6 @@ function update(dt){
       break;
     case 'battle': battleUpdate(dt); break;
     case 'minigame': miniUpdate(dt); break;
-    case 'riddle': riddleUpdate(dt); break;
     case 'vsintro': vsUpdate(dt); break;
     case 'video': videoUpdate(dt); break;
     case 'evo': evoUpdate(dt); break;
@@ -4656,7 +4526,7 @@ function update(dt){
     case 'cinema': cinemaUpdate(dt); break;
     case 'credits': creditsUpdate(dt); break;
   }
-  if(game.player && (game.state==='play'||game.state==='cutscene'||game.state==='minigame'||game.state==='riddle')) updateCamera();
+  if(game.player && (game.state==='play'||game.state==='cutscene'||game.state==='minigame')) updateCamera();
 }
 function render(){
   g.setTransform(RES,0,0,RES,0,0);   // HD super-sample: draw in logical coords, scaled up
@@ -4670,7 +4540,6 @@ function render(){
     case 'cutscene': drawWorld(); dlgDraw(); break;
     case 'battle': battleDraw(); break;
     case 'minigame': miniDraw(); break;
-    case 'riddle': riddleDraw(); break;
     case 'vsintro': vsDraw(); break;
     case 'video': videoDraw(); break;
     case 'evo': evoDraw(); break;
