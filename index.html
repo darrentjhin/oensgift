@@ -259,6 +259,7 @@ cv.addEventListener('pointerdown', (ev)=>{
     return;
   }
   if(game.state==='minigame'){ miniClick(mx,my); return; }
+  if(game.state==='catch'){ pressed['ok']=true; return; }   // tap = SPACE (throw / advance)
   if(game.paused) return;                          // pause menu stays keyboard-driven
   if(game.state==='battle'){ battlePointer(mx,my); return; }
   // tapping the objective bar collapses/expands it (don't also fire an interact)
@@ -704,6 +705,32 @@ function mJolteon(x,y,R){
   // feet
   ellipse(x-R*0.3,y+R*0.92,R*0.2,R*0.14,d); ellipse(x+R*0.3,y+R*0.92,R*0.2,R*0.14,d);
 }
+function mYamper(x,y,R){   // the Puppy Pokemon - a cheerful electric corgi
+  const br='#a4824c', yl='#f4d23a', wh='#f6f1e2', pk='#e87a8a';
+  // lightning-bolt tail (upper-left)
+  poly([[x-R*0.52,y-R*0.05],[x-R*0.92,y-R*0.22],[x-R*0.7,y+R*0.0],[x-R*1.04,y+R*0.4],[x-R*0.8,y+R*0.18],[x-R*0.48,y+R*0.42]], yl);
+  // low corgi body (brown) + yellow belly
+  ellipse(x,y+R*0.5,R*0.8,R*0.48,br);
+  ellipse(x+R*0.05,y+R*0.62,R*0.52,R*0.32,yl);
+  for(const lx of [-0.45,-0.12,0.42,0.7]) ellipse(x+lx*R,y+R*0.94,R*0.14,R*0.1,wh);   // stubby legs
+  // big head
+  ellipse(x+R*0.2,y-R*0.28,R*0.64,R*0.56,br);
+  ellipse(x-R*0.16,y-R*0.16,R*0.22,R*0.26,yl); ellipse(x+R*0.6,y-R*0.16,R*0.2,R*0.24,yl);   // yellow cheeks
+  ellipse(x+R*0.32,y-R*0.02,R*0.32,R*0.26,wh);   // white muzzle
+  // ears (pointy, brown w/ yellow inner)
+  tri([x-R*0.28,y-R*0.55],[x+R*0.02,y-R*0.5],[x-R*0.5,y-R*1.08],br);
+  tri([x+R*0.62,y-R*0.55],[x+R*0.34,y-R*0.5],[x+R*0.86,y-R*1.0],br);
+  tri([x-R*0.26,y-R*0.6],[x-R*0.06,y-R*0.56],[x-R*0.42,y-R*0.95],yl);
+  tri([x+R*0.58,y-R*0.6],[x+R*0.4,y-R*0.56],[x+R*0.72,y-R*0.92],yl);
+  // cheerful eyes
+  circle(x-R*0.02,y-R*0.32,R*0.13,wh); circle(x+R*0.42,y-R*0.32,R*0.13,wh);
+  circle(x-R*0.02,y-R*0.3,R*0.08,'#5ab0a0'); circle(x+R*0.42,y-R*0.3,R*0.08,'#5ab0a0');
+  circle(x-R*0.02,y-R*0.33,R*0.03,'#102018'); circle(x+R*0.42,y-R*0.33,R*0.03,'#102018');
+  circle(x+R*0.32,y-R*0.12,R*0.06,'#3a2418');   // nose
+  // happy open mouth + tongue
+  g.fillStyle='#7a3030'; g.beginPath(); g.ellipse(x+R*0.34,y+R*0.06,R*0.16,R*0.12,0,0,Math.PI); g.fill();
+  ellipse(x+R*0.34,y+R*0.12,R*0.1,R*0.08,pk);
+}
 function mFlareon(x,y,R){
   const o=C.orange, d=C.dred, fl=C.yellow;
   // fluffy tail
@@ -1054,7 +1081,7 @@ function mMewtwo(x,y,R){
   ellipse(x-R*0.3,y+R*0.95,R*0.18,R*0.12,w); ellipse(x+R*0.3,y+R*0.95,R*0.18,R*0.12,w);
 }
 const MON = {
-  eevee:{f:mEevee,name:'Eevee'}, jolteon:{f:mJolteon,name:'Jolteon'},
+  eevee:{f:mEevee,name:'Eevee'}, jolteon:{f:mJolteon,name:'Jolteon'}, yamper:{f:mYamper,name:'Yamper'},
   umbreon:{f:mUmbreon,name:'Umbreon'},
   flareon:{f:mFlareon,name:'Flareon'}, sylveon:{f:mSylveon,name:'Sylveon'},
   rattata:{f:mRattata,name:'Rattata'}, zubat:{f:mZubat,name:'Zubat'},
@@ -2482,6 +2509,88 @@ function miniDraw(){
   }
   for(const f of mini.hitFx){ g.globalAlpha=clamp(1-f.t/f.life,0,1); circle(f.x,f.y,1.4,f.col); } g.globalAlpha=1;
   if(mini.combo>2) textShadow('COMBO x'+mini.combo,VW/2,G.topY-8,'#f6d62e','#000',8);
+  g.textAlign='left';
+}
+
+/* =========================================================================
+   YAMPER CATCH - Mezastar-style ball spinner. One throw per encounter:
+   time SPACE to land the spinner on the best ball (Poke 10 / Great 15 /
+   Ultra 20). Yamper has 50 pts; reduce to 0 to catch. ->catchFinish(caught)
+   ========================================================================= */
+const BALL_VAL={poke:10, great:15, ultra:20};
+const BALL_TOP={poke:'#e23b3b', great:'#3a78c8', ultra:'#f6c020'};
+const BALL_NM ={poke:'POKE BALL', great:'GREAT BALL', ultra:'ULTRA BALL'};
+const mez={ active:false, points:50, onResult:null, phase:'spin', t:0, ang:0, ring:[], sel:-1, ball:null, dmg:0 };
+function mezSlotAngle(i){ return -Math.PI/2 + i*(Math.PI*2/mez.ring.length); }
+function startCatch(points, onResult){
+  mez.active=true; mez.points=points; mez.onResult=onResult||null; mez.phase='spin'; mez.t=0; mez.ang=Math.random()*Math.PI*2;
+  mez.ring=['poke','great','poke','ultra','poke','great','poke','great']; mez.sel=-1; mez.ball=null; mez.dmg=0;
+  game.state='catch'; clearPressed(); audio.sfx('confirm');
+}
+function catchFinish(caught){ mez.active=false; const cb=mez.onResult; mez.onResult=null; game.state='cutscene'; clearPressed(); if(cb) cb(Math.max(0,mez.points), caught); }
+function catchUpdate(dt){
+  const pt=mez.t; mez.t+=dt;
+  if(mez.phase==='spin'){
+    mez.ang=(mez.ang + dt*0.006)%(Math.PI*2);
+    if(consume('ok')){
+      let best=0,bd=99; for(let i=0;i<mez.ring.length;i++){ const raw=mezSlotAngle(i)-mez.ang; const d=Math.abs(Math.atan2(Math.sin(raw),Math.cos(raw))); if(d<bd){bd=d;best=i;} }
+      mez.sel=best; mez.ball=mez.ring[best]; mez.ang=mezSlotAngle(best);
+      mez.phase='throw'; mez.t=0; audio.sfx(mez.ball==='ultra'?'win':'confirm');
+    }
+    return;
+  }
+  if(mez.phase==='throw'){ if(mez.t>=560){ mez.phase='wobble'; mez.t=0; audio.sfx('throw'); } return; }
+  if(mez.phase==='wobble'){
+    for(const m of [350,780,1180]) if(pt<m && mez.t>=m) audio.sfx('cursor');
+    if(mez.t>=1550){ mez.dmg=BALL_VAL[mez.ball]; mez.points=Math.max(0, mez.points-mez.dmg); mez.phase='result'; mez.t=0; audio.sfx(mez.points<=0?'spark':'hit'); }
+    return;
+  }
+  if(mez.phase==='result'){ if(mez.t>=1100){ if(mez.points<=0){ mez.phase='caught'; audio.fanfare(); } else { mez.phase='fled'; audio.sfx('cancel'); } mez.t=0; } return; }
+  if(mez.phase==='caught'){ if(consume('ok')&&mez.t>500) catchFinish(true); return; }
+  if(mez.phase==='fled'){ if(consume('ok')&&mez.t>400) catchFinish(false); return; }
+}
+function drawCatchBall(x,y,r,type,lit){
+  if(lit){ g.globalAlpha=0.5; circle(x,y,r+3,'#ffe24a'); g.globalAlpha=1; }
+  circle(x,y,r,'#f0f0ea');
+  g.save(); g.beginPath(); g.arc(x,y,r,Math.PI,0); g.closePath(); g.clip(); circle(x,y,r,BALL_TOP[type]); g.restore();
+  rect(x-r,y-0.8,r*2,1.6,'#202028');
+  circle(x,y,r*0.36,'#f8f8f0'); circle(x,y,r*0.18,'#9aa0ac');
+  if(type==='ultra'){ rect(x-r*0.55,y-r*0.66,r*0.5,1,'#202028'); rect(x+r*0.05,y-r*0.66,r*0.5,1,'#202028'); }
+}
+function catchDraw(){
+  const grd=g.createLinearGradient(0,0,0,VH); grd.addColorStop(0,'#1e2c46'); grd.addColorStop(1,'#33476a');
+  g.fillStyle=grd; g.fillRect(0,0,VW,VH);
+  for(let i=0;i<5;i++){ if((Math.floor(anim/8)+i)%5!==0) continue; const px=(i*61+Math.floor(anim/8)*17)%VW, py=20+(i*11)%56;
+    g.strokeStyle='rgba(159,208,240,.5)'; g.lineWidth=0.8; g.beginPath(); g.moveTo(px,py); g.lineTo(px+3,py-3); g.lineTo(px+1,py-1); g.lineTo(px+4,py-5); g.stroke(); }
+  g.textAlign='center';
+  textShadow('CATCH  YAMPER!', VW/2, 12, '#ffe24a','#2a2a08',10);
+  const yx=VW/2, yy=58;
+  let wob=0, flash=0;
+  if(mez.phase==='wobble') wob=Math.sin(mez.t/45)*2.4*(1-mez.t/1550);
+  if(mez.phase==='result' && mez.t<200) flash=1-mez.t/200;
+  ellipse(yx,yy+20,18,4,'rgba(0,0,0,.25)');
+  drawMon('yamper', yx+wob, yy, 17);
+  if(flash>0){ g.globalAlpha=flash*0.7; circle(yx,yy,20,'#fff'); g.globalAlpha=1; }
+  const bw=120, bx=VW/2-bw/2, by=84;
+  rrect(bx-2,by-2,bw+4,9,3,'rgba(10,14,24,.7)');
+  const frac=clamp(mez.points/50,0,1);
+  g.fillStyle = frac>0.5?'#46e05a':frac>0.25?'#f6d62e':'#e23b3b'; rpath(bx,by,Math.max(0,bw*frac),5,2); g.fill();
+  text('HP  '+Math.max(0,mez.points)+' / 50', VW/2, by+18, '#dfe7ff', 8);
+  const cx=VW/2, cy=140, RR=30;
+  for(let i=0;i<mez.ring.length;i++){ const a=mezSlotAngle(i), px=cx+Math.cos(a)*RR, py=cy+Math.sin(a)*RR*0.9;
+    drawCatchBall(px,py,5, mez.ring[i], mez.phase!=='spin' && i===mez.sel); }
+  if(mez.phase==='spin' || mez.phase==='throw'){ const a=mez.ang, px=cx+Math.cos(a)*(RR+11), py=cy+Math.sin(a)*(RR+11)*0.9;
+    g.save(); g.translate(px,py); g.rotate(a+Math.PI/2); poly([[-3,0],[3,0],[0,7]],'#ffe24a'); g.restore(); }
+  if(mez.phase==='throw'){ const p=clamp(mez.t/560,0,1), fx=lerp(cx,yx,p), fy=lerp(cy-RR,yy,p)-Math.sin(p*Math.PI)*30; drawCatchBall(fx,fy,5,mez.ball,false); }
+  if(mez.phase==='spin'){ if(Math.floor(anim/30)%2) text('Press SPACE to throw the best ball!', VW/2, 172, '#fff', 8); }
+  else if(mez.phase==='throw'||mez.phase==='wobble'){ text(BALL_NM[mez.ball]+'!', VW/2, 172, mez.ball==='ultra'?'#ffe24a':'#dfe7ff', 8);
+    if(mez.ball==='ultra' && mez.phase==='throw') textShadow('PERFECT!', VW/2, 156, '#ffe24a','#a06000',10); }
+  else if(mez.phase==='result'){ textShadow('-'+mez.dmg+'!', yx, 40, '#ff8a6a','#400',12); }
+  else if(mez.phase==='caught'){ textShadow('Gotcha!  Yamper was caught!', VW/2, 172, '#9affc0','#06301a',9);
+    for(let i=0;i<10;i++){ const a=anim*0.06+i*0.63; drawStar(yx+Math.cos(a)*22,yy+Math.sin(a)*20,2,'#ffe24a'); }
+    if(Math.floor(anim/30)%2) text('press SPACE', VW/2, 185, '#9aa', 7); }
+  else if(mez.phase==='fled'){ text('Yamper wriggled free and dashed off!', VW/2, 172, '#ffd0a0', 8);
+    if(Math.floor(anim/30)%2) text('press SPACE', VW/2, 185, '#9aa', 7); }
   g.textAlign='left';
 }
 
@@ -4548,6 +4657,7 @@ function update(dt){
       break;
     case 'battle': battleUpdate(dt); break;
     case 'minigame': miniUpdate(dt); break;
+    case 'catch': catchUpdate(dt); break;
     case 'vsintro': vsUpdate(dt); break;
     case 'video': videoUpdate(dt); break;
     case 'evo': evoUpdate(dt); break;
@@ -4569,6 +4679,7 @@ function render(){
     case 'cutscene': drawWorld(); dlgDraw(); break;
     case 'battle': battleDraw(); break;
     case 'minigame': miniDraw(); break;
+    case 'catch': catchDraw(); break;
     case 'vsintro': vsDraw(); break;
     case 'video': videoDraw(); break;
     case 'evo': evoDraw(); break;
