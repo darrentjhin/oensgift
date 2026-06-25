@@ -1364,7 +1364,7 @@ function hideoutTile(ch,sx,sy,alt){
 function townTile(ch,sx,sy,alt,tx,ty){
   rect(sx,sy,TS,TS, alt?'#79bf45':'#71b641');   // grass base
   // furniture sitting on the downtown plaza needs a stone base, not grass
-  if('kojeuQ'.indexOf(ch)>=0 && tx>=14&&tx<=32&&ty>=2&&ty<=26){
+  if('kojeuQY'.indexOf(ch)>=0 && tx>=14&&tx<=32&&ty>=2&&ty<=26){
     rect(sx,sy,TS,TS,'#bcbfc7'); g.strokeStyle='rgba(120,124,134,.5)'; g.lineWidth=0.6; g.strokeRect(sx+0.5,sy+0.5,TS-1,TS-1);
   }
   if(ch==='.'){ // grass with the odd tuft / wildflower so the lawn isn't flat
@@ -1517,12 +1517,18 @@ function townTile(ch,sx,sy,alt,tx,ty){
     g.beginPath(); g.moveTo(sx+8,sy+4.6); g.lineTo(sx+8,sy+4.6-jh); g.stroke();
     for(let i=0;i<5;i++){ const a=anim/9+i*1.26, fx=sx+8+Math.cos(a)*2.6, fy=sy+4.4-Math.abs(Math.sin(a))*2.4; circle(fx,fy,0.6,'#dff2ff'); }  // arcing droplets
     g.globalAlpha=1; circle(sx+8,sy+4,0.9,'#eaf8ff'); return; }
+  if(ch==='Y'){ // potted ornamental tree (plaza greenery on stone)
+    ellipse(sx+8,sy+15,6,2,C.shadow);
+    rect(sx+7,sy+9,2,4,'#6e4520'); rect(sx+7,sy+9,1,4,'#835633');                  // trunk
+    ellipse(sx+8,sy+6.5,6.4,6,'#3f7d2c'); ellipse(sx+5,sy+5.5,3.6,3.2,'#4e9636'); ellipse(sx+11.2,sy+6.5,3,2.8,'#4e9636');  // canopy
+    ellipse(sx+8,sy+3.6,4.4,3.8,'#5fb03f'); ellipse(sx+6.5,sy+2.8,1.8,1.4,'#8ace6a');
+    rect(sx+3,sy+11.5,10,4,'#8a5a36'); rect(sx+3,sy+11.5,10,1,'#a67044'); rect(sx+3,sy+14.5,10,1,'#5a3a20'); rect(sx+4,sy+12.5,2,1.4,'#a67044'); return; }   // planter box
 }
 
 /* =========================================================================
    MAP BUILDING
    ========================================================================= */
-const SOLID = new Set(['#','T','=','b','C','M','w','c','F','V','|','A','B','R','E','h','S','G','g','r','L','k','o','i','j','e','Q']);
+const SOLID = new Set(['#','T','=','b','C','M','w','c','F','V','|','A','B','R','E','h','S','G','g','r','L','k','o','i','j','e','Q','Y']);
 function makeGrid(w,h,fill){ const a=[]; for(let y=0;y<h;y++){ a.push(new Array(w).fill(fill)); } return a; }
 function setBorder(grid,ch){ const h=grid.length,w=grid[0].length;
   for(let x=0;x<w;x++){ grid[0][x]=ch; grid[h-1][x]=ch; }
@@ -1721,6 +1727,7 @@ function buildMaps(){
     // downtown plaza furniture (on stone pavement)
     put([[23,15]],'Q');                                                          // central fountain (plaza centrepiece)
     put([[21,15],[25,15]],'u');                                                  // flower beds flanking the fountain
+    put([[15,10],[31,10],[19,10],[27,10]],'Y');                                  // potted trees framing the plaza
     put([[23,19]],'o');                                                          // monument statue on the same axis
     put([[20,18],[26,18],[19,22],[27,22]],'k');                                  // plaza benches
     put([[18,13],[28,13],[18,22],[28,22]],'e');                                  // market stalls
@@ -1969,6 +1976,11 @@ function updateEntity(e,dt){
   } else if(e.walkPath && e.walkPath.length){
     const nd=e.walkPath.shift(); if(!tryStep(e,nd,true)){ /* blocked: skip */ }
   }
+  // idle townsfolk glance around now and then so they don't read as statues
+  if(e.idle && e!==game.player && !e.stepping && game.state==='play'){
+    e.gazeT = (e.gazeT==null ? 1200+Math.random()*2600 : e.gazeT-dt);
+    if(e.gazeT<=0){ e.dir = ['down','up','left','right'][Math.floor(Math.random()*4)]; e.gazeT = 1600+Math.random()*3200; }
+  }
 }
 function onPlayerArrive(){
   const p=game.player;
@@ -2167,10 +2179,10 @@ function setupTown(){
       {type:'say',name:'Town Map',text:'PALLET TOWN.  NW: Prof. Oak\'s Lab.  NE: Old Power Station.  SW: Ember Warehouse.  SE: Moonlit Garden.  The building names float above their roofs - follow the labels.'},
     ],()=>game.state='play'); }}));
   // ---- everyday townsfolk: a little life around the plaza (placed clear of warps, crystals & the quest kid) ----
-  npc('towns1','woman1',16,17,'right',[{name:'Townswoman',text:'Pallet Town\'s prettiest in spring. Mind the fountain - the little ones love to splash there!'}]);
-  npc('towns2','man1',  28,17,'left', [{name:'Townsman',text:'You\'re Oen, aren\'t you? The whole town\'s cheering you on. Go bring those Pokemon home.'}]);
-  npc('towns3','gal',   22,24,'up',   [{name:'Girl',text:'The downtown lights were strung up for the festival. Aren\'t they pretty when they glow?'}]);
-  npc('towns4','oldman',18,16,'down', [{name:'Old Man',text:'That Eevee of yours wouldn\'t take any stone. It simply wants to be itself. There is a quiet courage in that.'}]);
+  npc('towns1','woman1',16,17,'right',[{name:'Townswoman',text:'Pallet Town\'s prettiest in spring. Mind the fountain - the little ones love to splash there!'}]).idle=true;
+  npc('towns2','man1',  28,17,'left', [{name:'Townsman',text:'You\'re Oen, aren\'t you? The whole town\'s cheering you on. Go bring those Pokemon home.'}]).idle=true;
+  npc('towns3','gal',   22,24,'up',   [{name:'Girl',text:'The downtown lights were strung up for the festival. Aren\'t they pretty when they glow?'}]).idle=true;
+  npc('towns4','oldman',18,16,'down', [{name:'Old Man',text:'That Eevee of yours wouldn\'t take any stone. It simply wants to be itself. There is a quiet courage in that.'}]).idle=true;
   // Flareon rescue: 3 Spring Crystals scattered across town (middle / west edge / south-east)
   if(F.flareonQuest && !F.flareonRescued){
     spawnCrystal('cryst1','gotCrystal1', 26, 22, 0);   // downtown plaza - middle
