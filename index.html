@@ -2165,7 +2165,7 @@ function setupTown(){
           runSeq([
             {type:'say',name:'Rocket Grunt',text:'Tch... you actually found my hideyhole. Nosy brat.'},
             {type:'say',name:'Rocket Grunt',text:'The Power Station is Team Rocket property now. You\'re not getting the key!'},
-            {type:'battle',cfg:{trainer:'Rocket Grunt', kind:'grunt', enemies:[{species:'rattata'},{species:'zubat'}]}},
+            {type:'battle',cfg:{trainer:'Rocket Grunt', kind:'grunt', taunts:['Tch! Quit dodging and let my Zubat at you!','You think you can just waltz past Team Rocket?!','Grr... you\'re more stubborn than I figured!'], enemies:[{species:'rattata'},{species:'zubat'}]}},
             {type:'levelup',to:11},
             {type:'say',name:'Rocket Grunt',text:'Ugh, fine! Take the key... but you\'re too late, Jolteon is already powering the station.'},
             {type:'flag',set:'routeClear'},
@@ -2343,7 +2343,7 @@ function setupRoute1(){
         runSeq([
           {type:'say',name:'Rocket Grunt',text:'You found our note? Tch. Nosy trainers always ruin everything.'},
           {type:'say',name:'Rocket Grunt',text:'You\'re not getting past me, Oen!'},
-          {type:'battle',cfg:{trainer:'Rocket Grunt', kind:'grunt', enemies:[{species:'rattata'},{species:'zubat'}]}},
+          {type:'battle',cfg:{trainer:'Rocket Grunt', kind:'grunt', taunts:['Tch! Quit dodging and let my Zubat at you!','You think you can just waltz past Team Rocket?!','Grr... you\'re more stubborn than I figured!'], enemies:[{species:'rattata'},{species:'zubat'}]}},
           {type:'levelup',to:11},
           {type:'say',name:'Rocket Grunt',text:'Ugh! Fine! But you\'re too late. Jolteon is already powering the old station.'},
           {type:'flag',set:'routeClear'},
@@ -2491,7 +2491,7 @@ function setupStation(){
         {type:'spawn',entity:{id:'eng',kind:'char',sub:'grunt',tx:6,ty:4,dir:'down'}},
         {type:'say',name:'Rocket Engineer',text:'Hey! You\'re messing with my machine! Team Rocket doesn\'t forgive unpaid electricians.'},
         {type:'say',name:'Rocket Engineer',text:'Let\'s see if you can handle a little shock!'},
-        {type:'battle',cfg:{trainer:'Rocket Engineer', kind:'grunt', enemies:[{species:'magnemite'},{species:'voltorb'}]}},
+        {type:'battle',cfg:{trainer:'Rocket Engineer', kind:'grunt', taunts:['My machines run on raw voltage - feel it!','You can\'t pull the plug on me, kid!','Voltorb, shock him senseless!'], enemies:[{species:'magnemite'},{species:'voltorb'}]}},
         {type:'levelup',to:12},
         {type:'say',name:'Rocket Engineer',text:'No! The cage is overloading!'},
         {type:'flash',col:C.yellow,ms:300},{type:'shake',ms:300},{type:'sfx',name:'spark'},
@@ -2549,7 +2549,7 @@ function setupWarehouse(){
       {type:'say',name:'',text:'As the last flames sputter out, a figure steps from behind the crates...'},
       {type:'spawn',entity:{id:'cole',kind:'char',sub:'grunt',tx:7,ty:7,dir:'down'}},
       {type:'say',name:'Grunt Cole',text:'You doused my fire with some old shrine trick? Not bad. But you\'re not taking Flareon!'},
-      {type:'battle',cfg:{trainer:'Grunt Cole', kind:'grunt', enemies:[{species:'koffing'},{species:'houndour'}]}},
+      {type:'battle',cfg:{trainer:'Grunt Cole', kind:'grunt', taunts:['My Houndour\'s flames don\'t die that easy!','Choke on the smog, brat!','You\'re playing with fire now!'], enemies:[{species:'koffing'},{species:'houndour'}]}},
       {type:'levelup',to:13},
       {type:'say',name:'Grunt Cole',text:'My plan... burned out.'},
       {type:'move',id:'cole',path:['right','right','down','down','down']},
@@ -3138,7 +3138,7 @@ function startBattle(cfg, onWin, onLose){
   battle.eBlink=0; battle.pBlink=0; battle.eShake=0; battle.pShake=0; battle.eFaint=0; battle.pFaint=0;
   battle.ball=null; battle.burst=0; battle.hitFlash=0; battle.hitShake=0; battle.trainerShown=true; battle.trainerOut=false; battle.trainerX=0;
   battle.phase='fx'; battle.pt=0; battle.startFx=1; battle.drainGate=false; battle.afterDrain=null;
-  battle.foeAtk=0; battle.scripted=!!cfg.scripted; battle.transformed=false; battle.transT=0;
+  battle.foeAtk=0; battle.scripted=!!cfg.scripted; battle.transformed=false; battle.transT=0; battle.taunted=false;
   battle.mewAtk=0; battle.bonded=false; battle.dugIn=false;
   battle.double=false;
   battle.floaters=[];
@@ -3298,6 +3298,14 @@ function doEnemyTurn(){
       spawnHearts(battle.PX, battle.PY-12, 7);
       waitDrain(()=> bMsg('A warm pink light heals Eevee!', ()=> enemyAttack(), 0));
     }, 0);
+    return;
+  }
+  // trainer taunt: the first time their lead Pokemon is hurt past halfway, they snap at Oen (flavour, no mechanics)
+  const ce=curEnemy();
+  if(battle.cfg.taunts && !battle.scripted && !battle.taunted && ce && ce.hp>0 && ce.hp < ce.max*0.5){
+    battle.taunted=true;
+    const line=battle.cfg.taunts[Math.floor(Math.random()*battle.cfg.taunts.length)];
+    bMsg((battle.cfg.trainer||'Foe')+': '+line, ()=>enemyAttack(), 0);
     return;
   }
   enemyAttack();
