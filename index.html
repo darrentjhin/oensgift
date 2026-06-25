@@ -51,7 +51,7 @@
 const VW = 256, VH = 192, TS = 16;   // logical layout space
 let RES = 8;                         // device super-sampling factor (set per display in fitScreen)
 const MAX_BACKING = 6400;            // cap backing-store width (headroom for 4K/5K displays)
-const TEXT_SLOW = 0.12;              // slower, more readable reveal
+const TEXT_SLOW = 0.4;               // reveal speed (~24 chars/sec at Normal); SPACE completes the line instantly
 const BATTLE_PACE = 1.45;            // global battle slow-down (effects + beats)
 const TEXT_FAST = 0.5;               // ~30 chars/sec while Space is held/pressed
 // player-facing accessibility/feel settings (persisted in localStorage)
@@ -1868,7 +1868,7 @@ function dlgUpdate(){
   if(dlg.reveal < full){ const before=dlg.reveal|0; dlg.reveal += dlg.fast?TEXT_FAST:textRevealStep();
     if((dlg.reveal|0)>before && ((dlg.reveal|0)%6)===0) audio.note(620,0.025,'square',0.07); }
   if(consume('ok')){
-    if(dlg.reveal < full){ dlg.fast=true; }     // press Space to speed this box to ~30/sec
+    if(dlg.reveal < full){ dlg.reveal=full; }   // first Space fills the line instantly; next Space advances
     else {
       audio.sfx('confirm');
       dlg.pi++;
@@ -3705,8 +3705,8 @@ function dblUpdate(dt){
     if(battle.msgReveal<battle.msg.length){ const b=battle.msgReveal|0; battle.msgReveal+=battle.msgFast?TEXT_FAST:textRevealStep();
       if((battle.msgReveal|0)>b && ((battle.msgReveal|0)%6===0)) audio.note(640,0.025,'square',0.06); }
     const done=battle.msgReveal>=battle.msg.length;
-    if(battle.msgAuto>0){ if(done){ battle.msgAutoT+=dt; if(battle.msgAutoT>=battle.msgAuto){ const cb=battle.msgCb; battle.msgCb=null; if(cb)cb(); } } if(consume('ok')&&!done) battle.msgFast=true; }
-    else if(consume('ok')){ if(!done) battle.msgFast=true; else { audio.sfx('cursor'); const cb=battle.msgCb; battle.msgCb=null; if(cb)cb(); } }
+    if(battle.msgAuto>0){ if(done){ battle.msgAutoT+=dt; if(battle.msgAutoT>=battle.msgAuto){ const cb=battle.msgCb; battle.msgCb=null; if(cb)cb(); } } if(consume('ok')&&!done) battle.msgReveal=battle.msg.length; }
+    else if(consume('ok')){ if(!done) battle.msgReveal=battle.msg.length; else { audio.sfx('cursor'); const cb=battle.msgCb; battle.msgCb=null; if(cb)cb(); } }
     return;
   }
   if(p==='mainmenu'){
@@ -3835,9 +3835,9 @@ function battleUpdate(dt){
     const done=battle.msgReveal>=battle.msg.length;
     if(battle.msgAuto>0){
       if(done){ battle.msgAutoT+=dt; if(battle.msgAutoT>=battle.msgAuto){ const cb=battle.msgCb; battle.msgCb=null; if(cb) cb(); } }
-      if(consume('ok') && !done) battle.msgFast=true;
+      if(consume('ok') && !done) battle.msgReveal=battle.msg.length;
     } else if(consume('ok')){
-      if(!done) battle.msgFast=true;
+      if(!done) battle.msgReveal=battle.msg.length;
       else { audio.sfx('cursor'); const cb=battle.msgCb; battle.msgCb=null; if(cb) cb(); }
     }
     return;
