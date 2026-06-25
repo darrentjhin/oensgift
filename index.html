@@ -2226,6 +2226,7 @@ function setupTown(){
   npc('towns2','man1',  28,17,'left', [{name:'Townsman',text:'You\'re Oen, aren\'t you? The whole town\'s cheering you on. Go bring those Pokemon home.'}]).idle=true;
   npc('towns3','gal',   22,24,'up',   [{name:'Girl',text:'The downtown lights were strung up for the festival. Aren\'t they pretty when they glow?'}]).idle=true;
   npc('towns4','oldman',18,16,'down', [{name:'Old Man',text:'That Eevee of yours wouldn\'t take any stone. It simply wants to be itself. There is a quiet courage in that.'}]).idle=true;
+  spawnYamper();   // the keeper's Yamper roams town until caught
   // Flareon rescue: 3 Spring Crystals scattered across town (middle / west edge / south-east)
   if(F.flareonQuest && !F.flareonRescued){
     spawnCrystal('cryst1','gotCrystal1', 26, 22, 0);   // downtown plaza - middle
@@ -2269,7 +2270,11 @@ function setupTown(){
     if(F.gotNote) spawnGrunt();   // re-entering town after the tip-off: Grunt is already out there
     game.objective = F.gotNote? 'Find the hidden Rocket Grunt (south-west corner), then enter the Power Station.' : 'Explore Pallet Town. Talk to the kid in the plaza to learn what happened.';
   } else if(!F.jolteonRescued){
-    game.objective='Enter the Old Power Station (north-east) and rescue Jolteon.';
+    if(F.gotBreaker){ game.objective='Take the MASTER BREAKER to the Power Station (north-east) and free Jolteon.'; }
+    else if(F.yamperCaught){ game.objective='Bring Yamper to the keeper - the KEEPER\'S HOUSE is on the WEST side of town.'; }
+    else if(F.yamperQuest){ game.objective='Catch the keeper\'s Yamper - it roams Pallet Town ('+(F.yamperPoints||50)+'/50). Throw once and it bolts; track it down again!'; }
+    else if(F.needBreaker){ game.objective='Find the retired station keeper - the KEEPER\'S HOUSE is on the WEST side of town.'; }
+    else { game.objective='Enter the Old Power Station (north-east) and rescue Jolteon.'; }
   } else if(!F.flareonRescued){
     game.objective = F.flareonQuest
       ? 'Find the 3 Spring Crystals scattered around Pallet Town ('+crystalCount()+'/3), then take them to the altar in the Ember Warehouse.'
@@ -2291,6 +2296,31 @@ function npc(id,sub,tx,ty,dir,lines){
 function mon(id,sub,tx,ty,R){ return placeEntity(newEntity({id,kind:'mon',sub,tx,ty,solid:true,R:R||6})); }
 
 /* ---- Flareon rescue: 3 Spring Crystals scattered in town, presented at the warehouse altar ---- */
+/* ---- the keeper's wild Yamper: roams town, one throw per encounter, bolts to a new spot until caught ---- */
+const YAMPER_SPOTS=[[26,12],[8,21],[34,31],[15,33],[40,16],[30,16]];
+function yamperResult(pts, caught){
+  F.yamperPoints=pts;
+  if(caught){ F.yamperCaught=true;
+    runSeq([
+      {type:'say',name:'',text:'Gotcha!  The wild Yamper was caught! The old keeper is going to be overjoyed.'},
+      {type:'despawn',id:'yamper',hearts:true},
+      {type:'objective',text:'Bring Yamper to the keeper - the KEEPER\'S HOUSE is on the WEST side of town.'},
+    ],()=>game.state='play');
+  } else {
+    F.yamperSpot=((F.yamperSpot||0)+1)%YAMPER_SPOTS.length;
+    const y=findEnt('yamper'); if(y){ const s=YAMPER_SPOTS[F.yamperSpot]; y.tx=s[0]; y.ty=s[1]; y.px=s[0]*TS; y.py=s[1]*TS; }
+    runSeq([
+      {type:'say',name:'',text:'Yamper wriggled free and bolted to another corner of Pallet Town!  ('+pts+'/50 left.)  Track it down and try again!'},
+    ],()=>game.state='play');
+  }
+}
+function spawnYamper(){
+  if(!(F.yamperQuest && !F.yamperCaught)) return;
+  if(F.yamperSpot==null) F.yamperSpot=0;
+  const s=YAMPER_SPOTS[F.yamperSpot%YAMPER_SPOTS.length];
+  const y=mon('yamper','yamper',s[0],s[1],6); y.solid=true;
+  y.talk=(e)=>{ if(F.yamperPoints==null) F.yamperPoints=50; startCatch(F.yamperPoints, yamperResult); };
+}
 function crystalCount(){ return (F.gotCrystal1?1:0)+(F.gotCrystal2?1:0)+(F.gotCrystal3?1:0); }
 const CRYSTAL_COL=['#7fe0ff','#a6c4ff','#c8f4ff'];
 function spawnCrystal(id, flag, tx, ty, ci){
