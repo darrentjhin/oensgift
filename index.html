@@ -376,6 +376,7 @@ const audio = {
   toggleMute(){ this.muted=!this.muted; if(this.master) this.master.gain.value=this.muted?0:0.9; if(this.musicEl) this.musicEl.volume=this.muted?0:0.6; },
   // cut everything still ringing from the previous track so tracks never overlap
   cutMusic(){ if(this.ctx && this.music){ try{ this.music.disconnect(); }catch(e){} this.music=this.ctx.createGain(); this.music.gain.value=0.5; this.music.connect(this.master); } },
+  stopMusic(){ if(this.loop){ clearInterval(this.loop); this.loop=null; } this.cutMusic(); if(this.musicEl){ try{ this.musicEl.pause(); }catch(e){} this.musicEl=null; } this.track=null; },
   // one voiced note with a soft envelope; dest defaults to music bus
   note(freq,dur,type,vol,when,dest){
     if(!this.ctx||this.muted||!freq) return;
@@ -427,6 +428,8 @@ const audio = {
     warehouse:{tempo:152, lead:[523,0,587,523,466,0,440,466,523,0,587,698,587,0,523,0], bass:[131,131,0,116,116,0,98,98], arp:[262,330,392,330,294,349,440,349], drum:'k...s..kk...s..h'},
     // HIDEOUT (Sylveon) - dark, sparse, eerie, slow and underground
     hideout:  {tempo:208, lead:[330,0,0,311,0,294,0,0,247,0,262,0,220,0,0,0], bass:[82,0,0,0,87,0,0,0], arp:[220,0,262,0,165,0,196,0], drum:'k.......s.......'},
+    // PEAK - fierce, nerve-wracking theme for the final act (after the 2v2): garden room + town
+    peak:     {tempo:104, lead:[466,0,415,466,0,392,349,415,440,0,370,349,311,0,349,0], bass:[110,110,104,104,98,98,93,93,116,116,110,110,87,87,82,82], arp:[233,311,370,311,247,330,392,330], drum:'k.skk.sk.skks.s.'},
   },
   play(name){
     // already on this exact track and it's still playing? leave it running so the music
@@ -2204,7 +2207,8 @@ function setupScene(name){
 }
 /* ================= TOWN (explorable hub) ================= */
 function setupTown(){
-  audio.play(F.gameWon?'warm':'route');   // after the rescue, Sylveon's theme keeps playing across town
+  // post-rescue: Sylveon's warm theme; final act (after the 2v2): the fierce 'peak' theme; otherwise the route theme
+  audio.play(F.gameWon?'warm':(F.gardenCleared?'peak':'route'));
   if(!F.sawTown){ F.sawTown=true; showEstablishing('town','PALLET TOWN'); }   // painted establishing shot, first arrival only
   // town noticeboard near the lab / spawn
   placeEntity(newEntity({id:'board',kind:'obj',tx:8,ty:9,dir:'down',solid:true,visible:true,
@@ -2763,7 +2767,7 @@ function setupWarehouse(){
 
 /* ================= GARDEN (Sylveon's signal) ================= */
 function setupGarden(){
-  audio.play('emotion');
+  audio.play(F.gardenCleared && !F.gameWon ? 'peak' : 'emotion');   // fierce 'peak' theme after the 2v2
   if(!F.sawGarden){ F.sawGarden=true; showEstablishing('garden','MOONLIT GARDEN'); }
   const syl=mon('sylC','sylveon',6,3,6); syl.solid=true;
   // Rook
@@ -2795,9 +2799,18 @@ function setupGarden(){
         {type:'levelup',to:15},
         {type:'say',name:'Giovanni',text:'Impossible... beaten by a child and a worn-out professor.'},
         {type:'despawn',id:'gv'},{type:'despawn',id:'ar'},
-        // --- Prof. Oak entrusts Oen with the POWER STONE (Eevee surges Lv 15 -> 25) ---
+        // --- the peak: Admin Rook speaks first, snatches Sylveon, and leaves ---
+        {type:'music',name:'peak'},
+        {type:'say',name:'Admin Rook',text:'Tch. Useless, both of them. Fine - I\'ll handle this myself.'},
+        {type:'sfx',name:'spark'},{type:'flash',col:C.pink,ms:300},
+        {type:'say',name:'Sylveon',text:'Sylveon...! (Its cage shrinks into a capture capsule.)'},
+        {type:'despawn',id:'sylC',hearts:true},
+        {type:'say',name:'Admin Rook',text:'Come find me at the hideout, Oen. The final test is waiting... if you dare.'},
+        {type:'move',id:'rook',path:['up']},
+        {type:'despawn',id:'rook'},
+        // --- only now does Prof. Oak step up and entrust Oen with the POWER STONE + potions ---
         {type:'face',id:'oakG',dir:'up'},
-        {type:'say',name:'Prof. Oak',text:'Oen, wait - before you go any further, take this. I\'ve been saving it for a moment exactly like this.'},
+        {type:'say',name:'Prof. Oak',text:'Oen, wait - before you go after him, take this. I\'ve been saving it for a moment exactly like this.'},
         {type:'func',fn:()=>{ F.gotStone=true; audio.fanfare(); }},
         {type:'say',name:'',text:'Oen received the POWER STONE!'},
         {type:'say',name:'Prof. Oak',text:'It holds the concentrated energy of countless evolutions. Hold it up to Eevee - let its strength flow into your partner!'},
@@ -2806,15 +2819,7 @@ function setupGarden(){
         {type:'say',name:'Oen',text:'Whoa... Eevee surged all the way to Lv 25! I can feel how much stronger it is now!'},
         {type:'func',fn:()=>{ F.maxPotions=5; audio.sfx('confirm'); }},
         {type:'say',name:'Prof. Oak',text:'And take these - 5 MAX POTIONS. If Eevee ever tires in battle, open your BAG and one will heal it completely.'},
-        {type:'say',name:'Prof. Oak',text:'Incredible. With that power and the bond you two share, you finally stand a chance against Admin Rook.'},
-        {type:'say',name:'Admin Rook',text:'Tch. Useless, both of them. Fine - I\'ll handle this myself, at the hideout.'},
-        {type:'sfx',name:'spark'},{type:'flash',col:C.pink,ms:300},
-        {type:'say',name:'Sylveon',text:'Sylveon...! (Its cage shrinks into a capture capsule.)'},
-        {type:'despawn',id:'sylC',hearts:true},
-        {type:'say',name:'Admin Rook',text:'Come find us, Oen. The final test is waiting.'},
-        {type:'move',id:'rook',path:['up']},
-        {type:'despawn',id:'rook'},
-        {type:'face',id:'oakG',dir:'up'},
+        {type:'say',name:'Prof. Oak',text:'With that power and the bond you two share, you finally stand a chance against Admin Rook.'},
         {type:'say',name:'Prof. Oak',text:'Sylveon\'s signal is moving underground, beneath the town. I can\'t follow you down there - but I believe in you. Go!'},
         {type:'move',id:'oakG',path:['down','down']},
         {type:'despawn',id:'oakG'},
@@ -2938,8 +2943,10 @@ function vsDraw(){
 /* ---- 10-second Eevee -> Umbreon evolution (light pours from the windows) ---- */
 const evo={ t:0, cb:null };
 function startEvo(cb){ F.partner='umbreon';
+  audio.stopMusic();   // silence the lingering battle/boss theme so the evolution film plays clean & quiet
   // play the cinematic film FIRST, then run the canvas morph that clearly shows
-  // Eevee changing INTO Umbreon (so the transformation itself is never missed)
+  // Eevee changing INTO Umbreon (so the transformation itself is never missed); the heart theme
+  // ('emotion') only kicks in once the in-game Eevee->Umbreon morph begins, in startEvoCanvas
   playStoryVideo('evolution', ()=>startEvoCanvas(cb), ()=>startEvoCanvas(cb)); }
 function startEvoCanvas(cb){ evo.t=0; evo.cb=cb; game.state='evo'; audio.play('emotion');
   audio.note(130,0.6,'sine',0.4); audio.note(196,0.6,'triangle',0.25,0.15); clearPressed(); F.partner='umbreon'; }
