@@ -2703,72 +2703,70 @@ function setupKeeper(){
 function setupStation(){
   audio.play('station');
   if(!F.sawStation){ F.sawStation=true; showEstablishing('station','OLD POWER STATION'); }
-  // Jolteon in electric cage near top center
+  // Jolteon in a live electric cage near top centre
   const jolt=mon('joltC','jolteon',6,2,6); jolt.solid=true;
-  // cage object visual handled in draw overlay (we mark a flag)
-  if(!F.stationSolved){ F.stationOrder=[]; F.genDone=[]; }   // reset puzzle progress on entry
-  const order=['L','R','M'];
-  function resolveGen(label,tx,ty){
-    F.stationOrder.push(label); audio.sfx('spark'); spawnSpark(tx*TS+8, ty*TS+8, 8, C.yellow);
-    const want=order[F.stationOrder.length-1];
-    if(label!==want){
-      F.stationOrder=[]; F.genDone=[];   // surge: every generator powers back up (greens off)
-      runSeq([{type:'say',name:'Evo Tracker',text:'Wrong order! The cage surged and the generators powered back up. Shut them as: Left, Right, then Middle.'}],()=>game.state='play');
-      return;
-    }
-    if(!F.genDone) F.genDone=[]; F.genDone.push(label);   // this generator's lights turn green
-    if(F.stationOrder.length===order.length){
-      F.stationSolved=true; F.stationStep=3;
-      runSeq([
-        {type:'sfx',name:'spark'},{type:'flash',col:C.yellow,ms:200},
-        {type:'say',name:'',text:'All three generators glow green. The electric cage flickers and weakens!'},
-        {type:'func',fn:()=>{ F.engineerHere=true; }},
-        {type:'spawn',entity:{id:'eng',kind:'char',sub:'grunt',tx:6,ty:4,dir:'down'}},
-        {type:'say',name:'Rocket Engineer',text:'Hey! You\'re messing with my machine! Team Rocket doesn\'t forgive unpaid electricians.'},
-        {type:'say',name:'Rocket Engineer',text:'Let\'s see if you can handle a little shock!'},
-        {type:'battle',cfg:{trainer:'Rocket Engineer', kind:'grunt', taunts:['My machines run on raw voltage - feel it!','You can\'t pull the plug on me, kid!','Voltorb, shock him senseless!'], enemies:[{species:'magnemite'},{species:'voltorb'}]}},
-        {type:'levelup',to:12},
-        {type:'say',name:'Rocket Engineer',text:'No! The cage is overloading!'},
-        {type:'flash',col:C.yellow,ms:300},{type:'shake',ms:300},{type:'sfx',name:'spark'},
-        {type:'despawn',id:'eng'},
-        {type:'func',fn:()=>{ F.jolteonFree=true; }},
-        {type:'video',key:'jolteon'},
-        {type:'spark',id:'joltC',col:C.yellow},
-        {type:'approach',id:'joltC'},
-        {type:'say',name:'Jolteon',text:'Jolteon! (It shakes off the sparks and runs to Oen.)'},
-        {type:'hearts',id:'player'},
-        {type:'say',name:'Prof. Oak',text:'Great job, Oen! Jolteon is safe. I\'m sending it back to the lab now.'},
-        {type:'flash',col:'#fff',ms:400},{type:'func',fn:()=>audio.fanfare()},
-        {type:'despawn',id:'joltC'},
-        {type:'flag',set:'jolteonRescued'},
-        {type:'say',name:'Evo Tracker',text:'Jolteon returned to the lab. Fire energy detected in town - head to the Ember Warehouse (south-west).'},
-        {type:'say',name:'Prof. Oak',text:'Now make your way back outside, Oen. Leave through the door to the south.'},
-        {type:'objective',text:'Leave the Power Station - walk out through the door (south).'},
-      ], ()=>{ game.state='play'; });
-    } else {
-      runSeq([{type:'say',name:'',text:'Generator '+label+' powers down. Its lights glow green. The cage dims a little...'}],()=>game.state='play');
-    }
+  // throw the master breaker -> the cage dies -> the Rocket Engineer storms in -> free Jolteon
+  function freeJolteon(){
+    F.stationSolved=true;
+    runSeq([
+      {type:'sfx',name:'spark'},{type:'flash',col:C.yellow,ms:220},{type:'shake',ms:320},
+      {type:'say',name:'',text:'Oen slots the MASTER BREAKER home and hauls the switch down. The electric cage dies with a heavy CLUNK!'},
+      {type:'func',fn:()=>{ F.engineerHere=true; }},
+      {type:'spawn',entity:{id:'eng',kind:'char',sub:'grunt',tx:8,ty:4,dir:'down'}},
+      {type:'say',name:'Rocket Engineer',text:'Hey! Who cut my power?! Team Rocket doesn\'t forgive unpaid electricians.'},
+      {type:'say',name:'Rocket Engineer',text:'Let\'s see if you can handle a little shock!'},
+      {type:'battle',cfg:{trainer:'Rocket Engineer', kind:'grunt', taunts:['My machines run on raw voltage - feel it!','You can\'t pull the plug on me, kid!','Voltorb, shock him senseless!'], enemies:[{species:'magnemite'},{species:'voltorb'}]}},
+      {type:'levelup',to:12},
+      {type:'say',name:'Rocket Engineer',text:'No! With the breaker down, the whole cage is overloading!'},
+      {type:'flash',col:C.yellow,ms:300},{type:'shake',ms:300},{type:'sfx',name:'spark'},
+      {type:'despawn',id:'eng'},
+      {type:'func',fn:()=>{ F.jolteonFree=true; }},
+      {type:'video',key:'jolteon'},
+      {type:'spark',id:'joltC',col:C.yellow},
+      {type:'approach',id:'joltC'},
+      {type:'say',name:'Jolteon',text:'Jolteon! (It shakes off the sparks and runs to Oen.)'},
+      {type:'hearts',id:'player'},
+      {type:'say',name:'Prof. Oak',text:'Great job, Oen! Jolteon is safe. I\'m sending it back to the lab now.'},
+      {type:'flash',col:'#fff',ms:400},{type:'func',fn:()=>audio.fanfare()},
+      {type:'despawn',id:'joltC'},
+      {type:'flag',set:'jolteonRescued'},
+      {type:'say',name:'Evo Tracker',text:'Jolteon returned to the lab. Fire energy detected in town - head to the Ember Warehouse (south-west).'},
+      {type:'say',name:'Prof. Oak',text:'Now make your way back outside, Oen. Leave through the door to the south.'},
+      {type:'objective',text:'Leave the Power Station - walk out through the door (south).'},
+    ], ()=>{ game.state='play'; });
   }
-  function gen(id,tx,ty,label){
-    return placeEntity(newEntity({id,kind:'char',sub:null,tx,ty,dir:'down',solid:false,visible:true,
-      talk:(e)=>{
-        if(F.stationSolved){ runSeq([{type:'say',name:'',text:'The generator is powered down.'}],()=>game.state='play'); return; }
-        if(F.genDone && F.genDone.indexOf(label)>=0){ runSeq([{type:'say',name:'',text:'Generator '+label+' is already shut down.'}],()=>game.state='play'); return; }
-        const len = label==='L'?4 : label==='R'?5 : 6;   // L/R/M map to stages 1/2/3 (faster each)
-        startMiniGame('GENERATOR '+label+' - POWER REROUTE', ()=>resolveGen(label,tx,ty), len);
-      }}));
-  }
-  gen('genL',2,3,'L'); gen('genR',10,3,'R'); gen('genM',4,6,'M');
+  // the cage CONTROL PANEL (master-breaker slot), centre of the room in front of Jolteon
+  placeEntity(newEntity({id:'breaker',kind:'obj',tx:6,ty:4,dir:'down',solid:true,visible:true,
+    draw:(x,y)=>{ ellipse(x+8,y+15,5,1.6,C.shadow);
+      rect(x+1,y+3,14,12,'#444b5c'); rect(x+1,y+3,14,2,'#5a6276'); rect(x+1,y+14,14,1,'#2a2d38');
+      const dead=F.stationSolved, armed=F.gotBreaker && !dead;
+      rrect(x+3,y+5,8,4,1,'#1a1d26');
+      rect(x+4,y+6,2,2, dead?'#46e05a':(armed?'#f6d62e':'#7a2a2a')); rect(x+8,y+6,2,2, dead?'#46e05a':'#3a3f4a');
+      g.strokeStyle='#9aa0ac'; g.lineWidth=1.4; g.beginPath(); g.moveTo(x+8,y+12.5); g.lineTo(x+8+(dead?3:-3),y+9.5); g.stroke(); circle(x+8+(dead?3:-3),y+9.5,1.4,'#e23b3b');
+      if(armed && Math.floor(anim/14)%2){ circle(x+8,y+3,3,'rgba(246,214,46,.4)'); } } ,
+    talk:(e)=>{
+      if(F.stationSolved){ runSeq([{type:'say',name:'',text:'The breaker is thrown and the cage is dead. Jolteon is free.'}],()=>game.state='play'); return; }
+      if(!F.gotBreaker){ F.needBreaker=true;
+        runSeq([
+          {type:'say',name:'Evo Tracker',text:'This panel powers Jolteon\'s cage - but the MASTER BREAKER slot is empty. Without it, the cage stays live.'},
+          {type:'say',name:'Prof. Oak',text:'The station\'s old keeper took the master breaker home when he retired. Find him in town, Oen.'},
+          {type:'objective',text:'Find the retired station keeper - the KEEPER\'S HOUSE is on the WEST side of town.'},
+        ],()=>game.state='play');
+        return;
+      }
+      freeJolteon();
+    }}));
   // entry dialog once
-  if(!F.stationIntro){ F.stationIntro=true;
+  if(!F.stationIntro){ F.stationIntro=true; F.needBreaker=true;
     runSeq([
       {type:'say',name:'Evo Tracker',text:'Electric energy very close. This is the Old Power Station.'},
-      {type:'say',name:'Prof. Oak',text:'Oen, be careful. Jolteon\'s cage is absorbing its electricity. Shut off the generators before you free it.'},
-      {type:'say',name:'Prof. Oak',text:'Power them down in this order - Left, Right, then Middle.'},
-      {type:'objective',text:'Shut the 3 generators: Left, Right, then Middle. (Stand next to one and press Space.)'},
+      {type:'say',name:'Prof. Oak',text:'There\'s Jolteon - trapped in a live electric cage. We have to cut the power to free it.'},
+      {type:'say',name:'',text:'The cage runs off a big CONTROL PANEL in the middle of the room... but its master-breaker slot is empty.'},
+      {type:'say',name:'Prof. Oak',text:'The station\'s retired keeper kept the master breaker. He lives in one of the houses in town - go and ask him.'},
+      {type:'objective',text:'Find the retired station keeper - the KEEPER\'S HOUSE is on the WEST side of town.'},
     ],()=>{ game.state='play'; });
-  } else {
-    game.objective='Shut the 3 generators: Left, Right, then Middle.';
+  } else if(!F.jolteonRescued){
+    game.objective = F.gotBreaker ? 'Use the MASTER BREAKER on the cage CONTROL PANEL (centre of the room).' : 'Get the master breaker from the keeper (WEST side of town), then return here.';
   }
 }
 
