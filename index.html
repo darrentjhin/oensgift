@@ -419,6 +419,15 @@ const audio = {
     boss:   {tempo:92, lead:[880,0,988,880,784,0,880,1047, 988,880,784,659,587,0,784,880], bass:[110,110,110,110,98,98,98,98,116,116,116,116,87,87,87,87], arp:[440,554,659,880,659,554,440,330], drum:'k.ksks.kk.skks.s'},
     warm:   {tempo:300, lead:[523,0,659,0,784,659,587,0,659,0,523,0,587,494,523,0], bass:[131,0,196,0,165,0,131,0], arp:[262,330,392,523,392,330,392,523], drum:'h...h...h...h...'},
     emotion:{tempo:330, lead:[659,0,784,0,659,587,523,0,587,0,494,0,523,587,523,0], bass:[147,0,110,0,131,0,98,0], arp:[330,392,494,587,494,392,330,392], drum:'h.......h.......'},
+    // ---- per-scene themes (synth-only; no audio files, so these always play) ----
+    // THEFT - the opening break-in: urgent, alarming, dissonant minor
+    theft:    {tempo:135, lead:[440,0,466,440,0,392,349,392,440,0,349,330,294,0,330,0], bass:[110,110,0,98,98,0,87,0], arp:[220,294,349,294,233,277,330,277], drum:'k..hs.hkk..hs.hh'},
+    // STATION (Jolteon) - bright, fast, electric and buzzing
+    station:  {tempo:118, lead:[659,784,880,988,880,784,659,784,880,988,1047,988,880,784,659,587], bass:[165,165,196,196,220,220,196,196], arp:[659,880,1047,880,784,988,1175,988], drum:'k.hskkh.k.hskkh.'},
+    // WAREHOUSE (Flareon) - warm but smouldering, mid-tempo tension
+    warehouse:{tempo:152, lead:[523,0,587,523,466,0,440,466,523,0,587,698,587,0,523,0], bass:[131,131,0,116,116,0,98,98], arp:[262,330,392,330,294,349,440,349], drum:'k...s..kk...s..h'},
+    // HIDEOUT (Sylveon) - dark, sparse, eerie, slow and underground
+    hideout:  {tempo:208, lead:[330,0,0,311,0,294,0,0,247,0,262,0,220,0,0,0], bass:[82,0,0,0,87,0,0,0], arp:[220,0,262,0,165,0,196,0], drum:'k.......s.......'},
   },
   play(name){
     // already on this exact track and it's still playing? leave it running so the music
@@ -535,6 +544,11 @@ const CHAR = {
   // real Team Rocket bosses for the 2v2
   giovanni:{hair:'#16161b', cap:null, shirt:'#d2772a', coat:'#b8631f', pants:'#23222a', skin:C.skin, logo:'#3a2410'}, // orange suit, slicked black hair
   ariana:  {hair:'#e02f3a', cap:null, shirt:'#f1f1f6', coat:'#e3e3ea', pants:'#e8e8ee', skin:C.skin, logo:C.red},      // scarlet hair, white jacket + R
+  // ---- everyday townsfolk (colour variety so the city feels populated) ----
+  man1:   {hair:'#5a3a1a', cap:null, shirt:'#3a6ea0', pants:'#33333f', skin:C.skin},
+  woman1: {hair:'#7a3a1a', cap:null, shirt:'#d05a8a', pants:'#8a4a6a', skin:C.skin},
+  gal:    {hair:'#2a2a2a', cap:'#e85a5a', capB:'#b83a3a', shirt:'#f0e6c8', pants:'#56a0a0', skin:C.skin},
+  oldman: {hair:'#cfcfcf', cap:null, shirt:'#9a8a6a', pants:'#5a4a3a', skin:'#e8c8a0'},
 };
 // dir: 'down','up','left','right' ; frame 0/1 walk
 function drawChar(kind,x,y,dir,frame){
@@ -1350,14 +1364,35 @@ function hideoutTile(ch,sx,sy,alt){
 function townTile(ch,sx,sy,alt,tx,ty){
   rect(sx,sy,TS,TS, alt?'#79bf45':'#71b641');   // grass base
   // furniture sitting on the downtown plaza needs a stone base, not grass
-  if('kojeu'.indexOf(ch)>=0 && tx>=14&&tx<=32&&ty>=2&&ty<=26){
+  if('kojeuQ'.indexOf(ch)>=0 && tx>=14&&tx<=32&&ty>=2&&ty<=26){
     rect(sx,sy,TS,TS,'#bcbfc7'); g.strokeStyle='rgba(120,124,134,.5)'; g.lineWidth=0.6; g.strokeRect(sx+0.5,sy+0.5,TS-1,TS-1);
   }
-  if(ch==='.'){ g.fillStyle='rgba(255,255,255,.06)'; if(((tx*7+ty*3)%4)===0) g.fillRect(sx+4,sy+9,2,1); if(((tx*5+ty*9)%5)===0) g.fillRect(sx+10,sy+5,2,1); return; }
-  if(ch==='p'){ rect(sx,sy,TS,TS,'#d9c391'); g.fillStyle='#cbb377'; if(((tx*3+ty*5)%4)===0) g.fillRect(sx+5,sy+6,3,2); if(((tx*7+ty)%6)===0) g.fillRect(sx+9,sy+11,2,2); return; }
-  if(ch==='P'){ // city stone pavement
-    rect(sx,sy,TS,TS,'#bcbfc7'); rect(sx,sy,TS,1,'#d0d3d9'); g.strokeStyle='rgba(120,124,134,.5)'; g.lineWidth=0.6; g.strokeRect(sx+0.5,sy+0.5,TS-1,TS-1);
-    rect(sx+2,sy+2,3,3,'#c6c9d0'); rect(sx+9,sy+9,3,3,'#c6c9d0'); return; }
+  if(ch==='.'){ // grass with the odd tuft / wildflower so the lawn isn't flat
+    const n=(tx*7+ty*5)%7;
+    if(n===0){ rect(sx+4,sy+10,1,2,'#5f9e34'); rect(sx+5,sy+8,1,4,'#67a93a'); rect(sx+6,sy+10,1,2,'#5f9e34'); }   // grass tuft
+    else if(n===2){ rect(sx+10,sy+6,1,3,'#5f9e34'); rect(sx+11,sy+5,1,4,'#67a93a'); }
+    else if(n===4){ circle(sx+11,sy+10,1.1,'#f4ec5e'); circle(sx+11,sy+10,0.4,'#fff'); }            // tiny daisy
+    else { g.fillStyle='rgba(255,255,255,.05)'; if(((tx*5+ty*9)%4)===0) g.fillRect(sx+9,sy+5,2,1); }
+    return; }
+  if(ch==='p'){ rect(sx,sy,TS,TS,'#d9c391');
+    const n=(tx*3+ty*7)%5;
+    if(n===0){ g.fillStyle='#cbb377'; g.fillRect(sx+5,sy+6,3,2); g.fillRect(sx+9,sy+11,2,2); }
+    else if(n===1){ g.fillStyle='#c2a96b'; g.fillRect(sx+3,sy+9,4,2); }
+    else if(n===2){ g.fillStyle='#e3d0a1'; g.fillRect(sx+8,sy+4,3,2); }                              // light scuff
+    if((tx*5+ty)%7===0) rect(sx+11,sy+12,2,1.5,'#b89a5f');                                          // pebble
+    return; }
+  if(ch==='P'){ // city stone pavement - flagstones with stable per-tile variation
+    const v=(tx*7+ty*13)%5;
+    rect(sx,sy,TS,TS, v===0?'#b6b9c1' : v===1?'#c1c4cc' : v===2?'#b9bcc4' : v===3?'#bdc0c8' : '#babdc5');
+    rect(sx,sy,TS,1,'#d0d3d9'); rect(sx,sy+TS-1,TS,1,'rgba(118,122,132,.35)');
+    g.strokeStyle='rgba(120,124,134,.42)'; g.lineWidth=0.6; g.strokeRect(sx+0.5,sy+0.5,TS-1,TS-1);
+    const d=(tx*5+ty*9)%13;
+    if(d===0){ g.strokeStyle='rgba(108,112,122,.55)'; g.lineWidth=0.7; g.beginPath(); g.moveTo(sx+3,sy+4); g.lineTo(sx+7,sy+8); g.lineTo(sx+6,sy+12); g.stroke(); }   // hairline crack
+    else if(d===4){ rect(sx+5,sy+6,6,5,'#9a9ea8'); g.fillStyle='rgba(40,44,54,.15)'; g.fillRect(sx+5,sy+6,6,5); for(let i=0;i<3;i++) rect(sx+5.5,sy+7+i*1.5,5,0.7,'#787c86'); }   // drain grate
+    else if(d===7){ g.globalAlpha=0.10; ellipse(sx+9,sy+9,4.5,3,'#6e727c'); g.globalAlpha=1; }       // faint stain
+    else if(d===9){ rect(sx+3,sy+11,2,1,'#c8cbd2'); rect(sx+11,sy+4,1.5,1,'#c8cbd2'); }              // pebbles / flecks
+    else { rect(sx+2.5,sy+2.5,2.5,2.5,'#c6c9d0'); rect(sx+10,sy+10,2.5,2.5,'#c6c9d0'); }             // subtle highlights
+    return; }
   if(ch==='T'){ // layered leafy tree
     ellipse(sx+8,sy+15,5.5,2,C.shadow);
     rect(sx+6.6,sy+10,2.8,5.5,'#6e4520'); rect(sx+6.6,sy+10,1.1,5.5,'#835633');   // trunk + sunlit edge
@@ -1370,8 +1405,10 @@ function townTile(ch,sx,sy,alt,tx,ty){
   if(ch==='w'){ rect(sx,sy,TS,TS,'#3f93da'); rect(sx,sy,TS,3,'#5aa6ea'); g.globalAlpha=.5; rect(sx,sy+((Math.floor(anim/16)%2)?5:10),TS,2,'#bfe2fb'); g.globalAlpha=1; return; }
   if(ch==='h'){ rrect(sx+0.5,sy+2,TS-1,TS-3,3,'#3f7d2c'); rrect(sx+2,sy+3,TS-5,3,2,'#5aa03c'); g.fillStyle='#347024'; rect(sx+4,sy+8,2,1,'#347024'); rect(sx+9,sy+6,2,1,'#347024'); return; }
   if(ch==='S'){ rect(sx+7,sy+5,2,10,'#7a5230'); rrect(sx+1.5,sy+1,13,5,1,'#e7d2a4'); g.strokeStyle='#7a5230'; g.lineWidth=1; g.strokeRect(sx+1.5,sy+1,13,5); rect(sx+3,sy+2.5,3,1,'#8a6a44'); rect(sx+3,sy+4,7,1,'#8a6a44'); return; }
-  if(ch==='L'){ // lamppost (sits on pavement)
+  if(ch==='L'){ // lamppost (sits on pavement) with a soft warm glow
     rect(sx,sy,TS,TS,'#bcbfc7'); g.strokeStyle='rgba(120,124,134,.5)'; g.lineWidth=0.6; g.strokeRect(sx+0.5,sy+0.5,TS-1,TS-1);
+    const gl=g.createRadialGradient(sx+8,sy+3,1,sx+8,sy+3,8); gl.addColorStop(0,'rgba(255,226,128,'+(0.34+0.06*Math.sin(anim/40)).toFixed(2)+')'); gl.addColorStop(1,'rgba(255,226,128,0)');
+    g.fillStyle=gl; g.beginPath(); g.arc(sx+8,sy+3,8,0,7); g.fill();
     rect(sx+7,sy+4,2,11,'#384049'); ellipse(sx+8,sy+15,3.5,1.4,C.shadow); ellipse(sx+8,sy+3.5,3.4,3,'rgba(255,236,150,.5)'); rrect(sx+5.5,sy+1.5,5,4,1.5,'#ffe45c'); rect(sx+6.5,sy+1,3,1,'#3a3f4a'); return; }
   // ---- residential building ----
   if(ch==='B'){ // plaster wall facade - windows on alternating tiles so it reads as a building, not a glass wall
@@ -1468,12 +1505,24 @@ function townTile(ch,sx,sy,alt,tx,ty){
   if(ch==='x'){ // crosswalk stripes on pavement
     rect(sx,sy,TS,TS,'#bcbfc7');
     for(let i=0;i<3;i++) rect(sx+2+i*5,sy+1,3,TS-2,'rgba(248,248,240,.85)'); return; }
+  if(ch==='Q'){ // ornamental plaza fountain (centrepiece)
+    ellipse(sx+8,sy+15,7.5,2.4,C.shadow);
+    ellipse(sx+8,sy+11,7.4,4.2,'#9a9ea8'); ellipse(sx+8,sy+10.4,6.6,3.5,'#aeb2bc');     // stone basin + rim
+    ellipse(sx+8,sy+10.2,5.2,2.7,'#3f8fc8'); ellipse(sx+8,sy+9.6,4.4,2.1,'#5aa6d8'); ellipse(sx+8,sy+9.2,3,1.3,'#8fcdf0');  // water
+    const r=(anim/14)%6; g.globalAlpha=clamp(1-r/6,0,1)*0.5; g.strokeStyle='#e6f6ff'; g.lineWidth=0.6;   // expanding ripple
+    g.beginPath(); g.ellipse(sx+8,sy+10,1+r,0.5+r*0.42,0,0,7); g.stroke(); g.globalAlpha=1;
+    rect(sx+6.6,sy+5,2.8,5,'#b6bac4'); rect(sx+6.6,sy+5,1,5,'#cdd1da');                  // pedestal
+    ellipse(sx+8,sy+5,2.2,1,'#aeb2bc');                                                  // upper bowl
+    const jh=2.4+Math.sin(anim/8)*0.7; g.globalAlpha=0.75; g.strokeStyle='#cfeeff'; g.lineWidth=1.1;  // jet
+    g.beginPath(); g.moveTo(sx+8,sy+4.6); g.lineTo(sx+8,sy+4.6-jh); g.stroke();
+    for(let i=0;i<5;i++){ const a=anim/9+i*1.26, fx=sx+8+Math.cos(a)*2.6, fy=sy+4.4-Math.abs(Math.sin(a))*2.4; circle(fx,fy,0.6,'#dff2ff'); }  // arcing droplets
+    g.globalAlpha=1; circle(sx+8,sy+4,0.9,'#eaf8ff'); return; }
 }
 
 /* =========================================================================
    MAP BUILDING
    ========================================================================= */
-const SOLID = new Set(['#','T','=','b','C','M','w','c','F','V','|','A','B','R','E','h','S','G','g','r','L','k','o','i','j','e']);
+const SOLID = new Set(['#','T','=','b','C','M','w','c','F','V','|','A','B','R','E','h','S','G','g','r','L','k','o','i','j','e','Q']);
 function makeGrid(w,h,fill){ const a=[]; for(let y=0;y<h;y++){ a.push(new Array(w).fill(fill)); } return a; }
 function setBorder(grid,ch){ const h=grid.length,w=grid[0].length;
   for(let x=0;x<w;x++){ grid[0][x]=ch; grid[h-1][x]=ch; }
@@ -1670,7 +1719,9 @@ function buildMaps(){
     grassPut([[5,8],[11,33],[35,33],[5,28]],'j');                                // mailboxes
     grassPut([[6,11],[40,11],[6,25],[40,25],[12,28],[33,28],[12,12],[34,12]],'u'); // flower beds
     // downtown plaza furniture (on stone pavement)
-    put([[23,19]],'o');                                                          // central statue
+    put([[23,15]],'Q');                                                          // central fountain (plaza centrepiece)
+    put([[21,15],[25,15]],'u');                                                  // flower beds flanking the fountain
+    put([[23,19]],'o');                                                          // monument statue on the same axis
     put([[20,18],[26,18],[19,22],[27,22]],'k');                                  // plaza benches
     put([[18,13],[28,13],[18,22],[28,22]],'e');                                  // market stalls
     put([[20,11],[26,11],[16,24],[30,24]],'u');                                  // plaza flower beds
@@ -1997,9 +2048,17 @@ function drawAmbient(theme){
   } else if(theme==='hideout'){   // faint red motes
     for(let i=0;i<12;i++){ const px=((i*71+Math.sin((t+i*30)/60)*10)%VW+VW)%VW, py=((i*53+t*0.02)%VH);
       g.globalAlpha=0.10+0.10*((Math.sin((t+i*40)/30)+1)/2); circle(px,py,1,'#d86a96'); } g.globalAlpha=1;
-  } else if(theme==='town'){      // gentle drifting pollen / leaves
-    for(let i=0;i<14;i++){ const px=((i*67+t*0.04+Math.sin((t+i*50)/70)*16)%VW+VW)%VW, py=((i*43+Math.sin((t+i*33)/55)*10)%VH+VH)%VH;
-      g.globalAlpha=0.12+0.12*((Math.sin((t+i*20)/25)+1)/2); circle(px,py,1, i%3?'#bfe88f':'#fff1b0'); } g.globalAlpha=1;
+  } else if(theme==='town'){      // drifting leaves swaying down + the odd flock gliding over
+    for(let i=0;i<11;i++){ const py=((t*0.05+i*39)%(VH+24))-12, px=((i*71+Math.sin((t+i*60)/48)*12)%VW+VW)%VW;
+      const a=0.18+0.12*((Math.sin((t+i*20)/26)+1)/2), col=i%3===0?'#e0a64a':(i%3===1?'#8fbf55':'#cf8a3a');
+      g.save(); g.translate(px,py); g.rotate((t+i*90)/28); g.globalAlpha=a;
+      ellipse(0,0,2.3,1.05,col); g.strokeStyle=col; g.lineWidth=0.5; g.beginPath(); g.moveTo(-2.3,0); g.lineTo(2.3,0); g.stroke();
+      g.restore(); }
+    g.globalAlpha=1;
+    const bp=t%1000;                                   // a little flock drifts past now and then
+    if(bp<300){ const prog=bp/300, baseX=VW*prog-10; g.strokeStyle='rgba(44,48,64,.5)'; g.lineWidth=1;
+      for(let b=0;b<3;b++){ const bx=baseX-b*9, by=22+b*6+Math.sin(prog*6.28+b)*4, fl=Math.sin(t/4+b)*2.2;
+        g.beginPath(); g.moveTo(bx-3,by+fl); g.lineTo(bx,by); g.lineTo(bx+3,by+fl); g.stroke(); } }
   } else if(theme==='lab'){       // slow dust motes
     for(let i=0;i<10;i++){ const px=((i*79+Math.sin((t+i*40)/80)*14)%VW+VW)%VW, py=((i*57+Math.sin((t+i*28)/65)*10)%VH+VH)%VH;
       g.globalAlpha=0.06+0.06*((Math.sin((t+i*22)/30)+1)/2); circle(px,py,1,'#ffffff'); } g.globalAlpha=1;
@@ -2030,6 +2089,10 @@ function drawWorld(){
   for(const h of game.hearts){ drawHeart(h.x+ox, h.y+oy, 3, clamp(1-h.t/h.life,0,1)); }
   for(const pr of game.particles){ g.globalAlpha=clamp(1-pr.t/pr.life,0,1); rect((pr.x+ox)|0,(pr.y+oy)|0,2,2,pr.col); g.globalAlpha=1; }
   drawAmbient(m.theme);   // theme atmosphere (fireflies / embers / sparks / pollen / dust)
+  // soft vignette for depth so the flat tile field reads as a lit space, not a grid
+  const vg=g.createRadialGradient(VW/2,VH*0.46,VH*0.34,VW/2,VH*0.5,VH*0.92);
+  vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(18,16,28,.26)');
+  g.fillStyle=vg; g.fillRect(0,0,VW,VH);
   // building name labels (town navigation)
   if(m.labels){ g.textAlign='center'; g.textBaseline='middle'; setFont(8); for(const L of m.labels){ const lx=L.x*TS+8+ox, ly=L.y*TS+oy;
     if(lx<-30||lx>VW+30||ly<-10||ly>VH+10) continue;
@@ -2103,6 +2166,11 @@ function setupTown(){
     ,talk:(e)=>{ runSeq([
       {type:'say',name:'Town Map',text:'PALLET TOWN.  NW: Prof. Oak\'s Lab.  NE: Old Power Station.  SW: Ember Warehouse.  SE: Moonlit Garden.  The building names float above their roofs - follow the labels.'},
     ],()=>game.state='play'); }}));
+  // ---- everyday townsfolk: a little life around the plaza (placed clear of warps, crystals & the quest kid) ----
+  npc('towns1','woman1',16,17,'right',[{name:'Townswoman',text:'Pallet Town\'s prettiest in spring. Mind the fountain - the little ones love to splash there!'}]);
+  npc('towns2','man1',  28,17,'left', [{name:'Townsman',text:'You\'re Oen, aren\'t you? The whole town\'s cheering you on. Go bring those Pokemon home.'}]);
+  npc('towns3','gal',   22,24,'up',   [{name:'Girl',text:'The downtown lights were strung up for the festival. Aren\'t they pretty when they glow?'}]);
+  npc('towns4','oldman',18,16,'down', [{name:'Old Man',text:'That Eevee of yours wouldn\'t take any stone. It simply wants to be itself. There is a quiet courage in that.'}]);
   // Flareon rescue: 3 Spring Crystals scattered across town (middle / west edge / south-east)
   if(F.flareonQuest && !F.flareonRescued){
     spawnCrystal('cryst1','gotCrystal1', 26, 22, 0);   // downtown plaza - middle
@@ -2223,8 +2291,8 @@ function runLabIntro(oak,asst){
     {type:'face',id:'sylveon',dir:'down'},
     {type:'func',fn:reach}, {type:'hearts',id:'sylveon'},
     {type:'say',name:'Prof. Oak',text:'Ah, Oen! You arrived at the perfect time. These Pokémon need someone kind to help observe them today.'},
-    // alarm - the break-in: swap to the tense/ominous theme (stays until Oen leaves the lab)
-    {type:'music',name:'tense'},
+    // alarm - the break-in: swap to the theft theme (stays until Oen leaves the lab)
+    {type:'music',name:'theft'},
     {type:'flash',col:'#d83838',ms:200},{type:'sfx',name:'spark'},{type:'shake',ms:300},
     {type:'say',name:'Assistant',text:'Professor! Someone is breaking into the security system!'},
     {type:'flash',col:'#222',ms:400},{type:'sfx',name:'faint'},
@@ -2419,7 +2487,7 @@ function miniDraw(){
 
 /* ================= STATION (Jolteon) ================= */
 function setupStation(){
-  audio.play('tense');
+  audio.play('station');
   if(!F.sawStation){ F.sawStation=true; showEstablishing('station','OLD POWER STATION'); }
   // Jolteon in electric cage near top center
   const jolt=mon('joltC','jolteon',6,2,6); jolt.solid=true;
@@ -2588,7 +2656,7 @@ function riddleDraw(){
 }
 
 function setupWarehouse(){
-  audio.play('tense');
+  audio.play('warehouse');
   if(!F.sawWarehouse){ F.sawWarehouse=true; showEstablishing('warehouse','EMBER WAREHOUSE'); }
   const fla=mon('flaC','flareon',6,2,6); fla.solid=true;
   // present the 3 Spring Crystals at the altar -> the flames die -> Grunt Cole -> free Flareon
@@ -2739,7 +2807,7 @@ function setupGarden(){
 
 /* ================= HIDEOUT (Final boss - Admin Rook) ================= */
 function setupHideout(){
-  audio.play('tense');   // ominous overworld theme; the boss theme kicks in during the fight
+  audio.play('hideout');   // dark hideout theme; the boss theme kicks in during the fight
   if(!F.sawHideout){ F.sawHideout=true; showEstablishing('hideout','TEAM ROCKET HIDEOUT'); }
   const syl=mon('sylH','sylveon',6,3,6); syl.solid=true;
   placeEntity(newEntity({id:'rookH',kind:'char',sub:'rook',tx:6,ty:5,dir:'down',solid:true,
@@ -4611,7 +4679,7 @@ function render(){
   if(audio.muted){ text('[mute]',VW-32,VH-11,'#888',8); }
   // autosave toast (top-right, fades)
   if(game.savedT>0){ game.savedT--; const a=Math.min(1,game.savedT/30); g.globalAlpha=a;
-    rrect(VW-66,6,60,14,3,'rgba(20,28,44,.82)'); text('✓ Saved',VW-60,16,'#bfe6c8',8); g.globalAlpha=1; }
+    rrect(VW-66,44,60,14,3,'rgba(20,28,44,.82)'); text('✓ Saved',VW-60,54,'#bfe6c8',8); g.globalAlpha=1; }   // right side, below the objective bar & clear of the bottom dialogue
   // first-load splash on top of everything, crossfading into the title
   if(boot.active) bootDraw();
 }
