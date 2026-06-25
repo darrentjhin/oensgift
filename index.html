@@ -3466,7 +3466,11 @@ function enemyAttack(){
   if(rook1Mew){ battle.mewAtk++; mode = battle.mewAtk>=3 ? 'lose' : (battle.mewAtk===2 ? 'bond' : 'heavy'); }
   const mvName = (rook1Mew? (e.moves.filter(m=>!STATUS_MOVES[m])[0]||e.moves[0]) : e.moves[Math.floor(Math.random()*e.moves.length)]);
   bMsg('Foe '+e.name+' used '+mvName+'!', ()=>{
-    if(mode==='normal' && STATUS_MOVES[mvName]){ audio.sfx('hitWeak'); bMsg(STATUS_MOVES[mvName], ()=>setTimeoutBattle(740, showMenu), 0); return; }
+    if(mode==='normal' && STATUS_MOVES[mvName]){   // status move: still play its full on-screen effect, just no damage
+      playMoveFx(mvName, 'enemy',
+        ()=>{ audio.sfx('hitWeak'); battle.pShake=260; },
+        ()=>{ bMsg(STATUS_MOVES[mvName], ()=>setTimeoutBattle(740, showMenu), 0); });
+      return; }
     const r=0.85+Math.random()*0.3;
     let dmg = Math.max(2, Math.round((e.atk + e.lv*0.3)*r*1.35));
     // Boss attacks are nerfed to a capped chip range so Eevee/Umbreon can't be killed, yet hits still read as dramatic
@@ -3649,7 +3653,9 @@ function dblAct(atk, def, move, after){
   // bosses only intimidate / lower stats - their moves deal NO damage
   if(!atk.isAlly && STATUS_MOVES[moveName]){
     bMsg((atk.owner?atk.owner+'’s ':'')+atk.name+' used '+moveName+'!', ()=>{
-      audio.sfx('hitWeak'); fdef.shake=260; bMsg(STATUS_MOVES[moveName].replace('Eevee',fdef.name).replace('your',fdef.name+"'s"), ()=>setTimeoutBattle(420, after), 0);
+      dblPlayMoveFx(moveName, atk, fdef,
+        ()=>{ audio.sfx('hitWeak'); fdef.shake=260; },
+        ()=>{ bMsg(STATUS_MOVES[moveName].replace('Eevee',fdef.name).replace('your',fdef.name+"'s"), ()=>setTimeoutBattle(420, after), 0); });
     }, 1100);
     return;
   }
