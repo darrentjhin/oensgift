@@ -555,66 +555,93 @@ const CHAR = {
   oldman: {hair:'#cfcfcf', cap:null, shirt:'#9a8a6a', pants:'#5a4a3a', skin:'#e8c8a0'},
 };
 // dir: 'down','up','left','right' ; frame 0/1 walk
-function drawChar(kind,x,y,dir,frame){
+// dir: 'down','up','left','right'.  mv: motion descriptor from drawWorld -
+//   { g:<gaitPhase>, run } while walking, or { idle:<breathPhase> } while standing.
+function drawChar(kind,x,y,dir,mv){
   const im=ASSETS._img['char:'+kind];
   if(im){ ellipse(x+8,y+15,5,2,C.shadow); g.drawImage(im, x, y-2, 16, 18); return; } // custom sprite
   const p = CHAR[kind]; if(!p) return;
   const cx = x+8; // tile center
-  // shadow
-  ellipse(cx, y+15, 5, 2, C.shadow);
-  if(p.poppy){ drawPoppy(cx,y,dir,frame,p); return; }
-  const legSwing = frame? 1 : -1;
-  const wob = frame? 0 : 0;
-  // legs
-  rect(cx-3+ (dir==='left'?legSwing*0:0), y+12, 2, 3, p.pants);
-  rect(cx+1, y+12, 2, 3, p.pants);
-  // boots
-  rect(cx-3, y+14, 2, 1, '#2a2a2a'); rect(cx+1, y+14, 2, 1, '#2a2a2a');
-  // body (cape for rook behind)
-  if(p.cape){ poly([[cx-5,y+5],[cx+5,y+5],[cx+4,y+13],[cx-4,y+13]], p.cape); }
-  rrect(cx-4, y+5, 8, 8, 2, p.shirt);
-  if(p.coat){ // lab coat sides
-    rect(cx-5,y+5,2,8,p.coat); rect(cx+3,y+5,2,8,p.coat);
-  }
-  if(p.logo){ // team rocket R - clean red letter centred on the chest (classic look, no badge)
-    g.textAlign='center'; g.textBaseline='middle'; setFont(8); g.fillStyle=p.logo;
-    g.fillText('R', cx, y+9.5);
-    g.textAlign='left'; g.textBaseline='alphabetic';
-  }
-  // arms
-  rect(cx-5, y+6, 2, 5, p.shirt); rect(cx+3, y+6, 2, 5, p.shirt);
-  rect(cx-5, y+10, 2, 1, p.skin); rect(cx+3, y+10, 2, 1, p.skin);
-  // head
-  const hy = y;
-  rrect(cx-4, hy, 8, 6, 2, p.skin); // face base
-  // hair / cap
+  // ---- motion ----
+  const walking = !!(mv && typeof mv==='object' && mv.g!=null);
+  const gait = walking ? mv.g : 0;
+  const amp  = (walking && mv.run) ? 1.5 : 1;                       // running exaggerates the stride
+  const sw   = walking ? Math.sin(gait) : 0;                        // limb swing, -1..1, alternating each step
+  const idlePh = (mv && mv.idle!=null) ? mv.idle : anim*0.045;
+  const breath = walking ? 0 : Math.sin(idlePh)*0.45;              // gentle chest rise while standing
+  const bob = (walking ? -Math.abs(Math.sin(gait))*0.9*amp : 0) + breath;   // hips/torso lift at mid-step
+  if(p.poppy){ drawPoppy(cx,y,dir,{sw,amp,bob},p); return; }
+  const by = y + bob;
+  const faceX = dir==='right'?1 : dir==='left'?-1 : 0;               // sideways facing
+  const lean  = faceX * (walking ? Math.abs(sw)*0.7 : 0);            // upper body leans into a sideways stride
+  // ---- legs: feet stay near the ground, hips ride the bob, the swing foot lifts (no detaching) ----
+  const groundY=y+15, hipY=by+11, lift=1.7*amp;
+  const lkL=Math.max(0,sw)*lift, lkR=Math.max(0,-sw)*lift;
+  const strideX = faceX ? sw*1.0*amp : 0;
+  const footL=groundY-lkL, footR=groundY-lkR;
+  const foot=(fx,fyTop)=>{ rect(fx,fyTop,2,1.4,'#2a2a2a'); if(faceX) rect(fx+(faceX>0?2:-0.8),fyTop+0.3,0.9,1.1,'#2a2a2a'); };   // toe points the way you face
+  const kick=(mv&&mv.kick)||0;                                        // soccer kids: front foot swings out to meet the ball
+  const kickLeg=(baseX)=>{ const reach=faceX*(1.5+kick*5), fy=groundY-2-kick*2;   // straight-leg kick toward the ball
+    rect(baseX, hipY, 2, 2.6, p.pants);                                            // thigh stub
+    rect(Math.min(baseX+0.6, baseX+0.6+reach), fy, Math.abs(reach)+2, 1.9, p.pants);   // shin sweeping out
+    rect(baseX+reach+(faceX>0?0.4:-0.4), fy-0.4, 1.8, 2.2, '#2a2a2a'); };          // boot at the tip
+  if(kick>0 && faceX<0) kickLeg(cx-3); else { rect(cx-3+strideX, hipY, 2, Math.max(1,footL-hipY-1), p.pants); foot(cx-3+strideX, footL-1); }   // left leg (front when facing left)
+  if(kick>0 && faceX>0) kickLeg(cx+1); else { rect(cx+1-strideX, hipY, 2, Math.max(1,footR-hipY-1), p.pants); foot(cx+1-strideX, footR-1); }   // right leg (front when facing right)
+  // ---- torso (rides the bob + lean) ----
+  const tx = cx + lean;
+  if(p.cape){ poly([[tx-5,by+5],[tx+5,by+5],[tx+4,by+13],[tx-4,by+13]], p.cape); }   // rook cape, behind
+  rrect(tx-4, by+5, 8, 8, 2, p.shirt);
+  g.globalAlpha=0.14; rect(tx-4,by+9.5,8,3.5,'#000'); g.globalAlpha=0.20; rect(tx-3.4,by+5,6.8,1.3,'#fff'); g.globalAlpha=1;   // shaded hem + lit shoulders
+  g.globalAlpha=0.10; rect(tx-4,by+5,1.3,8,'#000'); rect(tx+2.7,by+5,1.3,8,'#000'); g.globalAlpha=1;   // rounded side shading
+  if(p.coat){ rect(tx-5,by+5,2,8,p.coat); rect(tx+3,by+5,2,8,p.coat); }              // lab-coat sides
+  if(p.logo){ g.textAlign='center'; g.textBaseline='middle'; setFont(8); g.fillStyle=p.logo; g.fillText('R', tx, by+9.5); g.textAlign='left'; g.textBaseline='alphabetic'; }
+  // arms: a subtle counter-swing to the legs
+  const armS=sw*0.6*amp;
+  rect(tx-5, by+6+armS, 2, 5, p.shirt); rect(tx+3, by+6-armS, 2, 5, p.shirt);
+  rect(tx-5, by+10+armS, 2, 1, p.skin); rect(tx+3, by+10-armS, 2, 1, p.skin);
+  // ---- head (turns toward the facing direction) ----
+  const hx = cx + faceX*1.0 + lean, hy = by;
+  rrect(hx-4, hy, 8, 6, 2, p.skin);
+  g.globalAlpha=0.12; rect(hx-4,hy+4,8,2,'#000'); g.globalAlpha=1;                   // soft jaw shadow
+  if(faceX) rect(hx+faceX*3.6, hy+2.7, 1, 1.5, p.skin);                              // little nose poking out the way you face
   if(p.cap){
-    rrect(cx-5, hy-1, 10, 4, 2, p.cap);
-    rect(cx-5, hy+2, 10, 1, p.capB);
-    if(dir==='down'||dir==='left'||dir==='right') rect(cx-1, hy+2, 6, 2, p.cap); // brim
+    rrect(hx-5, hy-1, 10, 4, 2, p.cap); rect(hx-5, hy+2, 10, 1, p.capB);
+    rect(hx-5, hy-1, 10, 1, 'rgba(255,255,255,.18)');                               // cap sheen
+    if(dir!=='up') rect(hx-1, hy+2, 6, 2, p.cap);                                   // brim
   } else {
-    rrect(cx-5, hy-1, 10, 4, 2, p.hair);
-    if(dir!=='up'){ rect(cx-5,hy+2,2,2,p.hair); rect(cx+3,hy+2,2,2,p.hair); }
+    rrect(hx-5, hy-1, 10, 4, 2, p.hair);
+    rect(hx-5, hy-1, 10, 1, 'rgba(255,255,255,.14)');                               // hair sheen
+    if(dir==='down'){ rect(hx-5,hy+2,2,2,p.hair); rect(hx+3,hy+2,2,2,p.hair); }
+    else if(faceX){ rect(hx-faceX*4.6, hy+1.4, 2, 2.6, p.hair); }                   // sideburn on the back of the head
   }
-  // face features
+  // face features (eyes blink occasionally while idle)
+  const blink = (!walking) && (Math.floor(idlePh*0.6)%7===0) && (idlePh*0.6%1<0.12);
   if(dir==='down'){
-    rect(cx-3, hy+3, 1, 2, C.black); rect(cx+2, hy+3, 1, 2, C.black);
+    if(blink){ rect(hx-3,hy+3.6,1,0.7,C.black); rect(hx+2,hy+3.6,1,0.7,C.black); }
+    else { rect(hx-3, hy+3, 1, 2, C.black); rect(hx+2, hy+3, 1, 2, C.black); }
   } else if(dir==='left'){
-    rect(cx-3, hy+3, 1, 2, C.black);
+    rect(hx-3, hy+3, 1, blink?0.7:2, C.black);
   } else if(dir==='right'){
-    rect(cx+2, hy+3, 1, 2, C.black);
+    rect(hx+2, hy+3, 1, blink?0.7:2, C.black);
   } // up: no eyes (back of head)
 }
 // Poppy-style trainer: neat cream sun-bonnet, navy bob, small friendly eyes,
 // grey coat + pleated skirt, yellow tights, blue shoes. Natural proportions.
-function drawPoppy(cx,y,dir,frame,p){
+function drawPoppy(cx,y,dir,mv,p){
   const navy=p.hair, cream=p.bonnet, lining=p.bonnetB, coat=p.coat, white=p.collar;
   const back = dir==='up';
   const ex = dir==='left'? -0.6 : dir==='right'? 0.6 : 0;   // face/eye shift
-  const lift = frame? 0.6 : 0;                              // subtle walk bob
-  // ---- legs (yellow tights) + blue shoes ----
-  rect(cx-2.6, y+12, 1.9, 3, p.legs); rect(cx+0.7, y+12, 1.9, 3, p.legs);
-  rrect(cx-3.2, y+14-lift, 2.7, 1.8, 0.8, p.shoes); rrect(cx+0.5, y+14, 2.7, 1.8, 0.8, p.shoes);
+  // motion: sw = limb swing (-1..1), bob = upper-body lift; accepts the legacy frame number too
+  const sw  = (mv&&typeof mv==='object') ? (mv.sw||0)  : 0;
+  const amp = (mv&&typeof mv==='object') ? (mv.amp||1) : 1;
+  const bob = (mv&&typeof mv==='object') ? (mv.bob||0) : (mv?0.6:0);
+  const lkL=Math.max(0,sw)*1.3*amp, lkR=Math.max(0,-sw)*1.3*amp;        // alternating foot lift
+  const strideX=(dir==='left'||dir==='right') ? sw*0.9*amp : 0;
+  // ---- legs (yellow tights) + blue shoes (animated) ----
+  rect(cx-2.6+strideX, y+12-lkL, 1.9, 3, p.legs); rect(cx+0.7-strideX, y+12-lkR, 1.9, 3, p.legs);
+  rrect(cx-3.2+strideX, y+14-lkL, 2.7, 1.8, 0.8, p.shoes); rrect(cx+0.5-strideX, y+14-lkR, 2.7, 1.8, 0.8, p.shoes);
+  // everything above the legs rides the bob
+  y = y + bob;
   // ---- flared pleated skirt ----
   poly([[cx-2.8,y+9],[cx+2.8,y+9],[cx+4.4,y+13],[cx-4.4,y+13]], coat);
   rect(cx-2,y+10,0.7,3,'#aab6c6'); rect(cx-0.2,y+10,0.7,3,'#aab6c6'); rect(cx+1.4,y+10,0.7,3,'#aab6c6');
@@ -622,9 +649,10 @@ function drawPoppy(cx,y,dir,frame,p){
   // ---- coat torso + buttons ----
   rrect(cx-3.3, y+6, 6.6, 4, 1.7, coat);
   rect(cx-0.4, y+7, 0.9, 0.9, '#e6ecf6'); rect(cx-0.4, y+8.5, 0.9, 0.9, '#e6ecf6');
-  // ---- arms + skin hands ----
-  rrect(cx-4.9, y+6.3, 1.7, 3.4, 0.9, coat); rrect(cx+3.2, y+6.3, 1.7, 3.4, 0.9, coat);
-  rect(cx-4.9, y+9, 1.7, 1, p.skin); rect(cx+3.2, y+9, 1.7, 1, p.skin);
+  // ---- arms + skin hands (swing opposite the legs) ----
+  const armS=sw*1.0*amp;
+  rrect(cx-4.9, y+6.3+armS, 1.7, 3.4, 0.9, coat); rrect(cx+3.2, y+6.3-armS, 1.7, 3.4, 0.9, coat);
+  rect(cx-4.9, y+9+armS, 1.7, 1, p.skin); rect(cx+3.2, y+9-armS, 1.7, 1, p.skin);
   // ---- white collar ----
   tri([cx-1.7,y+5.7],[cx,y+7.1],[cx+1.7,y+5.7], white);
   // ---- HEAD (natural proportions) ----
@@ -1387,19 +1415,27 @@ function townTile(ch,sx,sy,alt,tx,ty){
   if('kojeuQY'.indexOf(ch)>=0 && tx>=14&&tx<=32&&ty>=2&&ty<=26){
     rect(sx,sy,TS,TS,'#bcbfc7'); g.strokeStyle='rgba(120,124,134,.5)'; g.lineWidth=0.6; g.strokeRect(sx+0.5,sy+0.5,TS-1,TS-1);
   }
-  if(ch==='.'){ // grass with the odd tuft / wildflower so the lawn isn't flat
-    const n=(tx*7+ty*5)%7;
-    if(n===0){ rect(sx+4,sy+10,1,2,'#5f9e34'); rect(sx+5,sy+8,1,4,'#67a93a'); rect(sx+6,sy+10,1,2,'#5f9e34'); }   // grass tuft
-    else if(n===2){ rect(sx+10,sy+6,1,3,'#5f9e34'); rect(sx+11,sy+5,1,4,'#67a93a'); }
-    else if(n===4){ circle(sx+11,sy+10,1.1,'#f4ec5e'); circle(sx+11,sy+10,0.4,'#fff'); }            // tiny daisy
-    else { g.fillStyle='rgba(255,255,255,.05)'; if(((tx*5+ty*9)%4)===0) g.fillRect(sx+9,sy+5,2,1); }
+  if(ch==='.'){ // grass with soft mottling + tufts / clover / wildflowers so the lawn reads lush
+    if((tx*5+ty*7)%3===0){ g.globalAlpha=0.45; ellipse(sx+6,sy+8,7,4.5, alt?'#6cb13c':'#64a734'); g.globalAlpha=1; }   // gentle two-tone patch
+    if((tx*3+ty*11)%4===0){ g.globalAlpha=0.30; ellipse(sx+11,sy+12,4,2.4,'#5f9e34'); g.globalAlpha=1; }                // a darker dapple
+    const n=(tx*7+ty*5)%6;
+    if(n===0){ rect(sx+3,sy+11,1,2,'#5f9e34'); rect(sx+4,sy+9,1,4,'#67a93a'); rect(sx+5,sy+10,1,3,'#5f9e34'); rect(sx+4,sy+9,1,1.4,'#86c95e'); }   // grass tuft (lit tips)
+    else if(n===2){ rect(sx+10,sy+7,1,3,'#5f9e34'); rect(sx+11,sy+6,1,4,'#67a93a'); rect(sx+12,sy+7,1,3,'#5f9e34'); rect(sx+11,sy+6,1,1.4,'#86c95e'); }
+    else if(n===3){ circle(sx+5,sy+11,1,'#57993a'); circle(sx+7,sy+11,1,'#57993a'); circle(sx+6,sy+9.6,1,'#5fa83e'); }  // clover trefoil
+    else if(n===4){ circle(sx+11,sy+9,1.2,'#f4ec5e'); circle(sx+11,sy+9,0.45,'#fff'); }                                  // daisy
+    else if(n===5){ for(let i=0;i<5;i++){ const a=i*1.257; circle(sx+4+Math.cos(a)*1.1, sy+6+Math.sin(a)*1.1, 0.7,'#f0a8d0'); } circle(sx+4,sy+6,0.55,C.yellow); }   // little pink wildflower
     return; }
-  if(ch==='p'){ rect(sx,sy,TS,TS,'#d9c391');
-    const n=(tx*3+ty*7)%5;
-    if(n===0){ g.fillStyle='#cbb377'; g.fillRect(sx+5,sy+6,3,2); g.fillRect(sx+9,sy+11,2,2); }
-    else if(n===1){ g.fillStyle='#c2a96b'; g.fillRect(sx+3,sy+9,4,2); }
-    else if(n===2){ g.fillStyle='#e3d0a1'; g.fillRect(sx+8,sy+4,3,2); }                              // light scuff
-    if((tx*5+ty)%7===0) rect(sx+11,sy+12,2,1.5,'#b89a5f');                                          // pebble
+  if(ch==='p'){ rect(sx,sy,TS,TS,'#d6bd88');                                                        // packed-earth base
+    rect(sx,sy,TS,1,'#e4cfa0'); rect(sx,sy+TS-1,TS,1,'rgba(150,120,70,.28)');                       // sun-lit top / shaded foot
+    const n=(tx*3+ty*7)%4; g.globalAlpha=0.5;
+    if(n===0){ ellipse(sx+5,sy+6,4.5,2.6,'#cab079'); } else if(n===1){ ellipse(sx+10,sy+10,5,2.8,'#e1cb9c'); } else if(n===2){ ellipse(sx+7,sy+11,5,2.4,'#c6ab70'); }
+    g.globalAlpha=1;                                                                                 // dappled, uneven dirt
+    if((tx+ty)%5===0){ g.globalAlpha=0.16; rect(sx,sy+5,TS,1,'#8a6e3e'); rect(sx,sy+10,TS,1,'#8a6e3e'); g.globalAlpha=1; }   // faint cart ruts
+    const d=(tx*5+ty*9)%8;                                                                           // scattered grit + pebbles
+    if(d===0){ rect(sx+4,sy+5,2,1.4,'#b39a62'); rect(sx+10,sy+9,1.4,1,'#a88f58'); }
+    else if(d===3){ rect(sx+8,sy+4,1.6,1.2,'#c0a86e'); rect(sx+5,sy+12,1.2,1,'#b39a62'); }
+    else if(d===5){ rect(sx+11,sy+11,2,1.4,'#a88f58'); circle(sx+3,sy+8,0.8,'#c8b07a'); }
+    else { rect(sx+3+((tx*3)%7),sy+4+((ty*5)%8),1,1,'#b39a62'); }
     return; }
   if(ch==='P'){ // city stone pavement - flagstones with stable per-tile variation
     const v=(tx*7+ty*13)%5;
@@ -1413,17 +1449,28 @@ function townTile(ch,sx,sy,alt,tx,ty){
     else if(d===9){ rect(sx+3,sy+11,2,1,'#c8cbd2'); rect(sx+11,sy+4,1.5,1,'#c8cbd2'); }              // pebbles / flecks
     else { rect(sx+2.5,sy+2.5,2.5,2.5,'#c6c9d0'); rect(sx+10,sy+10,2.5,2.5,'#c6c9d0'); }             // subtle highlights
     return; }
-  if(ch==='T'){ // layered leafy tree
+  if(ch==='T'){ // layered leafy tree, crown sways in the breeze
     ellipse(sx+8,sy+15,5.5,2,C.shadow);
     rect(sx+6.6,sy+10,2.8,5.5,'#6e4520'); rect(sx+6.6,sy+10,1.1,5.5,'#835633');   // trunk + sunlit edge
-    ellipse(sx+8,sy+7,7.6,7,'#3f7d2c');                                            // dark canopy base
-    ellipse(sx+5,sy+6,4,3.8,'#4e9636'); ellipse(sx+11.4,sy+7,3.6,3.4,'#4e9636');   // side clumps
-    ellipse(sx+8,sy+4,5,4.4,'#5fb03f');                                            // upper canopy
-    ellipse(sx+6.5,sy+3.4,2.6,2.2,'#76c455'); ellipse(sx+10,sy+5,2.2,1.9,'#76c455'); // highlights
-    ellipse(sx+7,sy+2.6,1.5,1.3,'#8ace6a'); return; }
-  if(ch==='f'){ circle(sx+5,sy+6,2,C.red); circle(sx+11,sy+10,2,C.yellow); circle(sx+9,sy+4,2,'#fff'); circle(sx+4,sy+11,2,'#e87fc8'); return; }
+    const cx=sx+8+Math.sin((anim+tx*37+ty*23)/60)*1.0;                            // gentle crown sway
+    ellipse(cx,sy+7,7.6,7,'#3f7d2c');                                             // dark canopy base
+    ellipse(cx-3,sy+6,4,3.8,'#4e9636'); ellipse(cx+3.4,sy+7,3.6,3.4,'#4e9636');   // side clumps
+    ellipse(cx,sy+4,5,4.4,'#5fb03f');                                             // upper canopy
+    ellipse(cx-1.5,sy+3.4,2.6,2.2,'#76c455'); ellipse(cx+2,sy+5,2.2,1.9,'#76c455'); // highlights
+    ellipse(cx-1,sy+2.6,1.5,1.3,'#8ace6a'); return; }
+  if(ch==='f'){ // a little cluster of wildflowers (petals + centre, on green stems)
+    g.strokeStyle='#5aa336'; g.lineWidth=0.8; g.beginPath();
+    g.moveTo(sx+5,sy+14); g.lineTo(sx+5,sy+6); g.moveTo(sx+11,sy+14); g.lineTo(sx+11,sy+9); g.moveTo(sx+8,sy+14); g.lineTo(sx+8,sy+11); g.stroke();
+    circle(sx+4,sy+10,1.1,'#5fb03f'); circle(sx+10,sy+11,1.1,'#5fb03f');                              // leaves
+    const flower=(fx,fy,col)=>{ for(let i=0;i<5;i++){ const a=i*1.2566+0.4; circle(fx+Math.cos(a)*1.5,fy+Math.sin(a)*1.5,1.05,col); } circle(fx,fy,0.85,C.yellow); };
+    flower(sx+5,sy+5,C.red); flower(sx+11,sy+8,'#fff'); flower(sx+8,sy+10.5,'#e87fc8'); return; }
   if(ch==='w'){ rect(sx,sy,TS,TS,'#3f93da'); rect(sx,sy,TS,3,'#5aa6ea'); g.globalAlpha=.5; rect(sx,sy+((Math.floor(anim/16)%2)?5:10),TS,2,'#bfe2fb'); g.globalAlpha=1; return; }
-  if(ch==='h'){ rrect(sx+0.5,sy+2,TS-1,TS-3,3,'#3f7d2c'); rrect(sx+2,sy+3,TS-5,3,2,'#5aa03c'); g.fillStyle='#347024'; rect(sx+4,sy+8,2,1,'#347024'); rect(sx+9,sy+6,2,1,'#347024'); return; }
+  if(ch==='h'){ // clipped hedge with leafy clumps + sunlit top
+    ellipse(sx+8,sy+15,5.5,1.6,C.shadow);
+    rrect(sx+0.5,sy+2,TS-1,TS-3,3,'#346e26');                                                        // dark base
+    for(let i=0;i<6;i++){ const lx=sx+3+(i%3)*4.5, ly=sy+5+((i/3)|0)*4.5; ellipse(lx,ly,2.6,2.1,(i%2)?'#458a30':'#3f7d2c'); }   // leaf clumps
+    rrect(sx+2,sy+2.5,TS-5,2.6,1.6,'#5aa03c'); ellipse(sx+5,sy+3.6,1.8,1,'#6cc049');                 // sunlit crown
+    circle(sx+5,sy+9,0.8,'#e0556a'); circle(sx+11,sy+7,0.8,'#e0556a'); circle(sx+8,sy+11,0.7,'#f4ec5e'); return; }   // berries / a bloom
   if(ch==='S'){ rect(sx+7,sy+5,2,10,'#7a5230'); rrect(sx+1.5,sy+1,13,5,1,'#e7d2a4'); g.strokeStyle='#7a5230'; g.lineWidth=1; g.strokeRect(sx+1.5,sy+1,13,5); rect(sx+3,sy+2.5,3,1,'#8a6a44'); rect(sx+3,sy+4,7,1,'#8a6a44'); return; }
   if(ch==='L'){ // lamppost (sits on pavement) with a soft warm glow
     rect(sx,sy,TS,TS,'#bcbfc7'); g.strokeStyle='rgba(120,124,134,.5)'; g.lineWidth=0.6; g.strokeRect(sx+0.5,sy+0.5,TS-1,TS-1);
@@ -1435,21 +1482,42 @@ function townTile(ch,sx,sy,alt,tx,ty){
     rect(sx,sy,TS,TS,'#e6d8ba');
     rect(sx,sy,TS,2,'#f0e6cc'); rect(sx,sy+TS-2,TS,2,'#cbbd9a');           // subtle siding bands
     if(((tx+ty)&1)===0){
-      rrect(sx+3,sy+3,10,10,1,'#46586a'); rect(sx+4,sy+4,8,8,'#a9d6ef');
-      rect(sx+4,sy+4,8,3.5,'#cdebfb'); rect(sx+7.5,sy+4,1,8,'#6f95ad'); rect(sx+4,sy+7.5,8,1,'#6f95ad');
+      rrect(sx+3,sy+3,10,10,1,'#46586a');
+      if((tx*5+ty*7)%5===0){                                               // a few windows are warmly lit inside
+        const fl=0.82+0.18*Math.sin((anim+tx*13+ty*9)/24);
+        g.globalAlpha=0.45*fl; const wl=g.createRadialGradient(sx+8,sy+8,1,sx+8,sy+8,8.5); wl.addColorStop(0,'rgba(255,205,108,.95)'); wl.addColorStop(1,'rgba(255,205,108,0)'); g.fillStyle=wl; g.beginPath(); g.arc(sx+8,sy+8,8.5,0,7); g.fill(); g.globalAlpha=1;
+        rect(sx+4,sy+4,8,8,'#f4c468'); rect(sx+4,sy+4,8,3.5,'#ffe49a');     // warm pane
+        rect(sx+7.5,sy+4,1,8,'#b1813e'); rect(sx+4,sy+7.5,8,1,'#b1813e');   // muntins
+      } else {
+        rect(sx+4,sy+4,8,8,'#a9d6ef'); rect(sx+4,sy+4,8,3.5,'#cdebfb');     // cool daylight pane
+        rect(sx+7.5,sy+4,1,8,'#6f95ad'); rect(sx+4,sy+7.5,8,1,'#6f95ad');
+      }
       rect(sx+3,sy+12.5,10,1.2,'#b89a6a');                                  // window sill
-    } else { rect(sx+5,sy+5,6,7,'rgba(170,150,110,.22)'); }                 // faint panel on blank wall
+    } else {                                                               // blank-wall tiles get cozy facade details
+      const w2=(tx*3+ty*5)%4;
+      if(w2===0){ rect(sx+7,sy+4.5,2,2.6,'#5a4a36');                        // wall sconce w/ warm glow
+        g.globalAlpha=0.5; const gl=g.createRadialGradient(sx+8,sy+6,1,sx+8,sy+6,5.5); gl.addColorStop(0,'rgba(255,206,120,.9)'); gl.addColorStop(1,'rgba(255,206,120,0)'); g.fillStyle=gl; g.beginPath(); g.arc(sx+8,sy+6,5.5,0,7); g.fill(); g.globalAlpha=1;
+        rrect(sx+6.6,sy+4.6,2.8,2.2,1,'#ffd86a'); }
+      else if(w2===1){ for(let i=0;i<7;i++){ circle(sx+3+((i*7)%10), sy+2.5+i*1.7, 1.4, (i%2)?'#4e9636':'#3f7d2c'); } }   // climbing ivy
+      else if(w2===2){ rect(sx+5.5,sy+3.5,5,2,'#7a5230'); circle(sx+6.2,sy+5.5,1.2,'#f0a8d0'); circle(sx+9.8,sy+5.5,1.2,'#f4ec5e'); circle(sx+8,sy+6,1.2,'#e0556a'); }   // hanging flower basket
+      else { rect(sx+5,sy+5,6,7,'rgba(170,150,110,.22)'); rect(sx+5,sy+5,6,1,'rgba(255,240,200,.3)'); }                    // recessed panel
+    }
     return; }
-  if(ch==='R'){ // roof ridge (top, sunlit slope) - shingled
-    rect(sx,sy,TS,TS,'#d05a44'); rect(sx,sy,TS,5,'#ea8068'); rect(sx,sy,TS,2,'#f6ac96');
-    g.fillStyle='rgba(150,55,40,.35)';
-    for(let r=0;r<4;r++){ g.fillRect(sx,sy+r*4+3,TS,1); for(let c=0;c<2;c++) g.fillRect(sx+(r%2?4:0)+c*8,sy+r*4,1,4); }
+  if(ch==='R'){ // roof ridge: sunlit rows of overlapping clay tiles + a capped peak
+    rect(sx,sy,TS,TS,'#bc4e3a');
+    for(let r=0;r<4;r++){ const ry=sy+r*4, off=(r%2)?2:0;
+      for(let c=-1;c<5;c++){ const tx2=sx+c*4+off;
+        rrect(tx2,ry,3.6,4.4,1.5,'#d56048'); rect(tx2+0.4,ry+0.3,2.8,1,'#ee8e76'); } }   // tile + sunlit lip
+    g.globalAlpha=0.28; for(let r=1;r<4;r++) rect(sx,sy+r*4-0.3,TS,1,'#7d2a20'); g.globalAlpha=1;   // row shadows
+    rect(sx,sy,TS,1.8,'#f4ae98'); rect(sx,sy,TS,0.7,'#fcd0c0');                                     // ridge cap highlight
     return; }
-  if(ch==='E'){ // roof lower slope + overhanging eave (sits under R)
-    rect(sx,sy,TS,TS,'#c2503c');
-    g.fillStyle='rgba(150,55,40,.4)';
-    for(let r=0;r<3;r++){ g.fillRect(sx,sy+r*4+3,TS,1); for(let c=0;c<2;c++) g.fillRect(sx+(r%2?4:0)+c*8,sy+r*4,1,4); }
-    rect(sx,sy+TS-3,TS,3,'#7d2a20'); rect(sx,sy+TS-1,TS,1,'#561a14');       // eave shadow
+  if(ch==='E'){ // lower roof slope + overhanging eave (sits under R), in shade
+    rect(sx,sy,TS,TS,'#ac4634');
+    for(let r=0;r<3;r++){ const ry=sy+r*4, off=(r%2)?2:0;
+      for(let c=-1;c<5;c++){ const tx2=sx+c*4+off;
+        rrect(tx2,ry,3.6,4.4,1.5,'#c2503c'); rect(tx2+0.4,ry+0.3,2.8,1,'#d6705c'); } }
+    g.globalAlpha=0.30; for(let r=1;r<3;r++) rect(sx,sy+r*4-0.3,TS,1,'#6e251c'); g.globalAlpha=1;
+    rect(sx,sy+TS-3,TS,3,'#7d2a20'); rect(sx,sy+TS-1,TS,1,'#561a14');                               // eave shadow
     return; }
   if(ch==='D'){ // building entrance with a step
     rect(sx,sy,TS,TS,'#e6d8ba'); rect(sx,sy,TS,2,'#f0e6cc');
@@ -1502,14 +1570,23 @@ function townTile(ch,sx,sy,alt,tx,ty){
     ellipse(sx+8,sy+15,5,1.5,C.shadow);
     rect(sx+2,sy+9,TS-4,2,'#9a7340'); rect(sx+2,sy+5,TS-4,2,'#b0894a'); rect(sx+2,sy+5,TS-4,1,'#c89a58');
     rect(sx+3,sy+11,1.6,4,'#5d6470'); rect(sx+TS-4.6,sy+11,1.6,4,'#5d6470'); rect(sx+3,sy+5,1.4,5,'#5d6470'); rect(sx+TS-4.6,sy+5,1.4,5,'#5d6470'); return; }
-  if(ch==='i'){ // round shrub
+  if(ch==='i'){ // round flowering shrub with clumped foliage
     ellipse(sx+8,sy+14,5,1.6,C.shadow);
-    ellipse(sx+8,sy+9,6,5.5,C.dgrass); ellipse(sx+6,sy+7,3.4,3,'#5fb03f'); ellipse(sx+10,sy+8,3,2.8,'#5aa83a'); ellipse(sx+8,sy+6,2,2,'#76c455');
-    circle(sx+5,sy+8,1,'#f6a8c8'); circle(sx+11,sy+10,1,C.yellow); return; }
-  if(ch==='o'){ // plaza statue on a pedestal
-    ellipse(sx+8,sy+15,5,1.7,C.shadow);
-    rect(sx+4,sy+11,8,4,'#b9bcc4'); rect(sx+4,sy+11,8,1,'#d0d3d9'); rect(sx+5,sy+5,6,6,'#a6aab4'); circle(sx+8,sy+4,2.6,'#b6bac4');
-    poly([[sx+8,sy+1.5],[sx+6.4,sy+4],[sx+9.6,sy+4]],'#c8cbd2'); rect(sx+5.4,sy+5.5,1.4,5,'rgba(255,255,255,.3)'); return; }
+    ellipse(sx+8,sy+9,6,5.5,'#357024');
+    for(let q=0;q<5;q++){ const lx=sx+5+(q%3)*3, ly=sy+6.5+((q/3)|0)*3; ellipse(lx,ly,2.3,2.0,(q%2)?'#5fb03f':'#4e9636'); }
+    ellipse(sx+8,sy+6,2.2,1.7,'#76c455'); ellipse(sx+6.6,sy+5.4,1,0.8,'#8ace6a');                  // sunlit top
+    circle(sx+5,sy+9,1,'#f6a8c8'); circle(sx+11,sy+10,1,C.yellow); circle(sx+9,sy+7,0.9,'#fff'); return; }   // blossoms
+  if(ch==='o'){ // plaza statue: a carved stone Eevee, the town's little mascot
+    ellipse(sx+8,sy+15,5.4,1.8,C.shadow);
+    rect(sx+3.5,sy+11,9,4,'#a9adb7'); rect(sx+3.5,sy+11,9,1,'#cdd0d8'); rect(sx+3.5,sy+14,9,1,'#8c919b');   // pedestal
+    rect(sx+5,sy+10,6,1.4,'#b6bac4');                                                                        // plinth top
+    const st='#b2b6c0', sh='#9499a3', li='#cdd0d8';
+    ellipse(sx+4.6,sy+8.4,1.6,1.3,st);                                                                       // tail
+    ellipse(sx+8,sy+8.8,2.6,2.2,st); ellipse(sx+8,sy+7.2,3.0,1.7,li);                                        // body + ruff
+    ellipse(sx+8,sy+4.8,2.4,2.1,st);                                                                         // head
+    poly([[sx+6,sy+3.6],[sx+7.4,sy+4.2],[sx+5.4,sy+1.4]],st); poly([[sx+10,sy+3.6],[sx+8.6,sy+4.2],[sx+10.6,sy+1.4]],st);   // ears
+    rect(sx+6.4,sy+4.8,0.8,0.9,sh); rect(sx+9,sy+4.8,0.8,0.9,sh);                                            // carved eyes
+    g.globalAlpha=0.4; rect(sx+5.6,sy+3.6,0.9,4,'#fff'); g.globalAlpha=1; return; }                          // soft sheen down the front
   if(ch==='j'){ // mailbox / postbox
     ellipse(sx+8,sy+15,3.5,1.3,C.shadow);
     rect(sx+7,sy+9,2,6,'#46505c'); rrect(sx+4,sy+4,8,6,2,'#3f7d3a'); rrect(sx+4,sy+4,8,2.4,2,'#4f9a46'); rect(sx+5.5,sy+6.5,5,1,'#1f3a1c'); rect(sx+11.5,sy+5,1,3,C.red); return; }
@@ -1537,12 +1614,13 @@ function townTile(ch,sx,sy,alt,tx,ty){
     g.beginPath(); g.moveTo(sx+8,sy+4.6); g.lineTo(sx+8,sy+4.6-jh); g.stroke();
     for(let i=0;i<5;i++){ const a=anim/9+i*1.26, fx=sx+8+Math.cos(a)*2.6, fy=sy+4.4-Math.abs(Math.sin(a))*2.4; circle(fx,fy,0.6,'#dff2ff'); }  // arcing droplets
     g.globalAlpha=1; circle(sx+8,sy+4,0.9,'#eaf8ff'); return; }
-  if(ch==='Y'){ // potted ornamental tree (plaza greenery on stone)
+  if(ch==='Y'){ // potted ornamental tree (plaza greenery on stone), crown sways gently
     ellipse(sx+8,sy+15,6,2,C.shadow);
     rect(sx+7,sy+9,2,4,'#6e4520'); rect(sx+7,sy+9,1,4,'#835633');                  // trunk
-    ellipse(sx+8,sy+6.5,6.4,6,'#3f7d2c'); ellipse(sx+5,sy+5.5,3.6,3.2,'#4e9636'); ellipse(sx+11.2,sy+6.5,3,2.8,'#4e9636');  // canopy
-    ellipse(sx+8,sy+3.6,4.4,3.8,'#5fb03f'); ellipse(sx+6.5,sy+2.8,1.8,1.4,'#8ace6a');
-    rect(sx+3,sy+11.5,10,4,'#8a5a36'); rect(sx+3,sy+11.5,10,1,'#a67044'); rect(sx+3,sy+14.5,10,1,'#5a3a20'); rect(sx+4,sy+12.5,2,1.4,'#a67044'); return; }   // planter box
+    const cx=sx+8+Math.sin((anim+tx*29+ty*41)/62)*0.9;
+    ellipse(cx,sy+6.5,6.4,6,'#3f7d2c'); ellipse(cx-3,sy+5.5,3.6,3.2,'#4e9636'); ellipse(cx+3.2,sy+6.5,3,2.8,'#4e9636');  // canopy
+    ellipse(cx,sy+3.6,4.4,3.8,'#5fb03f'); ellipse(cx-1.5,sy+2.8,1.8,1.4,'#8ace6a');
+    rect(sx+3.5,sy+12,9,3.5,'#b9663a'); rect(sx+3,sy+11.3,10,1.6,'#c9764a'); rect(sx+3,sy+11.3,10,0.6,'#dd9068'); rect(sx+3.5,sy+15,9,0.7,'#8a4526'); g.globalAlpha=0.3; rect(sx+4.5,sy+12.5,1.4,2.4,'#fff'); g.globalAlpha=1; return; }   // terracotta planter
 }
 function homeTile(ch,sx,sy,alt){   // cozy cabin interior: warm wood floor + plaster walls
   rect(sx,sy,TS,TS, alt?'#b78c54':'#ab8049');                              // wood plank floor
@@ -1759,8 +1837,8 @@ function buildMaps(){
     grassPut([[5,8],[11,33],[35,33],[5,28]],'j');                                // mailboxes
     grassPut([[6,11],[40,11],[6,25],[40,25],[12,28],[33,28],[12,12],[34,12]],'u'); // flower beds
     // downtown plaza furniture (on stone pavement)
-    put([[23,15]],'Q');                                                          // central fountain (plaza centrepiece)
-    put([[21,15],[25,15]],'u');                                                  // flower beds flanking the fountain
+    // (the big plaza fountain is a multi-tile ENTITY placed in setupTown - footprint kept clear here)
+    put([[20,15],[26,15]],'u');                                                  // flower beds flanking the larger fountain
     put([[15,10],[31,10],[19,10],[27,10]],'Y');                                  // potted trees framing the plaza
     put([[23,19]],'o');                                                          // monument statue on the same axis
     put([[20,18],[26,18],[19,22],[27,22]],'k');                                  // plaza benches
@@ -1821,7 +1899,7 @@ const game = {
   paused:false,
   ended:false, endChoiceSel:0, endDeclines:0,
 };
-let anim=0;
+let anim=0, animAcc=0;   // anim = integer animation frame, advanced at a fixed 60/sec regardless of the display's refresh rate
 
 function newEntity(o){ return Object.assign({
   kind:'char', sub:'grunt', tx:0, ty:0, dir:'down', px:0, py:0,
@@ -2012,8 +2090,11 @@ function tryStep(e, dir, ignoreEnt){
 function updateEntity(e,dt){
   if(e.bumpT>0) e.bumpT-=dt;
   if(e.stepping){
-    e.sp += dt/((e===game.player && keys.run && game.state==='play')?78:130);   // hold Shift to run
+    const inc = dt/((e===game.player && keys.run && game.state==='play')?95:158);   // hold Shift to run (a calmer, more natural walk pace)
+    e.sp += inc;
+    e.gait = (e.gait||0) + inc*Math.PI;                                              // continuous walk-cycle phase: π advances per footstep
     if(e.sp>=1){ e.sp=1; e.stepping=false; e.px=e.tx*TS; e.py=e.ty*TS; e.frame^=1;
+      e.gait = Math.round(e.gait/Math.PI)*Math.PI;                                   // settle the cycle in-phase so the next step alternates legs cleanly
       if(e===game.player) onPlayerArrive();
       if(e.walkPath && e.walkPath.length){ const nd=e.walkPath.shift(); tryStep(e,nd,true); }
     } else {
@@ -2027,6 +2108,22 @@ function updateEntity(e,dt){
     e.gazeT = (e.gazeT==null ? 1200+Math.random()*2600 : e.gazeT-dt);
     if(e.gazeT<=0){ e.dir = ['down','up','left','right'][Math.floor(Math.random()*4)]; e.gazeT = 1600+Math.random()*3200; }
   }
+  // strolling townsfolk wander around their corner of town, then pause
+  if(e.wander && e!==game.player && !e.stepping && game.state==='play'){
+    e.wT = (e.wT==null ? 500+Math.random()*1600 : e.wT-dt);
+    if(e.wT<=0){
+      e.wT = 700+Math.random()*2400;
+      const p=game.player, dirs=['up','down','left','right'].sort(()=>Math.random()-0.5);
+      for(const d of dirs){
+        const [dx,dy]=DIRV[d], nx=e.tx+dx, ny=e.ty+dy;
+        if(Math.abs(nx-e.hx)>e.wr || Math.abs(ny-e.hy)>e.wr){ continue; }      // stay near home anchor
+        if(!walkable(game.map,nx,ny) || entAt(nx,ny)) { e.dir=d; continue; }   // wall/other npc: at least turn that way
+        if(p && nx===p.tx && ny===p.ty){ e.dir=d; continue; }                  // don't shove the player
+        tryStep(e,d); break;
+      }
+    }
+  }
+  if(e.tick) e.tick(e,dt);   // per-entity custom animation (e.g. the soccer ball)
 }
 function onPlayerArrive(){
   const p=game.player;
@@ -2139,7 +2236,13 @@ function drawWorld(){
   for(const e of ents){
     const ex=Math.round(e.px+ox), ey=Math.round(e.py+oy);
     if(e.kind==='char'){ let bX=0,bY=0; if(e.bumpT>0){ const k=Math.sin((1-e.bumpT/110)*Math.PI)*2.4, bd=DIRV[e.bumpDir||'down']; bX=bd[0]*k; bY=bd[1]*k; }
-      if(e.sub) ellipse(ex+8+bX,ey+14,5,2,C.shadow); drawChar(e.sub, ex+bX, ey-4+bY, e.dir, e.stepping?(e.sp<0.5?1:0):0); }
+      // motion descriptor: walking -> live gait phase; idle -> a desynced breathing phase so the crowd doesn't pulse in unison
+      const mv = e.stepping ? { g:e.gait||0, run:(e===game.player&&keys.run&&game.state==='play') }
+                            : { idle: anim*0.045 + (e.tx*7+e.ty*13)*0.6 };
+      if(e.kick) mv.kick=e.kick;                                                   // soccer kids kick the ball
+      const sq = e.stepping ? 1+Math.abs(Math.sin(e.gait||0))*0.06 : 1;            // contact shadow swells a touch as the body lifts
+      if(e.sub) ellipse(ex+8+bX,ey+14,5*sq,2,C.shadow);
+      drawChar(e.sub, ex+bX, ey-4+bY, e.dir, mv); }
     else if(e.kind==='mon'){ ellipse(ex+8,ey+15,5,2,C.shadow); const bob=Math.sin((anim+e.bob*10)/16)*1; drawMon(e.sub, ex+8, ey+8+bob, e.R||6); }
     else if(e.kind==='obj'){ if(e.draw) e.draw(ex,ey); }
   }
@@ -2147,6 +2250,14 @@ function drawWorld(){
   for(const h of game.hearts){ drawHeart(h.x+ox, h.y+oy, 3, clamp(1-h.t/h.life,0,1)); }
   for(const pr of game.particles){ g.globalAlpha=clamp(1-pr.t/pr.life,0,1); rect((pr.x+ox)|0,(pr.y+oy)|0,2,2,pr.col); g.globalAlpha=1; }
   drawAmbient(m.theme);   // theme atmosphere (fireflies / embers / sparks / pollen / dust)
+  if(m.theme==='town'){   // warm golden-hour grade so the stone plaza glows instead of reading flat-grey
+    const sun=g.createLinearGradient(0,0,0,VH);
+    sun.addColorStop(0,'rgba(255,212,138,.15)'); sun.addColorStop(0.55,'rgba(255,206,150,.04)'); sun.addColorStop(1,'rgba(108,104,150,.07)');
+    g.fillStyle=sun; g.fillRect(0,0,VW,VH);
+    const gl=g.createRadialGradient(VW*0.30,VH*0.10,8,VW*0.30,VH*0.10,VH*0.95);   // soft sun glow from the upper-left, like the painted shot
+    gl.addColorStop(0,'rgba(255,226,150,.13)'); gl.addColorStop(1,'rgba(255,226,150,0)');
+    g.fillStyle=gl; g.fillRect(0,0,VW,VH);
+  }
   // soft vignette for depth so the flat tile field reads as a lit space, not a grid
   const vg=g.createRadialGradient(VW/2,VH*0.46,VH*0.34,VW/2,VH*0.5,VH*0.92);
   vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(18,16,28,.26)');
@@ -2226,11 +2337,17 @@ function setupTown(){
     ,talk:(e)=>{ runSeq([
       {type:'say',name:'Town Map',text:'PALLET TOWN.  NW: Prof. Oak\'s Lab.  NE: Old Power Station.  SW: Ember Warehouse.  SE: Moonlit Garden.  The building names float above their roofs - follow the labels.'},
     ],()=>game.state='play'); }}));
+  spawnFountain();   // big multi-tile plaza fountain (drawn as an entity so it isn't clipped to one tile)
   // ---- everyday townsfolk: a little life around the plaza (placed clear of warps, crystals & the quest kid) ----
-  npc('towns1','woman1',16,17,'right',[{name:'Townswoman',text:'Pallet Town\'s prettiest in spring. Mind the fountain - the little ones love to splash there!'}]).idle=true;
-  npc('towns2','man1',  28,17,'left', [{name:'Townsman',text:'You\'re Oen, aren\'t you? The whole town\'s cheering you on. Go bring those Pokemon home.'}]).idle=true;
+  const stroll=(e,r)=>{ e.wander=true; e.hx=e.tx; e.hy=e.ty; e.wr=r||3; return e; };   // wander within r tiles of home, then pause
+  stroll(npc('towns1','woman1',16,17,'right',[{name:'Townswoman',text:'Pallet Town\'s prettiest in spring. Mind the fountain - the little ones love to splash there!'}]),3);
+  stroll(npc('towns2','man1',  28,17,'left', [{name:'Townsman',text:'You\'re Oen, aren\'t you? The whole town\'s cheering you on. Go bring those Pokemon home.'}]),3);
   npc('towns3','gal',   22,24,'up',   [{name:'Girl',text:'The downtown lights were strung up for the festival. Aren\'t they pretty when they glow?'}]).idle=true;
   npc('towns4','oldman',18,16,'down', [{name:'Old Man',text:'That Eevee of yours wouldn\'t take any stone. It simply wants to be itself. There is a quiet courage in that.'}]).idle=true;
+  stroll(npc('towns5','kid',   30,14,'down', [{name:'Townsfolk',text:'I keep walking the same loop hoping the festival lights switch on. Any minute now!'}]),3);
+  stroll(npc('towns6','man1',  16,21,'right',[{name:'Townsfolk',text:'Just stretching my legs round the plaza. Lovely spot, isn\'t it?'}]),3);
+  spawnSoccer();   // two kids kicking a ball around the lower plaza
+  spawnBirds();    // ground birds pecking & hopping around the plaza
   spawnYamper();   // the keeper's Yamper roams town until caught
   // Flareon rescue: 5 Spring Crystals scattered across town
   if(F.flareonQuest && !F.flareonRescued){
@@ -2322,6 +2439,110 @@ function yamperResult(pts, caught){
       {type:'say',name:'',text:'Yamper wriggled free and bolted to another corner of Pallet Town!  ('+pts+'/50 left.)  Track it down and try again!'},
     ],()=>game.state='play');
   }
+}
+/* ---- big plaza fountain: a 3-wide x 2-tall footprint, drawn as one large entity ---- */
+function spawnFountain(){
+  // invisible solid blockers fill the footprint so you can't walk through it
+  const foot=[[22,15],[24,15],[22,16],[24,16],[23,15]];
+  for(const [tx,ty] of foot) placeEntity(newEntity({id:'fbk'+tx+'_'+ty,kind:'obj',tx,ty,dir:'down',solid:true,visible:false}));
+  // the visible fountain is anchored on the lower-centre tile and drawn ~3 tiles wide
+  placeEntity(newEntity({id:'fountain',kind:'obj',tx:23,ty:16,dir:'down',solid:true,visible:true,
+    draw:(ex,ey)=>{
+      const cx=ex+8, cy=ey;                                        // centre of the 3x2 footprint
+      ellipse(cx,cy+13,17,5,C.shadow);                             // ground shadow
+      // ---- stone basin: outer rim, inner bowl, shaded throat ----
+      ellipse(cx,cy+6,17,8.5,'#8a8e98'); ellipse(cx,cy+5.4,16,7.8,'#9a9ea8'); ellipse(cx,cy+5,15,7.2,'#b2b6c0'); ellipse(cx,cy+4.5,13.5,6.3,'#c6cad2');
+      g.globalAlpha=0.5; ellipse(cx,cy+6.6,13.6,6,'#5a5e68'); g.globalAlpha=1;   // inner throat shadow under the rim
+      // ---- water pool ----
+      ellipse(cx,cy+4,11.5,5.4,'#2f7fb8'); ellipse(cx,cy+3.4,9.8,4.5,'#4a9bd0'); ellipse(cx,cy+2.6,7.2,3.1,'#7cc1ec');
+      // coins resting on the bottom, catching the odd glint
+      [[-5,4.4],[-1,5.2],[3,4],[5.5,5]].forEach((cd,ci)=>{ const gl=(Math.sin(anim/13+ci*2.2)+1)/2; g.globalAlpha=0.45+gl*0.4; circle(cx+cd[0],cy+cd[1],0.85,'#e8c24a'); if(gl>0.85) rect(cx+cd[0]-0.4,cy+cd[1]-0.5,0.8,0.8,'#fffbe0'); }); g.globalAlpha=1;
+      // shifting caustic light on the surface
+      for(let c=0;c<3;c++){ const ca=anim/26+c*2.1; g.globalAlpha=0.10+0.07*Math.sin(anim/17+c); ellipse(cx+Math.cos(ca)*5,cy+3+Math.sin(ca)*1.5,2.6,1.1,'#d6f1ff'); } g.globalAlpha=1;
+      // expanding ripples
+      for(let k=0;k<2;k++){ const r=((anim/19)+k*3)%6; g.globalAlpha=clamp(1-r/6,0,1)*0.45; g.strokeStyle='#e6f6ff'; g.lineWidth=0.7;
+        g.beginPath(); g.ellipse(cx,cy+3,2+r*1.6,1+r*0.7,0,0,7); g.stroke(); } g.globalAlpha=1;
+      g.globalAlpha=0.55; g.strokeStyle='#dfe3ea'; g.lineWidth=1; g.beginPath(); g.ellipse(cx,cy+5.4,15.4,7.3,0,0.18,Math.PI-0.18); g.stroke(); g.globalAlpha=1;   // front-rim catch-light
+      // ---- central pedestal + upper bowl ----
+      rect(cx-3,cy-6,6,9,'#aab0ba'); rect(cx-3,cy-6,2,9,'#c8ccd4'); rect(cx+1.6,cy-6,1.2,9,'#888d97');               // pedestal w/ lit + shaded edges
+      ellipse(cx,cy-6,5,2,'#b2b6c0'); ellipse(cx,cy-6.2,4,1.5,'#c8ccd4'); ellipse(cx,cy-6.6,3.2,1.1,'#5aa6d8');       // upper bowl + its little pool
+      // ---- water jet + spray ----
+      const jh=5.4+Math.sin(anim/12)*1.4; g.globalAlpha=0.85; g.strokeStyle='#dff2ff'; g.lineWidth=1.6;
+      g.beginPath(); g.moveTo(cx,cy-7); g.lineTo(cx,cy-7-jh); g.stroke();
+      g.lineWidth=1; g.globalAlpha=0.4; g.beginPath(); g.moveTo(cx,cy-7); g.lineTo(cx,cy-7-jh*0.7); g.stroke();
+      for(let i=0;i<11;i++){ const t=((anim/32)+i*0.091)%1, ang=-Math.PI/2+(i-5)*0.155, sp=7.5;   // fan of droplets arcing up & out, gravity-fall
+        const fx=cx+Math.cos(ang)*sp*t*1.35, fy=(cy-7-jh)+Math.sin(ang)*sp*t+t*t*10.5;
+        g.globalAlpha=clamp(1-t,0,1)*0.85; circle(fx,fy,0.9-t*0.35,'#eaf8ff'); }
+      g.globalAlpha=0.12; circle(cx,cy-7-jh*0.5,4.2,'#eaf8ff'); g.globalAlpha=1;                     // fine mist hanging over the jet
+      for(let s=-1;s<=1;s+=2){ const sr=((anim/17)+(s>0?2:0))%4; g.globalAlpha=clamp(1-sr/4,0,1)*0.32; g.strokeStyle='#eaf8ff'; g.lineWidth=0.6;   // splash rings where the spray lands
+        g.beginPath(); g.ellipse(cx+s*9,cy+3.6,1+sr,0.5+sr*0.4,0,0,7); g.stroke(); } g.globalAlpha=1;
+      circle(cx,cy-7-jh,1.2,'#f4fbff'); }}));
+}
+/* ---- little ground birds: peck, hop a tile or two, and startle away when you get close ---- */
+const BIRD_KINDS=[{c:'#9a6a3e',l:'#b6824c',d:'#74502c'},{c:'#8a8d96',l:'#a8abb4',d:'#6c6f78'},{c:'#5d6a7a',l:'#7a8696',d:'#47525f'}];
+function spawnBird(id,hx,hy){
+  const k=BIRD_KINDS[(hx+hy)%BIRD_KINDS.length];
+  const b=placeEntity(newEntity({id,kind:'obj',tx:hx,ty:hy,dir:'down',solid:false,visible:true,
+    col:k.c,colL:k.l,colD:k.d, hx,hy, bx:hx*TS+8, by:hy*TS+12, lift:0, st:'peck', t:400+Math.random()*1400, hp:0, fromx:0,fromy:0,tox:0,toy:0, face:Math.random()<0.5?1:-1, fast:false }));
+  function hopTo(tx,ty){ b.st='hop'; b.hp=0; b.fromx=b.bx; b.fromy=b.by; b.tox=tx*TS+8+(Math.random()*6-3); b.toy=ty*TS+12+(Math.random()*3-1.5); b.face=(b.tox>=b.bx)?1:-1; }
+  b.tick=(e,dt)=>{
+    if(game.state!=='play' && game.state!=='cutscene') return;
+    const p=game.player;
+    if(p && e.st!=='hop'){ const d=Math.abs(p.px-e.bx)+Math.abs(p.py-e.by); if(d<24){   // startle: dash a couple tiles away from the player
+      const ax=clamp(e.hx+(e.bx<p.px?-2:2), e.hx-2, e.hx+2), ay=clamp(e.hy+(e.by<p.py?-1:1), e.hy-2, e.hy+2); e.fast=true; hopTo(ax,ay); } }
+    if(e.st==='hop'){
+      e.hp += dt/(e.fast?190:300);
+      e.lift = Math.sin(clamp(e.hp,0,1)*Math.PI)*(e.fast?7:5);
+      if(e.hp>=1){ e.hp=1; e.lift=0; e.bx=e.tox; e.by=e.toy; e.st='peck'; e.t=500+Math.random()*1500; e.fast=false; }
+      else { e.bx=lerp(e.fromx,e.tox,e.hp); e.by=lerp(e.fromy,e.toy,e.hp); }
+    } else { e.t-=dt; if(e.t<=0){ const nx=clamp(e.hx+((Math.random()*5-2)|0), e.hx-2, e.hx+2), ny=clamp(e.hy+((Math.random()*3-1)|0), e.hy-2, e.hy+2); hopTo(nx,ny); } }
+    e.px=e.bx-8; e.py=e.by;   // px centres the sprite at bx; py = ground depth (unlifted) so sorting stays correct
+  };
+  b.draw=(x,y)=>{
+    const cx=x+8, by2=y-b.lift, f=b.face;
+    const sh=clamp(1-b.lift/6,0.35,1); ellipse(cx,y+4,3.2*sh,1.2*sh,C.shadow);                    // ground shadow shrinks as it lifts
+    if(b.lift<0.6){ g.strokeStyle=b.colD; g.lineWidth=0.7; g.beginPath(); g.moveTo(cx-0.8,by2+2.1); g.lineTo(cx-1.1,by2+4); g.moveTo(cx+0.8,by2+2.1); g.lineTo(cx+1.1,by2+4); g.stroke(); }   // legs
+    poly([[cx-f*3.0,by2-1.4],[cx-f*3.0,by2+1.4],[cx-f*5.0,by2-0.2]], b.colD);                      // tail
+    ellipse(cx,by2,3.1,2.4,b.col); ellipse(cx,by2-0.7,2.5,1.5,b.colL);                             // body + sunlit back
+    const wf = b.st==='hop'? Math.abs(Math.sin(b.hp*Math.PI*6)) : 0.15;
+    ellipse(cx-f*0.6,by2+0.3,2.1,1.3-wf*0.9,b.colD);                                               // folded/flapping wing
+    const dip=(b.st!=='hop')?Math.max(0,Math.sin(anim/5))*1.5:0, hX=cx+f*2.5, hY=by2-1.5+dip;       // head dips while pecking
+    circle(hX,hY,1.6,b.col); circle(hX-f*0.3,hY-0.6,1.0,b.colL);
+    poly([[hX+f*1.1,hY-0.2],[hX+f*3.0,hY+0.3],[hX+f*1.1,hY+0.9]],'#e8a43a');                         // beak
+    circle(hX+f*0.5,hY-0.3,0.46,'#1a1420'); circle(hX+f*0.66,hY-0.46,0.18,'#fff'); };               // eye
+  return b;
+}
+function spawnBirds(){ spawnBird('bird1',28,22); spawnBird('bird2',18,23); spawnBird('bird3',33,12); }
+/* ---- two kids kick a soccer ball back and forth in the lower plaza (pure ambience) ---- */
+function spawnSoccer(){
+  const ay=25, ax=20, bx=26;
+  const kidA=npc('soc1','kid',ax,ay,'right',[{name:'Kid',text:'Wanna kickabout? Heads up - I bend it like nobody else!'}]);
+  const kidB=npc('soc2','gal',bx,ay,'left', [{name:'Kid',text:'We play out here every spring. Go on, give it a boot!'}]);
+  const x0=ax*TS+10, x1=bx*TS-10, depthY=ay*TS;     // ball rests just in front of each kid's kicking foot
+  const ball=placeEntity(newEntity({id:'soccerball',kind:'obj',tx:ax,ty:ay,dir:'down',solid:false,visible:true,bp:0.5,bd:1,rest:0}));
+  ball.tick=(e,dt)=>{
+    if(game.state!=='play' && game.state!=='cutscene') return;
+    if(e.rest>0){ e.rest-=dt; }                     // brief pause at each kid so the kick can land
+    else { e.bp += e.bd*dt*0.00055;                 // gentle roll (~2s each way)
+      if(e.bp>=1){ e.bp=1; e.bd=-1; e.rest=220; }
+      if(e.bp<=0){ e.bp=0; e.bd=1;  e.rest=220; } }
+    kidA.dir='right'; kidB.dir='left';
+    kidA.kick = clamp((0.16-e.bp)/0.16, 0, 1);      // kidA's foot swings out as the ball nears the left end
+    kidB.kick = clamp((e.bp-0.84)/0.16, 0, 1);      // kidB's foot swings out as the ball nears the right end
+    e.px=lerp(x0,x1,e.bp); e.py=depthY;
+  };
+  ball.draw=(x,y)=>{
+    const cx=x+8, hop=Math.abs(Math.sin(ball.bp*Math.PI*2))*2.4, by=y+12-hop;   // two gentle bounces per crossing
+    const roll=ball.bp*Math.PI*7*(ball.bd<0?-1:1);
+    ellipse(cx,y+13.8,3.6*(1-hop*0.05),1.4,C.shadow);
+    circle(cx,by,3.4,'#d7d9de');                                              // sphere base
+    circle(cx-0.9,by-0.9,2.5,'#ffffff');                                      // sunlit side
+    g.globalAlpha=0.22; circle(cx+1.2,by+1.3,2.4,'#5f6670'); g.globalAlpha=1; // shaded side
+    const pent=(px,py,s,rot)=>{ g.fillStyle='#20242c'; g.beginPath(); for(let i=0;i<5;i++){ const a=rot+i*1.2566, X=px+Math.cos(a)*s, Y=py+Math.sin(a)*s; i?g.lineTo(X,Y):g.moveTo(X,Y); } g.closePath(); g.fill(); };
+    pent(cx,by,1.05, roll*0.4);                                              // central black pentagon
+    for(let i=0;i<3;i++){ const a=roll+i*2.094; if(Math.cos(a)>-0.15) pent(cx+Math.cos(a)*2.1, by+Math.sin(a)*1.9, 0.62, a); }   // patches rolling around the surface
+    g.globalAlpha=0.85; circle(cx-1.3,by-1.4,0.7,'#fff'); g.globalAlpha=1;    // specular highlight
+  };
 }
 function spawnYamper(){
   if(!(F.yamperQuest && !F.yamperCaught)) return;
@@ -2517,7 +2738,7 @@ function catchUpdate(dt){
     return;
   }
   if(mez.phase==='spin'){
-    mez.ang=(mez.ang + dt*0.015)%(Math.PI*2);   // the BALLS rotate (2.5x faster); the pointer is fixed at top
+    mez.ang=(mez.ang + dt*0.009)%(Math.PI*2);   // the BALLS rotate at half the previous speed - fast but readable; pointer fixed at top
     if(consume('ok')){
       let best=0,bd=99; for(let i=0;i<mez.ring.length;i++){ const raw=(mezSlotAngle(i)+mez.ang)-(-Math.PI/2); const d=Math.abs(Math.atan2(Math.sin(raw),Math.cos(raw))); if(d<bd){bd=d;best=i;} }
       mez.sel=best; mez.ball=mez.ring[best]; mez.ang=-Math.PI/2-mezSlotAngle(best);   // snap chosen ball to the top pointer
@@ -2548,6 +2769,13 @@ function drawCatchBall(x,y,r,type,lit){
   circle(x,y,r*0.36,'#f8f8f0'); circle(x,y,r*0.18,'#9aa0ac');
   if(type==='ultra'){ rect(x-r*0.55,y-r*0.66,r*0.5,1,'#202028'); rect(x+r*0.05,y-r*0.66,r*0.5,1,'#202028'); }
 }
+function drawCatchBallCovered(x,y,r){   // mystery capsule - you can't tell which ball it is until it nears the pointer
+  circle(x,y,r,'#444c60');
+  g.save(); g.beginPath(); g.arc(x,y,r,Math.PI,0); g.closePath(); g.clip(); circle(x,y,r,'#5a647c'); g.restore();
+  rect(x-r,y-0.8,r*2,1.6,'#1a1e28');
+  circle(x,y,r*0.34,'#aeb6c8'); circle(x,y,r*0.16,'#5a647c');
+  g.fillStyle='#10131c'; setFont(6); g.textAlign='center'; g.textBaseline='middle'; g.fillText('?', x, y-r*0.5); g.textBaseline='alphabetic';
+}
 function catchDraw(){
   const grd=g.createLinearGradient(0,0,0,VH); grd.addColorStop(0,'#1e2c46'); grd.addColorStop(1,'#33476a');
   g.fillStyle=grd; g.fillRect(0,0,VW,VH);
@@ -2570,10 +2798,10 @@ function catchDraw(){
     uiBox(14, 64, VW-28, 96);
     g.textAlign='center'; textShadow('HOW TO CATCH', VW/2, 78, '#ffe24a','#2a2a08',9);
     g.textAlign='left'; g.textBaseline='top';
-    const lines=['The balls spin past the ▼ pointer at the top.','Press SPACE to throw the ball under it.','ULTRA(20) > GREAT(15) > POKE(10) off its HP.','One throw, then it bolts - hunt it down again','until its HP hits 0 and it\'s caught!'];
-    for(let i=0;i<lines.length;i++) text(lines[i], 22, 90+i*13, '#dfe7ff', 8);
+    const lines=['The balls spin around the ring fast.','Press SPACE to STOP the spin.','You grab the ball under the ▼ arrow!','Better balls knock off more HP -','the gold ULTRA ball is best.'];
+    for(let i=0;i<lines.length;i++) text(lines[i], 22, 91+i*13, '#25324a', 8);   // dark text on the white box so it's easy to read
     g.textBaseline='alphabetic'; g.textAlign='center';
-    if(Math.floor(anim/30)%2) text('press SPACE to begin', VW/2, 170, '#ffe24a', 8);
+    if(Math.floor(anim/30)%2) textShadow('press SPACE to begin', VW/2, 170, '#f6b81e','#3a2400', 8);
     g.textAlign='left'; return;
   }
   // ---- gameplay ----
@@ -2595,16 +2823,21 @@ function catchDraw(){
     g.fillStyle = frac>0.5?'#46e05a':frac>0.25?'#f6d62e':'#e23b3b'; rpath(bx,by,Math.max(0,bw*frac),5,2); g.fill();
     text('HP  '+Math.max(0,mez.points)+' / 50', VW/2, by+18, '#dfe7ff', 8); }
   if(!capturing){
-    // ring of balls ROTATING past a fixed top pointer
+    // ring of balls ROTATING past a fixed top pointer.
+    // which slot is currently under the pointer?
+    let topIdx=0, bd=99;
+    for(let i=0;i<mez.ring.length;i++){ const a=mezSlotAngle(i)+mez.ang; const d=Math.abs(Math.atan2(Math.sin(a+Math.PI/2),Math.cos(a+Math.PI/2))); if(d<bd){ bd=d; topIdx=i; } }
+    const N=mez.ring.length, reveal=new Set([(topIdx-1+N)%N, topIdx, (topIdx+1)%N]);   // only the ball at the ▼ and its two neighbours are face-up
     for(let i=0;i<mez.ring.length;i++){ const a=mezSlotAngle(i)+mez.ang, px=cx+Math.cos(a)*RR, py=cy+Math.sin(a)*RR*0.9;
-      const atop=Math.abs(Math.atan2(Math.sin(a+Math.PI/2),Math.cos(a+Math.PI/2)))<0.42;
-      drawCatchBall(px,py,5, mez.ring[i], (mez.phase==='spin'&&atop) || (mez.phase!=='spin'&&i===mez.sel)); }
+      const shown = (mez.phase!=='spin') || reveal.has(i);   // once a throw is locked in, flip everything face-up
+      if(shown) drawCatchBall(px,py,5, mez.ring[i], (mez.phase==='spin'&&i===topIdx) || (mez.phase!=='spin'&&i===mez.sel));
+      else drawCatchBallCovered(px,py,5); }
     // fixed pointer at the top, pointing down at the ball under it
     g.save(); g.translate(cx, ptrTop-10); poly([[-4,0],[4,0],[0,7]],'#ffe24a'); g.restore();
     if(mez.phase==='throw'){ const p=clamp(mez.t/560,0,1), fx=lerp(cx,yx,p), fy=lerp(ptrTop,yy,p)-Math.sin(p*Math.PI)*28; drawCatchBall(fx,fy,5,mez.ball,false); }
   }
   // ---- messages / capture animation ----
-  if(mez.phase==='spin'){ if(Math.floor(anim/26)%2) text('Press SPACE when the best ball reaches the ▼', VW/2, 172, '#fff', 8); }
+  if(mez.phase==='spin'){ if(Math.floor(anim/26)%2) textShadow('Press SPACE to STOP the spin and grab a ball!', VW/2, 172, '#fff','#0a1830', 8); }
   else if(mez.phase==='throw'||mez.phase==='wobble'){ text(BALL_NM[mez.ball]+'!', VW/2, 172, mez.ball==='ultra'?'#ffe24a':'#dfe7ff', 8);
     if(mez.ball==='ultra' && mez.phase==='throw') textShadow('PERFECT!', VW/2, 156, '#ffe24a','#a06000',10); }
   else if(mez.phase==='result'){ textShadow('-'+mez.dmg+'!', yx, 40, '#ff8a6a','#400',12); }
@@ -4304,7 +4537,7 @@ function startCardScan(){
   if(!cardScan.el){ const v=document.createElement('video'); v.playsInline=true; v.setAttribute('playsinline',''); v.muted=true; cardScan.el=v; }
   if(navigator.mediaDevices && navigator.mediaDevices.getUserMedia){
     navigator.mediaDevices.getUserMedia({ video:{ facingMode:'user' }, audio:false }).then(stream=>{
-      if(game.state!=='cardscan'){ stream.getTracks().forEach(t=>t.stop()); return; }   // bailed out while waiting
+      if(game.state!=='cardscan' || cardScan.phase!=='live'){ stream.getTracks().forEach(t=>t.stop()); return; }   // bailed out, or already scanned, while the camera was warming up -> never turn it on
       cardScan.stream=stream; cardScan.el.srcObject=stream;
       const p=cardScan.el.play(); if(p&&p.catch) p.catch(()=>{});
     }).catch(()=>{ cardScan.err=true; });                  // denied / no camera -> still let SPACE "scan"
@@ -4325,7 +4558,10 @@ function cardScanUpdate(dt){
   cardScan.t+=dt;
   if(consume('menu')){ audio.sfx('cancel'); stopCardScan(); game.state='title'; return; }   // Esc -> back to title
   if(cardScan.phase==='live'){
-    if(consume('ok')){ snapCard(); stopCardScan(); cardScan.phase='scanning'; cardScan.t=0; audio.sfx('confirm'); }
+    if(consume('ok')){
+      if(!cardScan.stream && !cardScan.err){ audio.sfx('cancel'); }            // camera not on yet -> can't scan, nudge & wait
+      else { snapCard(); stopCardScan(); cardScan.phase='scanning'; cardScan.t=0; audio.sfx('confirm'); }
+    }
   } else if(cardScan.phase==='scanning'){
     if(cardScan.t>=1500){ cardScan.phase='processing'; cardScan.t=0; audio.sfx('confirm'); }
   } else if(cardScan.phase==='processing'){
@@ -4359,7 +4595,8 @@ function cardScanDraw(){
   if(cardScan.phase==='live'){
     const pulse=0.5+0.5*Math.sin(anim/12);
     cardBracket(CARD_X,CARD_Y,CARD_W,CARD_H,16, 'rgba(120,210,255,'+(0.45+pulse*0.5).toFixed(2)+')');
-    if(Math.floor(anim/46)%2) textShadow('Hold up your card  ·  press SPACE to scan', VW/2, VH-7, '#fff', '#0a1830', 8);
+    const ready = cardScan.stream || cardScan.err;   // only invite a scan once the camera is actually on (or unavailable)
+    if(Math.floor(anim/46)%2) textShadow(ready?'Hold up your card  ·  press SPACE to scan':'Starting camera…  one moment', VW/2, VH-7, ready?'#fff':'#bfe0ff', '#0a1830', 8);
   } else if(cardScan.phase==='scanning'){
     cardBracket(CARD_X,CARD_Y,CARD_W,CARD_H,16, 'rgba(120,210,255,.85)');
     const prog=Math.min(1,cardScan.t/1500), sy=CARD_Y+CARD_H*prog;
@@ -4724,7 +4961,7 @@ function bootDraw(){
 let last=performance.now();
 function loop(now){
   let dt=now-last; last=now; if(dt>60) dt=60;
-  anim++;
+  animAcc += dt; while(animAcc>=16.667){ anim++; animAcc-=16.667; }   // fixed 60fps animation clock (so 120/144Hz screens don't run everything double-speed)
   if(game.shake>0) game.shake-=dt;
   update(dt);
   render();
@@ -4804,7 +5041,10 @@ function render(){
   if(audio.muted){ text('[mute]',VW-32,VH-11,'#888',8); }
   // autosave toast (top-right, fades)
   if(game.savedT>0){ game.savedT--; const a=Math.min(1,game.savedT/30); g.globalAlpha=a;
-    rrect(VW-66,44,60,14,3,'rgba(20,28,44,.82)'); text('✓ Saved',VW-60,54,'#bfe6c8',8); g.globalAlpha=1; }   // right side, below the objective bar & clear of the bottom dialogue
+    const tbw=58, tbx=VW-6-tbw, tby=44;
+    rrect(tbx,tby,tbw,14,3,'rgba(20,28,44,.82)');
+    g.textAlign='center'; text('✓ Saved',tbx+tbw/2,tby+10,'#bfe6c8',8); g.textAlign='left';   // centred so it never spills outside the box, whatever the prior textAlign was
+    g.globalAlpha=1; }   // right side, below the objective bar & clear of the bottom dialogue
   // first-load splash on top of everything, crossfading into the title
   if(boot.active) bootDraw();
 }
