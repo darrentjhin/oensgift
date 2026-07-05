@@ -1565,10 +1565,11 @@ function townTile(ch,sx,sy,alt,tx,ty){
     rrect(sx+2,sy+2.5,TS-5,2.6,1.6,'#5aa03c'); ellipse(sx+5,sy+3.6,1.8,1,'#6cc049');                 // sunlit crown
     circle(sx+5,sy+9,0.8,'#e0556a'); circle(sx+11,sy+7,0.8,'#e0556a'); circle(sx+8,sy+11,0.7,'#f4ec5e'); return; }   // berries / a bloom
   if(ch==='S'){ rect(sx+7,sy+5,2,10,'#7a5230'); rrect(sx+1.5,sy+1,13,5,1,'#e7d2a4'); g.strokeStyle='#7a5230'; g.lineWidth=1; g.strokeRect(sx+1.5,sy+1,13,5); rect(sx+3,sy+2.5,3,1,'#8a6a44'); rect(sx+3,sy+4,7,1,'#8a6a44'); return; }
-  if(ch==='L'){ // lamppost (sits on pavement) with a soft warm glow
-    rect(sx,sy,TS,TS,'#bcbfc7'); g.strokeStyle='rgba(120,124,134,.5)'; g.lineWidth=0.6; g.strokeRect(sx+0.5,sy+0.5,TS-1,TS-1);
-    const gl=g.createRadialGradient(sx+8,sy+3,1,sx+8,sy+3,8); gl.addColorStop(0,'rgba(255,226,128,'+(0.34+0.06*Math.sin(anim/40)).toFixed(2)+')'); gl.addColorStop(1,'rgba(255,226,128,0)');
-    g.fillStyle=gl; g.beginPath(); g.arc(sx+8,sy+3,8,0,7); g.fill();
+  if(ch==='L'){ // lamppost (sits on pavement) with a soft warm glow that blazes after dark
+    rect(sx,sy,TS,TS,'#bcbfc7'); rect(sx,sy,TS,1,'#d0d3d9');
+    const lr=8*(1+0.55*nightK), lg=clamp((0.30+0.06*Math.sin(anim/40))*(1+1.7*nightK),0,0.95);
+    const gl=g.createRadialGradient(sx+8,sy+3,1,sx+8,sy+3,lr); gl.addColorStop(0,'rgba(255,226,128,'+lg.toFixed(3)+')'); gl.addColorStop(1,'rgba(255,226,128,0)');
+    g.fillStyle=gl; g.beginPath(); g.arc(sx+8,sy+3,lr,0,7); g.fill();
     rect(sx+7,sy+4,2,11,'#384049'); ellipse(sx+8,sy+15,3.5,1.4,C.shadow); ellipse(sx+8,sy+3.5,3.4,3,'rgba(255,236,150,.5)'); rrect(sx+5.5,sy+1.5,5,4,1.5,'#ffe45c'); rect(sx+6.5,sy+1,3,1,'#3a3f4a'); return; }
   // ---- residential building ----
   if(ch==='B'){ // building wall - material varies per building; windows on alternating tiles
@@ -1576,13 +1577,15 @@ function townTile(ch,sx,sy,alt,tx,ty){
     drawWall(sx,sy,S);
     if(((tx+ty)&1)===0){
       rrect(sx+3,sy+3,10,10,1,'#3a4652');
-      if((tx*5+ty*7)%5===0){                                               // a few windows are warmly lit inside
+      const lit=((tx*5+ty*7)%5===0) || (nightK>0.45 && (tx*3+ty*5)%3===0);  // more windows glow after dark
+      if(lit){                                                             // warmly lit inside
         const fl=0.82+0.18*Math.sin((anim+tx*13+ty*9)/24);
-        g.globalAlpha=0.45*fl; const wl=g.createRadialGradient(sx+8,sy+8,1,sx+8,sy+8,8.5); wl.addColorStop(0,'rgba(255,205,108,.95)'); wl.addColorStop(1,'rgba(255,205,108,0)'); g.fillStyle=wl; g.beginPath(); g.arc(sx+8,sy+8,8.5,0,7); g.fill(); g.globalAlpha=1;
+        g.globalAlpha=clamp(0.45*fl*(1+1.2*nightK),0,0.95); const wl=g.createRadialGradient(sx+8,sy+8,1,sx+8,sy+8,8.5); wl.addColorStop(0,'rgba(255,205,108,.95)'); wl.addColorStop(1,'rgba(255,205,108,0)'); g.fillStyle=wl; g.beginPath(); g.arc(sx+8,sy+8,8.5,0,7); g.fill(); g.globalAlpha=1;
         rect(sx+4,sy+4,8,8,'#f4c468'); rect(sx+4,sy+4,8,3.5,'#ffe49a');     // warm pane
         rect(sx+7.5,sy+4,1,8,'#b1813e'); rect(sx+4,sy+7.5,8,1,'#b1813e');   // muntins
       } else {
-        rect(sx+4,sy+4,8,8,'#a9d6ef'); rect(sx+4,sy+4,8,3.5,'#cdebfb');     // cool daylight pane
+        const c1=nightK>0.5?'#2a3550':'#a9d6ef', c2=nightK>0.5?'#38465e':'#cdebfb';   // panes go dark once night falls
+        rect(sx+4,sy+4,8,8,c1); rect(sx+4,sy+4,8,3.5,c2);                   // cool daylight pane / dark night pane
         rect(sx+7.5,sy+4,1,8,'#6f95ad'); rect(sx+4,sy+7.5,8,1,'#6f95ad');
       }
       rect(sx+3,sy+12.5,10,1.2,S.trim);                                    // window sill in the building's trim colour
@@ -2006,6 +2009,7 @@ const game = {
   ended:false, endChoiceSel:0, endDeclines:0,
 };
 let anim=0, animAcc=0;   // anim = integer animation frame, advanced at a fixed 60/sec regardless of the display's refresh rate
+let nightK=0;            // town time-of-day darkness 0=day .. 1=night (slow cycle; set each frame in drawWorld, read by townTile/festival lights)
 
 function newEntity(o){ return Object.assign({
   kind:'char', sub:'grunt', tx:0, ty:0, dir:'down', px:0, py:0,
@@ -2364,13 +2368,19 @@ function drawFestivalLights(ox,oy){
     for(let i=0;i<=N;i++){ const t=i/N, x=a[0]+dx*t, y=yAt(t), gi=s*100+i, col=FESTOON_COL[gi%FESTOON_COL.length];
       const pulse=0.55+0.45*Math.sin(anim/16+gi*1.3);
       rect(x-0.6,y-0.4,1.2,1.1,'#3a3444');                                        // cap
-      g.globalAlpha=0.22*pulse; circle(x,y+1.7,4,col); g.globalAlpha=0.4*pulse; circle(x,y+1.7,2.4,col); g.globalAlpha=1;   // glow
+      const gm=0.5+1.05*nightK;                                                   // bulbs blaze after dark, stay subtle by day
+      g.globalAlpha=clamp(0.16*pulse*gm,0,0.85); circle(x,y+1.7,5.5,col); g.globalAlpha=clamp(0.28*pulse*gm,0,0.95); circle(x,y+1.7,3,col); g.globalAlpha=1;   // glow halo
       circle(x,y+1.7,1.4,col); circle(x-0.4,y+1.3,0.6,'#fff8e0'); }               // bulb + specular
   }
   g.lineCap='butt';
 }
 function drawWorld(){
   const m=game.map; if(!m) return;
+  // town time-of-day: a slow day -> dusk -> night -> dawn cycle (~4 min) so the festival lights & windows get to glow
+  if(m.theme==='town'){ const p=(anim/14400)%1;
+    let nk = p<0.46?0 : p<0.63?(p-0.46)/0.17 : p<0.85?1 : 1-(p-0.85)/0.15;
+    nightK = nk*nk*(3-2*nk); }                                  // smoothstep
+  else nightK=0;
   rect(0,0,VW,VH,'#0c0e18');   // frame colour behind any margins
   let ox=-Math.round(game.cam.x), oy=-Math.round(game.cam.y);
   if(game.shake>0 && settings.shake){ ox += (Math.random()*2-1)*2|0; oy += (Math.random()*2-1)*2|0; }
@@ -2402,13 +2412,21 @@ function drawWorld(){
   for(const h of game.hearts){ drawHeart(h.x+ox, h.y+oy, 3, clamp(1-h.t/h.life,0,1)); }
   for(const pr of game.particles){ g.globalAlpha=clamp(1-pr.t/pr.life,0,1); rect((pr.x+ox)|0,(pr.y+oy)|0,2,2,pr.col); g.globalAlpha=1; }
   drawAmbient(m.theme);   // theme atmosphere (fireflies / embers / sparks / pollen / dust)
-  if(m.theme==='town'){   // warm golden-hour grade so the stone plaza glows instead of reading flat-grey
+  if(m.theme==='town'){   // warm golden-hour by day, deepening into a blue dusk/night as nightK rises
+    const warm=1-nightK*0.9;
     const sun=g.createLinearGradient(0,0,0,VH);
-    sun.addColorStop(0,'rgba(255,212,138,.15)'); sun.addColorStop(0.55,'rgba(255,206,150,.04)'); sun.addColorStop(1,'rgba(108,104,150,.07)');
+    sun.addColorStop(0,'rgba(255,212,138,'+(0.15*warm+0.02).toFixed(3)+')'); sun.addColorStop(0.55,'rgba(255,206,150,'+(0.04*warm).toFixed(3)+')'); sun.addColorStop(1,'rgba(108,104,150,.07)');
     g.fillStyle=sun; g.fillRect(0,0,VW,VH);
     const gl=g.createRadialGradient(VW*0.30,VH*0.10,8,VW*0.30,VH*0.10,VH*0.95);   // soft sun glow from the upper-left, like the painted shot
-    gl.addColorStop(0,'rgba(255,226,150,.13)'); gl.addColorStop(1,'rgba(255,226,150,0)');
+    gl.addColorStop(0,'rgba(255,226,150,'+(0.13*warm).toFixed(3)+')'); gl.addColorStop(1,'rgba(255,226,150,0)');
     g.fillStyle=gl; g.fillRect(0,0,VW,VH);
+    if(nightK>0.01){                                    // dusk/night wash: cool the scene, with a warm sunset band low on the horizon at dusk
+      const nz=g.createLinearGradient(0,0,0,VH);
+      nz.addColorStop(0,'rgba(20,24,58,'+(0.62*nightK).toFixed(3)+')'); nz.addColorStop(0.5,'rgba(26,22,60,'+(0.52*nightK).toFixed(3)+')'); nz.addColorStop(1,'rgba(14,12,34,'+(0.60*nightK).toFixed(3)+')');
+      g.fillStyle=nz; g.fillRect(0,0,VW,VH);
+      const dusk=Math.sin(clamp(nightK,0,1)*Math.PI);   // strongest mid-transition
+      if(dusk>0.02){ const hz=g.createLinearGradient(0,VH*0.55,0,VH); hz.addColorStop(0,'rgba(255,138,74,0)'); hz.addColorStop(1,'rgba(255,120,80,'+(0.10*dusk).toFixed(3)+')'); g.fillStyle=hz; g.fillRect(0,VH*0.55,VW,VH*0.45); }
+    }
   }
   // soft vignette for depth so the flat tile field reads as a lit space, not a grid
   const vg=g.createRadialGradient(VW/2,VH*0.46,VH*0.34,VW/2,VH*0.5,VH*0.92);
@@ -3695,6 +3713,13 @@ const TYPE_CHART = {
   Fairy:    { Dark:2, Dragon:2, Fighting:2, Fire:0.5, Poison:0.5, Steel:0.5 },
 };
 function typeMult(atkType, defType){ const r=TYPE_CHART[atkType]; return (r && r[defType]!=null) ? r[defType] : 1; }
+// type -> colour + 3-letter tag, for the fight-menu move badges
+const TYPE_COL={Normal:'#8a8a7a',Dark:'#6a5a7a',Electric:'#d8a818',Fire:'#e8602a',Poison:'#9a4aa8',Flying:'#6a9ad0',Dragon:'#5a6ad8',Psychic:'#e05a9a',Fighting:'#c04030',Fairy:'#e888c0',Grass:'#5aa83a',Water:'#4a90d8',Ice:'#7ad0e0',Rock:'#b0a060',Bug:'#8aa030',Ghost:'#6a5a9a',Steel:'#8a95a5'};
+const TYPE_ABBR={Normal:'NOR',Dark:'DRK',Electric:'ELE',Fire:'FIR',Poison:'PSN',Flying:'FLY',Dragon:'DRG',Psychic:'PSY',Fighting:'FGT',Fairy:'FRY'};
+function typeColor(t){ return TYPE_COL[t]||'#3a78c8'; }
+function drawTypeBadge(x,y,type){ const c=typeColor(type), ab=TYPE_ABBR[type]||(type||'').slice(0,3).toUpperCase();
+  rrect(x,y-4.5,20,9,2.5,c); g.globalAlpha=0.9; rrect(x,y-4.5,20,2.4,2.5,'rgba(255,255,255,.35)'); g.globalAlpha=1;   // glossy chip
+  g.textAlign='center'; g.textBaseline='middle'; textShadow(ab,x+10,y+0.5,'#fff','rgba(0,0,0,.4)',6); g.textAlign='left'; g.textBaseline='alphabetic'; }
 // status / stat-lowering moves: shown as a message, deal NO damage (used by the bosses)
 const STATUS_MOVES={'Tail Whip':"Eevee's Defense fell!", 'Supersonic':'Eevee became confused!', 'Screech':"Eevee's Defense harshly fell!", 'Astonish':'Eevee flinched!', 'Smog':'Eevee was hit by toxic gas!',
   'Leer':"foe's sharp glare cut your Attack!", 'Growl':"the menacing growl lowered your Attack!", 'Intimidate':"the intimidating glare dropped your Attack!", 'Glare':"the cold glare lowered your Defense!"};
@@ -3764,8 +3789,9 @@ function beginPlayerSend(){
   throwBall('player', 8, VH-34, battle.PX, battle.PY, 28);
   bMsg('Go! '+battle.player.name+'!', ()=>{ showMenu(); }, 0);
 }
-function showMenu(){ battle.phase='mainmenu'; battle.mainSel=0; }
-function showFight(){ battle.phase='fightmenu'; }
+function showMenu(){ battle.phase='mainmenu'; battle.mainSel=0; battle.menuT0=anim; }
+function showFight(){ battle.phase='fightmenu'; battle.menuT0=anim; }
+function menuSlide(){ const s=clamp((anim-(battle.menuT0||0))/12,0,1); return (1-(1-Math.pow(1-s,3)))*20; }   // panels slide up from below when a menu opens
 function useMaxPotion(){   // BAG -> Max Potion: full heal, costs the turn (enemy then attacks)
   if(!(F.maxPotions>0)){ bMsg('Oen has no items to use right now!', ()=>showMenu(), 0); return; }
   if(battle.player.hp>=battle.player.max){ bMsg(battle.player.name+'\'s HP is already full!', ()=>showMenu(), 0); return; }
@@ -3784,15 +3810,32 @@ function battleImpact(x,y,crit){
   for(let i=0;i<(crit?11:6);i++){ const a=Math.random()*6.28, sp=1.6+Math.random()*2.6;
     game.particles.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:15+Math.random()*12,t:0,col:crit?'#fff':'#ffd24a'}); }
 }
-// floating damage numbers - frame-aged (no dt needed), drawn unshaken over the sprites
+// battle-start transition: bright flash + a "venetian-blind" reveal of the scene, driven by battle.pt
+function drawBattleIntro(){
+  const pt=battle.pt||0;
+  if(pt<260){ g.globalAlpha=(1-pt/260)*0.85; g.fillStyle='#fff'; g.fillRect(0,0,VW,VH); g.globalAlpha=1; }   // opening flash
+  const rev=clamp((pt-110)/470,0,1);                                     // 0=covered, 1=fully open
+  if(rev<1){ const e=1-Math.pow(1-rev,3), bars=6, bh=VH/bars, w=VW*(1-e);
+    g.fillStyle='#0c0e18';
+    for(let i=0;i<bars;i++){ if(i&1) g.fillRect(VW-w,i*bh,w,bh+1); else g.fillRect(0,i*bh,w,bh+1); }   // dark bars slide off in alternating directions
+    g.globalAlpha=0.55*(1-e); for(let i=0;i<bars;i++){ const ex=(i&1)?VW-w:w; rect(ex-1.5,i*bh,3,bh+1,'#7fb8ff'); } g.globalAlpha=1;   // leading-edge glint
+  }
+  if(pt<380){ g.globalAlpha=(1-pt/380)*0.4; g.strokeStyle='#ffffff'; g.lineWidth=1.4;   // a few speed lines for punch
+    for(let i=0;i<6;i++){ const yy=((i*61+anim*10)%(VH+20))-10; g.beginPath(); g.moveTo(VW,yy); g.lineTo(VW-46-(i%3)*18,yy+7); g.stroke(); } g.globalAlpha=1; }
+}
+// floating damage numbers + effectiveness banners - frame-aged (no dt needed), drawn unshaken over the sprites
 function addDmgFloat(x,y,dmg,crit,toPlayer){
   if(!battle.floaters) battle.floaters=[];
   battle.floaters.push({x:x+(Math.random()*8-4), y, a0:anim, dmg:Math.max(0,dmg|0), crit:!!crit, toPlayer:!!toPlayer});
 }
+function addEffFloat(x,y,label,col){ if(!battle.floaters) battle.floaters=[]; battle.floaters.push({x,y,a0:anim,banner:label,col:col||'#ffe14a'}); }
 function drawFloaters(){
   if(!battle.floaters || !battle.floaters.length) return;
   g.textAlign='center';
   for(let i=battle.floaters.length-1;i>=0;i--){ const f=battle.floaters[i]; const age=anim-f.a0;
+    if(f.banner){ if(age>62){ battle.floaters.splice(i,1); continue; }
+      const t=age/62, pop=age<8?age/8:1, yo=-6-age*0.28, al=t<0.72?1:1-(t-0.72)/0.28;
+      g.globalAlpha=clamp(al,0,1); setFont(9); textShadow(f.banner, f.x, f.y+yo, f.col, '#2a1a04', 9*pop); continue; }
     if(age>54){ battle.floaters.splice(i,1); continue; }
     const t=age/54, yo=-age*0.55, al=t<0.7?1:1-(t-0.7)/0.3;
     g.globalAlpha=clamp(al,0,1);
@@ -3881,7 +3924,8 @@ function doPlayerMove(){
   const drained = mv.drain ? Math.max(1, Math.round(dmg*mv.drain)) : 0;
   bMsg(battle.player.name+' used '+mv.name+'!', ()=>{
     playMoveFx(mv.name, 'player',
-      ()=>{ audio.sfx(crit||superEff?'hitSuper':'hit'); applyDamageToEnemy(dmg); battleImpact(battle.EX, battle.EY, crit||superEff); addDmgFloat(battle.EX, battle.EY-14, dmg, crit||superEff, false); },
+      ()=>{ audio.sfx(crit||superEff?'hitSuper':'hit'); applyDamageToEnemy(dmg); battleImpact(battle.EX, battle.EY, crit||superEff); addDmgFloat(battle.EX, battle.EY-14, dmg, crit||superEff, false);
+        if(mult>1.5) addEffFloat(battle.EX, battle.EY-32, 'SUPER EFFECTIVE!', '#ffec5a'); else if(mult>0&&mult<1) addEffFloat(battle.EX, battle.EY-32, 'RESISTED', '#c8d0e0'); else if(mult===0) addEffFloat(battle.EX, battle.EY-32, 'NO EFFECT', '#c8d0e0'); },
       ()=>{ waitDrain(()=>{
         const after=()=>{ if(e.hp<=0) enemyFaint(); else setTimeoutBattle(880, doEnemyTurn); };
         const doDrain=()=>{ if(!drained){ after(); return; }
@@ -4088,7 +4132,7 @@ function dblAnim(dt){
     if(battle.fxT>=battle.fxDur){ const cb=battle.fxOnDone; battle.fxOnDone=null; battle.fxOnHit=null; if(cb) cb(); } }
 }
 function dblWaitDrain(cb){ battle.phase='drainwait'; battle.afterDrain=cb; }
-function dblShowMenu(){ battle.player=battle.allies[0]; battle.phase='mainmenu'; battle.mainSel=0;
+function dblShowMenu(){ battle.player=battle.allies[0]; battle.phase='mainmenu'; battle.mainSel=0; battle.menuT0=anim;
   const al=battle.foes.findIndex(f=>f.alive); if(al>=0 && (!battle.foes[battle.tgt]||!battle.foes[battle.tgt].alive)) battle.tgt=al; }
 function dblPlayMoveFx(moveName, atk, def, onHit, onDone){
   const cfg=MOVE_FX[moveName]||{dur:880,hitAt:0.45,kind:'lunge',sfx:'mTackle'};
@@ -4249,7 +4293,7 @@ function dblDraw(){
   else if(battle.phase==='fightmenu') drawFightMenu(by);
   else if(battle.phase==='targetsel') drawDblTargetPrompt(by);
   else drawBattleMsg(by);
-  if(battle.startFx>0){ g.globalAlpha=clamp(battle.startFx,0,1)*0.8*(Math.sin(anim*0.55)*0.5+0.5); g.fillStyle='#fff'; g.fillRect(0,0,VW,VH); g.globalAlpha=1; }
+  if(battle.startFx>0) drawBattleIntro();
   drawLowHpVignette();
   drawSkipBtn();   // TEMP DEV
 }
@@ -4487,6 +4531,7 @@ function drawHPBar(x,y,name,lv,hpShow,max,isPlayer,style){
   g.textBaseline='alphabetic';
 }
 function drawMainMenu(by){
+  by+=menuSlide();
   uiBox(4,by,150,46);
   g.textAlign='left'; g.textBaseline='middle';                 // rows vertically centred, no longer crammed at the top edge
   text('What will',16,by+16,'#283048',8);
@@ -4500,6 +4545,7 @@ function drawMainMenu(by){
   g.textBaseline='alphabetic';
 }
 function drawFightMenu(by){
+  by+=menuSlide();
   uiBox(4,by,176,46);
   g.textAlign='left'; g.textBaseline='middle';
   const umbra = battle.player.species==='umbreon';   // Umbreon's whole kit reads BOLD, like raw power
@@ -4507,13 +4553,14 @@ function drawFightMenu(by){
   const cb=Math.sin(anim/9)*1.2;   // gently bobbing selection cursor
   for(let i=0;i<4;i++){ const mv=battle.player.moves[i]; const cx=20+(i%2)*86, cy=by+16+Math.floor(i/2)*16;
     if(i===battle.moveSel){ poly([[cx-10+cb,cy-3.4],[cx-10+cb,cy+3.4],[cx-5+cb,cy]],'#e23b3b'); }
-    fitText(mv.name,cx,cy, mv.pp>0?'#283048':'#b04040',8, (i%2?180:106)-cx-3); }
+    const bx=(i%2?180:106)-22;                                        // colour-coded type chip at the right of each move cell
+    fitText(mv.name,cx,cy, mv.pp>0?'#283048':'#b04040',8, bx-cx-4);
+    drawTypeBadge(bx,cy,mv.type); }
   fontBold=false;
   const ix=184, iw=VW-ix-4; uiBox(ix,by,iw,46);
   const mv=battle.player.moves[battle.moveSel];
-  const typeCol={Normal:'#8a8a7a',Dark:'#6a5a7a',Electric:'#d8a818',Fire:'#e8602a',Poison:'#9a4aa8',Flying:'#6a9ad0',Dragon:'#5a6ad8',Psychic:'#e05a9a',Fighting:'#c04030'}[mv.type]||'#3a78c8';
   text('PP '+mv.pp+'/'+mv.maxpp, ix+10,by+16,'#283048',8);
-  text(mv.type.toUpperCase(), ix+10,by+30, typeCol,8);
+  text(mv.type.toUpperCase(), ix+10,by+30, typeColor(mv.type),8);
   const foe = battle.double ? (battle.foes&&battle.foes[battle.tgt]) : curEnemy();
   if(foe){ const m=typeMult(mv.type, foe.type);
     const lbl = m>1.5?'SUPER!' : (m===0?'NO EFFECT' : '');   // no "not very" clutter under the type
@@ -4606,7 +4653,7 @@ function battleDraw(){
   else if(battle.phase==='mainmenu') drawMainMenu(by);
   else if(battle.phase==='fightmenu') drawFightMenu(by);
   else drawBattleMsg(by);
-  if(battle.startFx>0){ g.globalAlpha=clamp(battle.startFx,0,1)*0.8*(Math.sin(anim*0.55)*0.5+0.5); g.fillStyle='#fff'; g.fillRect(0,0,VW,VH); g.globalAlpha=1; }
+  if(battle.startFx>0) drawBattleIntro();
   g.restore();
   drawFloaters();
   drawLowHpVignette();
