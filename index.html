@@ -4,9 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
 <title>Pokémon: The Three Stolen Lights</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   html,body{margin:0;height:100%;background:#0b0b12;overflow:hidden;
-    font-family:"Courier New",monospace;}
+    font-family:"Fredoka","Trebuchet MS","Segoe UI",system-ui,sans-serif;}
   #wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;}
   canvas{image-rendering:auto;
     box-shadow:0 0 0 4px #1a1a2e,0 0 40px rgba(0,0,0,.7);background:#000;}
@@ -14,7 +17,7 @@
     font-size:11px;letter-spacing:1px;pointer-events:none;}
   /* on-screen touch controls (mobile only; toggled on by JS) */
   #touch{position:fixed;inset:0;display:none;z-index:50;pointer-events:none;touch-action:none;
-    -webkit-user-select:none;user-select:none;font-family:"Courier New",monospace;}
+    -webkit-user-select:none;user-select:none;font-family:"Fredoka","Trebuchet MS","Segoe UI",system-ui,sans-serif;}
   #touch .btn{position:absolute;pointer-events:auto;display:flex;align-items:center;justify-content:center;
     color:#eef0fb;background:rgba(28,30,52,.42);border:2px solid rgba(180,190,230,.45);border-radius:12px;
     font-weight:bold;-webkit-tap-highlight-color:transparent;backdrop-filter:blur(2px);}
@@ -304,17 +307,20 @@ function rpath(x,y,w,h,r){ g.beginPath(); g.moveTo(x+r,y); g.arcTo(x+w,y,x+w,y+h
   g.arcTo(x+w,y+h,x,y+h,r); g.arcTo(x,y+h,x,y,r); g.arcTo(x,y,x+w,y,r); g.closePath(); }
 // clean DS-style window: dark rim, white frame, soft gradient interior, blue keyline
 function uiBox(bx,by,bw,bh,accent){
-  rrect(bx,by,bw,bh,6,'#1d2336');
-  rrect(bx+2,by+2,bw-4,bh-4,5,'#fbfcff');
-  const gr=g.createLinearGradient(0,by,0,by+bh); gr.addColorStop(0,'#ffffff'); gr.addColorStop(1,'#e8eef8');
-  g.fillStyle=gr; rpath(bx+4,by+4,bw-8,bh-8,4); g.fill();
-  g.strokeStyle=accent||'#5b7fc7'; g.lineWidth=1; rpath(bx+4.5,by+4.5,bw-9,bh-9,4); g.stroke();
+  g.save(); g.shadowColor='rgba(8,6,14,.42)'; g.shadowBlur=3.5; g.shadowOffsetY=2;   // soft drop shadow so the panel lifts off the painting
+  rrect(bx,by,bw,bh,6,'#22283c');
+  g.restore();
+  rrect(bx+2,by+2,bw-4,bh-4,5,'#efe7d2');                                             // warm inner border
+  const gr=g.createLinearGradient(0,by,0,by+bh); gr.addColorStop(0,'#fdfaf0'); gr.addColorStop(1,'#f0e6cf');
+  g.fillStyle=gr; rpath(bx+4,by+4,bw-8,bh-8,4); g.fill();                             // warm parchment fill (matches the cream HP bars + golden world)
+  g.strokeStyle=accent||'#caa96a'; g.lineWidth=1; rpath(bx+4.5,by+4.5,bw-9,bh-9,4); g.stroke();   // soft gold accent
 }
 
 // ---------- pixel text ----------
 g.textBaseline = 'top';
 let fontBold=false;
-function setFont(px){ g.font = (fontBold?'bold ':'')+px+'px "Courier New", monospace'; }
+const FONT_FAMILY = '"Fredoka","Trebuchet MS","Segoe UI",system-ui,sans-serif';   // friendly rounded game font (falls back cleanly if the webfont is offline)
+function setFont(px){ g.font = (fontBold?'700 ':'500 ')+px+'px '+FONT_FAMILY; }
 function tw(s){ return g.measureText(s).width; }
 function text(s,x,y,col,px){ setFont(px||8); g.fillStyle=col; g.fillText(s,x,y); }
 function textShadow(s,x,y,col,sh,px){ setFont(px||8); g.fillStyle=sh||'#000'; g.fillText(s,x+1,y+1); g.fillStyle=col; g.fillText(s,x,y); }
@@ -1409,8 +1415,80 @@ function hideoutTile(ch,sx,sy,alt,tx,ty){
     ellipse(sx+8,sy+9,6,4,'rgba(0,0,0,.4)'); ellipse(sx+8,sy+9,3,2,'rgba(80,30,50,.32)');
   }
 }
+/* ================= ARCHITECTURAL VARIETY =================
+   Every building pulls its materials from a per-building style (assigned in
+   buildMaps -> styleGrid), so houses / towers / shops read as their own
+   distinct structures instead of copy-pasted tiles. */
+const HOUSE_STYLES = [
+  {mat:'stucco', wall:'#e6d8ba', wt:'#f2e8cc', wb:'#cbbd9a', trim:'#b08e5e', roof:'tile',    rbase:'#bc4e3a', rtile:'#d56048', rlip:'#ee8e76', rridge:'#f6b49e', rsh:'#7d2a20'},
+  {mat:'brick',  wall:'#a55444', wt:'#b96a58', wb:'#803e30', trim:'#5e2a20', mortar:'#e2cdb2', roof:'slate',  rbase:'#48566a', rtile:'#5a6b82', rlip:'#8497ac', rridge:'#aab8cc', rsh:'#2a3644'},
+  {mat:'timber', wall:'#ece0c4', wt:'#f4ead2', wb:'#d6caa8', trim:'#5a3f2c', beam:'#5a3f2c',  roof:'wood',   rbase:'#6e4a2c', rtile:'#84592f', rlip:'#a3764c', rridge:'#bb8c5e', rsh:'#3e2818'},
+  {mat:'stone',  wall:'#9c9c92', wt:'#b4b4aa', wb:'#7c7c72', trim:'#5a5a52', mortar:'#c6c6bc', roof:'copper', rbase:'#37876a', rtile:'#46997a', rlip:'#6ab89a', rridge:'#8cccb2', rsh:'#235a44'},
+  {mat:'stucco', wall:'#b7c8da', wt:'#d4e2ee', wb:'#9aacbe', trim:'#758aa2', roof:'tile',    rbase:'#c05038', rtile:'#d66850', rlip:'#ee907a', rridge:'#f6b6a4', rsh:'#7a2e20'},
+  {mat:'stone',  wall:'#dcc290', wt:'#eed6a4', wb:'#c0a678', trim:'#98804e', mortar:'#efdcb2', roof:'shingle',rbase:'#454050', rtile:'#56505f', rlip:'#79707f', rridge:'#9a909a', rsh:'#2a242e'},
+];
+const TOWER_STYLES = [
+  {mull:'#45576b', pane:['#c6e4f6','#7da6c5','#9abfd9'], lit:'#ffe7a0', glint:'#dcf0fc', shade:'rgba(38,66,90,.5)',  surround:'#3a4658', roofSlab:'#3a4a5e', roofLit:'#5d7488', roofSh:'#2a3747'},
+  {mull:'#37524c', pane:['#bfe8dc','#6aa89a','#8ac0b2'], lit:'#ffe0a0', glint:'#d0f0e6', shade:'rgba(28,60,52,.5)',  surround:'#31504a', roofSlab:'#334a44', roofLit:'#587a72', roofSh:'#233c36'},
+  {mull:'#54463a', pane:['#e8d6b0','#b89a6a','#d0b884'], lit:'#fff0c8', glint:'#f2e6cc', shade:'rgba(70,54,34,.5)',  surround:'#4a3c30', roofSlab:'#4a4030', roofLit:'#78684e', roofSh:'#342a1e'},
+  {mull:'#2c313c', pane:['#8a9aae','#4a5568','#6a7688'], lit:'#ffd8a0', glint:'#aebccc', shade:'rgba(20,26,38,.55)', surround:'#282d38', roofSlab:'#2a2f3a', roofLit:'#4a5568', roofSh:'#1c2028'},
+];
+const SHOP_STYLES = [
+  {a1:'#e8554e', a2:'#f4f0e4', base:'#caa46a', bar:'#b04038'},
+  {a1:'#3a9a62', a2:'#f2ece0', base:'#b8946a', bar:'#2a7048'},
+  {a1:'#3a72a8', a2:'#eef0e0', base:'#b8a074', bar:'#2a5484'},
+  {a1:'#e0a428', a2:'#5a3e2c', base:'#c0a070', bar:'#a07414'},
+];
+function drawWall(sx,sy,S){
+  rect(sx,sy,TS,TS,S.wall);
+  rect(sx,sy,TS,2,S.wt); rect(sx,sy+TS-2,TS,2,S.wb);
+  if(S.mat==='brick'){
+    g.globalAlpha=0.55;
+    for(let r=0;r<5;r++) rect(sx,sy+1.6+r*3,TS,0.7,S.mortar);                                  // mortar courses
+    for(let r=0;r<5;r++){ const off=(r%2)?4:0; for(let c=-1;c<3;c++) rect(sx+off+c*8+3,sy+1.6+r*3,0.7,3,S.mortar); }   // staggered head joints
+    g.globalAlpha=0.16; rect(sx+2,sy+4.6,4,2.2,'#000'); rect(sx+10,sy+10.6,4,2.2,'#000'); g.globalAlpha=1;             // a couple of weathered bricks
+  } else if(S.mat==='stone'){
+    g.globalAlpha=0.5; g.strokeStyle=S.mortar; g.lineWidth=0.7; g.beginPath();
+    for(let r=0;r<4;r++){ const ry=sy+2+r*3.4; g.moveTo(sx,ry); g.lineTo(sx+TS,ry); }
+    for(let r=0;r<4;r++){ const off=(r%2)?6:0, ry=sy+2+r*3.4; g.moveTo(sx+off+5,ry); g.lineTo(sx+off+5,ry-3.4); g.moveTo(sx+off+11,ry); g.lineTo(sx+off+11,ry-3.4); }
+    g.stroke(); g.globalAlpha=1;                                                                // ashlar blocks
+  } else if(S.mat==='timber'){
+    rect(sx,sy,1.8,TS,S.beam); rect(sx,sy+7,TS,1.6,S.beam);                                     // post + mid rail (half-timber grid)
+    g.strokeStyle=S.beam; g.lineWidth=1.5; g.beginPath(); g.moveTo(sx+2,sy+TS-1.5); g.lineTo(sx+7,sy+9); g.stroke();   // brace
+  }
+}
+function drawRoof(sx,sy,S,isEave){
+  rect(sx,sy,TS,TS,S.rbase);
+  if(S.roof==='copper'){                                                                        // standing-seam patina copper
+    for(let c=0;c<4;c++){ const cx2=sx+c*4; rect(cx2,sy,3.6,TS,S.rtile); rect(cx2,sy,0.8,TS,S.rlip); rect(cx2+3,sy,0.7,TS,S.rsh); }
+    if(!isEave) rect(sx,sy,TS,1.6,S.rridge);
+    if(isEave){ rect(sx,sy+TS-3,TS,3,S.rsh); rect(sx,sy+TS-1,TS,1,'#193528'); } return;
+  }
+  if(S.roof==='shingle'){                                                                       // flat asphalt shingle rows
+    const rows=isEave?4:5;
+    for(let r=0;r<rows;r++){ const ry=sy+r*3.2; rect(sx,ry,TS,3,S.rtile); rect(sx,ry,TS,0.8,S.rlip);
+      g.globalAlpha=0.22; rect(sx,ry+2.4,TS,0.7,'#000'); const off=(r%2)?2.5:0; for(let c=0;c<4;c++) rect(sx+off+c*5,ry,0.7,3,'#000'); g.globalAlpha=1; }
+    if(!isEave) rect(sx,sy,TS,1.4,S.rridge);
+    if(isEave){ rect(sx,sy+TS-3,TS,3,S.rsh); rect(sx,sy+TS-1,TS,1,'#101014'); } return;
+  }
+  if(S.roof==='wood'){                                                                          // wood-shake shingles
+    const rows=isEave?5:6;
+    for(let r=0;r<rows;r++){ const ry=sy+r*2.9; rect(sx,ry,TS,2.6,S.rtile); rect(sx,ry,TS,0.7,S.rlip);
+      g.globalAlpha=0.28; const off=(r%2)?1.7:0; for(let c=0;c<5;c++) rect(sx+off+c*3.4,ry,0.6,2.6,'#000'); g.globalAlpha=1; }
+    if(!isEave) rect(sx,sy,TS,1.5,S.rridge);
+    if(isEave){ rect(sx,sy+TS-3,TS,3,S.rsh); rect(sx,sy+TS-1,TS,1,'#2a1a10'); } return;
+  }
+  // clay tile OR slate -> overlapping scalloped courses
+  const rows=isEave?3:4, scallop=(S.roof==='slate')?1.9:1.4;
+  for(let r=0;r<rows;r++){ const ry=sy+r*4, off=(r%2)?2:0;
+    for(let c=-1;c<5;c++){ const tx2=sx+c*4+off; rrect(tx2,ry,3.6,4.4,scallop,S.rtile); rect(tx2+0.4,ry+0.3,2.8,1,S.rlip); } }
+  g.globalAlpha=0.28; for(let r=1;r<rows;r++) rect(sx,sy+r*4-0.3,TS,1,S.rsh); g.globalAlpha=1;
+  if(!isEave) rect(sx,sy,TS,1.8,S.rridge);
+  if(isEave){ rect(sx,sy+TS-3,TS,3,S.rsh); rect(sx,sy+TS-1,TS,1,S.rsh); }
+}
 function townTile(ch,sx,sy,alt,tx,ty){
   rect(sx,sy,TS,TS, alt?'#79bf45':'#71b641');   // grass base
+  const bStyle = (game.map && game.map.styleGrid && game.map.styleGrid[ty] && game.map.styleGrid[ty][tx]!=null) ? game.map.styleGrid[ty][tx] : 0;   // per-building material style
   // furniture sitting on the downtown plaza needs a stone base, not grass
   if('kojeuQY'.indexOf(ch)>=0 && tx>=14&&tx<=32&&ty>=2&&ty<=26){
     rect(sx,sy,TS,TS,'#bcbfc7'); g.strokeStyle='rgba(120,124,134,.5)'; g.lineWidth=0.6; g.strokeRect(sx+0.5,sy+0.5,TS-1,TS-1);
@@ -1478,11 +1556,11 @@ function townTile(ch,sx,sy,alt,tx,ty){
     g.fillStyle=gl; g.beginPath(); g.arc(sx+8,sy+3,8,0,7); g.fill();
     rect(sx+7,sy+4,2,11,'#384049'); ellipse(sx+8,sy+15,3.5,1.4,C.shadow); ellipse(sx+8,sy+3.5,3.4,3,'rgba(255,236,150,.5)'); rrect(sx+5.5,sy+1.5,5,4,1.5,'#ffe45c'); rect(sx+6.5,sy+1,3,1,'#3a3f4a'); return; }
   // ---- residential building ----
-  if(ch==='B'){ // plaster wall facade - windows on alternating tiles so it reads as a building, not a glass wall
-    rect(sx,sy,TS,TS,'#e6d8ba');
-    rect(sx,sy,TS,2,'#f0e6cc'); rect(sx,sy+TS-2,TS,2,'#cbbd9a');           // subtle siding bands
+  if(ch==='B'){ // building wall - material varies per building; windows on alternating tiles
+    const S=HOUSE_STYLES[bStyle%HOUSE_STYLES.length];
+    drawWall(sx,sy,S);
     if(((tx+ty)&1)===0){
-      rrect(sx+3,sy+3,10,10,1,'#46586a');
+      rrect(sx+3,sy+3,10,10,1,'#3a4652');
       if((tx*5+ty*7)%5===0){                                               // a few windows are warmly lit inside
         const fl=0.82+0.18*Math.sin((anim+tx*13+ty*9)/24);
         g.globalAlpha=0.45*fl; const wl=g.createRadialGradient(sx+8,sy+8,1,sx+8,sy+8,8.5); wl.addColorStop(0,'rgba(255,205,108,.95)'); wl.addColorStop(1,'rgba(255,205,108,0)'); g.fillStyle=wl; g.beginPath(); g.arc(sx+8,sy+8,8.5,0,7); g.fill(); g.globalAlpha=1;
@@ -1492,7 +1570,7 @@ function townTile(ch,sx,sy,alt,tx,ty){
         rect(sx+4,sy+4,8,8,'#a9d6ef'); rect(sx+4,sy+4,8,3.5,'#cdebfb');     // cool daylight pane
         rect(sx+7.5,sy+4,1,8,'#6f95ad'); rect(sx+4,sy+7.5,8,1,'#6f95ad');
       }
-      rect(sx+3,sy+12.5,10,1.2,'#b89a6a');                                  // window sill
+      rect(sx+3,sy+12.5,10,1.2,S.trim);                                    // window sill in the building's trim colour
     } else {                                                               // blank-wall tiles get cozy facade details
       const w2=(tx*3+ty*5)%4;
       if(w2===0){ rect(sx+7,sy+4.5,2,2.6,'#5a4a36');                        // wall sconce w/ warm glow
@@ -1500,71 +1578,66 @@ function townTile(ch,sx,sy,alt,tx,ty){
         rrect(sx+6.6,sy+4.6,2.8,2.2,1,'#ffd86a'); }
       else if(w2===1){ for(let i=0;i<7;i++){ circle(sx+3+((i*7)%10), sy+2.5+i*1.7, 1.4, (i%2)?'#4e9636':'#3f7d2c'); } }   // climbing ivy
       else if(w2===2){ rect(sx+5.5,sy+3.5,5,2,'#7a5230'); circle(sx+6.2,sy+5.5,1.2,'#f0a8d0'); circle(sx+9.8,sy+5.5,1.2,'#f4ec5e'); circle(sx+8,sy+6,1.2,'#e0556a'); }   // hanging flower basket
-      else { rect(sx+5,sy+5,6,7,'rgba(170,150,110,.22)'); rect(sx+5,sy+5,6,1,'rgba(255,240,200,.3)'); }                    // recessed panel
+      else { rect(sx+5,sy+5,6,7,'rgba(0,0,0,.12)'); rect(sx+5,sy+5,6,1,'rgba(255,255,255,.22)'); }                        // recessed panel (neutral, reads on any wall)
     }
     return; }
-  if(ch==='R'){ // roof ridge: sunlit rows of overlapping clay tiles + a capped peak
-    rect(sx,sy,TS,TS,'#bc4e3a');
-    for(let r=0;r<4;r++){ const ry=sy+r*4, off=(r%2)?2:0;
-      for(let c=-1;c<5;c++){ const tx2=sx+c*4+off;
-        rrect(tx2,ry,3.6,4.4,1.5,'#d56048'); rect(tx2+0.4,ry+0.3,2.8,1,'#ee8e76'); } }   // tile + sunlit lip
-    g.globalAlpha=0.28; for(let r=1;r<4;r++) rect(sx,sy+r*4-0.3,TS,1,'#7d2a20'); g.globalAlpha=1;   // row shadows
-    rect(sx,sy,TS,1.8,'#f4ae98'); rect(sx,sy,TS,0.7,'#fcd0c0');                                     // ridge cap highlight
-    return; }
-  if(ch==='E'){ // lower roof slope + overhanging eave (sits under R), in shade
-    rect(sx,sy,TS,TS,'#ac4634');
-    for(let r=0;r<3;r++){ const ry=sy+r*4, off=(r%2)?2:0;
-      for(let c=-1;c<5;c++){ const tx2=sx+c*4+off;
-        rrect(tx2,ry,3.6,4.4,1.5,'#c2503c'); rect(tx2+0.4,ry+0.3,2.8,1,'#d6705c'); } }
-    g.globalAlpha=0.30; for(let r=1;r<3;r++) rect(sx,sy+r*4-0.3,TS,1,'#6e251c'); g.globalAlpha=1;
-    rect(sx,sy+TS-3,TS,3,'#7d2a20'); rect(sx,sy+TS-1,TS,1,'#561a14');                               // eave shadow
-    return; }
-  if(ch==='D'){ // building entrance with a step
-    rect(sx,sy,TS,TS,'#e6d8ba'); rect(sx,sy,TS,2,'#f0e6cc');
+  if(ch==='R'){ drawRoof(sx,sy,HOUSE_STYLES[bStyle%HOUSE_STYLES.length],false); return; }   // roof ridge (top course)
+  if(ch==='E'){ drawRoof(sx,sy,HOUSE_STYLES[bStyle%HOUSE_STYLES.length],true);  return; }   // roof eave (lower course)
+  if(ch==='D'){ // building entrance with a step, framed in the building's own wall + trim
+    const S=HOUSE_STYLES[bStyle%HOUSE_STYLES.length];
+    drawWall(sx,sy,S);
     rrect(sx+3,sy+2,10,13,1.5,'#3f2c1a'); rect(sx+4,sy+3,8,11,'#7a5230'); rect(sx+4,sy+3,8,1.5,'#9a7142');
     rect(sx+7.7,sy+3,0.6,11,'#5a3a20'); rect(sx+9.6,sy+8.5,1.4,2,'#f6d62e');
-    rect(sx+2,sy+TS-1.5,12,1.5,'#bdb091'); return; }
+    rect(sx+2,sy+TS-1.5,12,1.5,S.trim); return; }
   // ---- downtown tower ----
-  if(ch==='G'){ // glass curtain-wall facade - windows align across tiles so a tower reads as one building
-    rect(sx,sy,TS,TS,'#45576b');                                       // dark mullion grid behind the panes
+  if(ch==='G'){ // glass curtain-wall facade - tint varies per tower; windows align across tiles
+    const S=TOWER_STYLES[bStyle%TOWER_STYLES.length];
+    rect(sx,sy,TS,TS,S.mull);                                          // dark mullion grid behind the panes
     for(let r=0;r<2;r++) for(let c=0;c<2;c++){
       const wx=sx+1.5+c*8, wy=sy+1.5+r*8;                              // 8px pitch -> seamless across tile edges
       const v=((tx*2+c)*3 + (ty*2+r)*7) % 9, lit=((tx*5+c*2)+(ty*3+r))%7===0;   // occasional warm-lit office window
-      const pane = lit ? '#ffe7a0' : (v<2 ? '#c6e4f6' : v<5 ? '#7da6c5' : '#9abfd9');
+      const pane = lit ? S.lit : (v<2 ? S.pane[0] : v<5 ? S.pane[1] : S.pane[2]);
       rect(wx,wy,6,6,pane);
-      rect(wx,wy,6,1.6, lit?'#fff4d4':'#dcf0fc');                       // glint / lit top
-      rect(wx,wy+4.4,6,1.6, lit?'rgba(180,140,40,.4)':'rgba(38,66,90,.5)'); } // shade at bottom of pane
+      rect(wx,wy,6,1.6, lit?'#fff4d4':S.glint);                        // glint / lit top
+      rect(wx,wy+4.4,6,1.6, lit?'rgba(180,140,40,.4)':S.shade); }      // shade at bottom of pane
     return; }
   if(ch==='g'){ // glass-tower GROUND FLOOR: a TALL, symmetric lobby entrance (seamless across stacked/side-by-side 'g')
+    const S=TOWER_STYLES[bStyle%TOWER_STYLES.length];
     const tl=game.map&&game.map.tiles;
     const up = tl && tl[ty-1] && tl[ty-1][tx]==='g';   // door continues above (this is a lower/body tile)
     const dn = tl && tl[ty+1] && tl[ty+1][tx]==='g';   // door continues below (this is the top tile)
     const lf = tl && tl[ty] && tl[ty][tx-1]==='g';
     const rt = tl && tl[ty] && tl[ty][tx+1]==='g';
-    rect(sx,sy,TS,TS,'#3a4658');                                       // stone surround
+    rect(sx,sy,TS,TS,S.surround);                                      // stone surround
     const x0=sx+(lf?0:3), x1=sx+TS-(rt?0:3);                           // symmetric jambs on the outer edges
     const gtop = up? sy : sy+5;                                        // top tile leaves room for the canopy
     const gbot = dn? sy+TS : sy+TS-2;                                  // bottom tile gets a threshold
-    rect(x0,gtop,x1-x0,gbot-gtop,'#19222e');                           // dark-glass doorway
-    if(!up){ rect(sx,sy+0.6,TS,2,'#7da6c5'); rect(sx,sy+0.6,TS,0.8,'#dcf0fc');   // glass strip above the canopy
-             rect(sx,sy+3,TS,2.4,'#6c8198'); rect(sx,sy+3,TS,1,'#88a2bc');        // canopy (full width, centred)
-             rect(x0,sy+5,x1-x0,1.4,'#7088a0'); }                                  // lit transom
-    if(!dn) rect(x0,sy+TS-2,x1-x0,2,'#46586c');                        // threshold at the foot
+    rect(x0,gtop,x1-x0,gbot-gtop,'#141a24');                           // dark-glass doorway
+    if(!up){ rect(sx,sy+0.6,TS,2,S.pane[1]); rect(sx,sy+0.6,TS,0.8,S.glint);   // glass strip above the canopy
+             rect(sx,sy+3,TS,2.4,S.mull); rect(sx,sy+3,TS,1,S.roofLit);         // canopy (full width, centred)
+             rect(x0,sy+5,x1-x0,1.4,S.pane[2]); }                               // lit transom
+    if(!dn) rect(x0,sy+TS-2,x1-x0,2,S.surround);                       // threshold at the foot
     const splitX = (lf&&!rt)? sx : (rt&&!lf)? sx+TS : sx+TS/2;         // centre split (double doors), placed symmetrically
-    rect(splitX-0.4,gtop,0.8,gbot-gtop,'#46586c');
-    if(up){ rect(splitX-2.6,sy+3,1,2.4,'#9ab0c4'); rect(splitX+1.6,sy+3,1,2.4,'#9ab0c4'); }   // door handles, mirrored
-    if(!lf) rect(sx,gtop,3,gbot-gtop,'#4a5a6e');                       // outer jambs (equal both sides => symmetric)
-    if(!rt) rect(sx+TS-3,gtop,3,gbot-gtop,'#4a5a6e');
+    rect(splitX-0.4,gtop,0.8,gbot-gtop,S.surround);
+    if(up){ rect(splitX-2.6,sy+3,1,2.4,S.glint); rect(splitX+1.6,sy+3,1,2.4,S.glint); }   // door handles, mirrored
+    if(!lf) rect(sx,gtop,3,gbot-gtop,S.mull);                          // outer jambs (equal both sides => symmetric)
+    if(!rt) rect(sx+TS-3,gtop,3,gbot-gtop,S.mull);
     return; }
-  if(ch==='r'){ // tower rooftop cap (clear roofline + rooftop units)
-    rect(sx,sy,TS,TS,'#3a4a5e');                                       // roof slab
-    rect(sx,sy,TS,3,'#5d7488');                                        // sunlit front edge
-    rect(sx,sy+TS-3,TS,3,'#2a3747');                                   // shadow into the glass below
-    rect(sx+2,sy+5,4,5,'#54687e'); rect(sx+2,sy+5,4,1.6,'#6c8198');     // AC unit
-    rect(sx+9,sy+6,4,4,'#4a5d72'); rect(sx+9,sy+6,4,1.4,'#5f7488'); return; }
-  if(ch==='A'){ // shop storefront with striped awning
-    rect(sx,sy,TS,TS,'#caa46a');
-    for(let i=0;i<4;i++) rect(sx+i*4,sy,3,6,(i%2)?'#e8554e':'#f4f0e4'); rect(sx,sy+6,TS,1,'#b04038');
+  if(ch==='r'){ // tower rooftop cap - colour + rooftop gear vary so each roofline reads differently
+    const S=TOWER_STYLES[bStyle%TOWER_STYLES.length];
+    rect(sx,sy,TS,TS,S.roofSlab);                                      // roof slab
+    rect(sx,sy,TS,3,S.roofLit);                                        // sunlit front edge
+    rect(sx,sy+TS-3,TS,3,S.roofSh);                                    // shadow into the glass below
+    const u=(tx*3+ty*5+bStyle)%4;
+    if(u===0){ rect(sx+2,sy+5,4,5,S.roofLit); rect(sx+2,sy+5,4,1.6,S.pane[2]); rect(sx+9,sy+6,4,4,S.mull); rect(sx+9,sy+6,4,1.4,S.roofLit); }       // AC / plant units
+    else if(u===1){ ellipse(sx+8,sy+9,3.6,1.6,S.roofSh); rect(sx+5,sy+3,6,5,S.roofLit); rect(sx+5,sy+3,6,1,S.pane[2]); ellipse(sx+8,sy+3,3,1.2,S.mull); }   // water tank
+    else if(u===2){ rect(sx+7,sy+1,1.4,8,S.roofSh); rect(sx+3,sy+7,10,3,S.roofLit); rect(sx+7.2,sy-0.5,1,3,'#d84040'); circle(sx+7.7,sy+0.6,0.9,'#ff9090'); }  // antenna mast + beacon
+    else { rect(sx+3,sy+4,10,6,S.roofSh); g.strokeStyle=S.roofLit; g.lineWidth=0.9; g.strokeRect(sx+4.2,sy+5,7.6,4); rect(sx+7.4,sy+5,1.2,4,S.roofLit); }     // helipad (H)
+    return; }
+  if(ch==='A'){ // shop storefront - awning colour + roof vary per shop
+    const S=SHOP_STYLES[bStyle%SHOP_STYLES.length];
+    rect(sx,sy,TS,TS,S.base);
+    for(let i=0;i<4;i++) rect(sx+i*4,sy,3,6,(i%2)?S.a1:S.a2); rect(sx,sy+6,TS,1,S.bar);
     rrect(sx+3,sy+8,10,7,1,'#3a5568'); rect(sx+4,sy+9,8,5,'#cfe7f6'); return; }
   if(ch==='k'){ // park bench
     ellipse(sx+8,sy+15,5,1.5,C.shadow);
@@ -1788,18 +1861,21 @@ function buildMaps(){
   {
     const w=46,h=40, t=makeGrid(w,h,'.');
     setBorder(t,'T');
+    const sg=makeGrid(w,h,0);   // per-building material-style grid (parallel to the tile grid)
     const inb=(x,y)=>t[y]&&t[y][x]!==undefined;
+    const stampStyle=(x,y,bw,bh,st)=>{ for(let yy=y;yy<y+bh;yy++){ if(!sg[yy]) continue; for(let xx=x;xx<x+bw;xx++){ if(sg[yy][xx]!==undefined) sg[yy][xx]=st; } } };
     const path=(x0,y0,x1,y1)=>{ for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++) if(inb(x,y)&&t[y][x]==='.') t[y][x]='p'; };
     const pave=(x0,y0,x1,y1)=>{ for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++) if(inb(x,y)&&(t[y][x]==='.'||t[y][x]==='p')) t[y][x]='P'; };
-    const house=(x,y,bw,bh)=>{ setRect(t,x,y,bw,1,'R');                       // ridge
+    const house=(x,y,bw,bh,st)=>{ setRect(t,x,y,bw,1,'R');                    // ridge
       if(bh>=4){ setRect(t,x,y+1,bw,1,'E'); setRect(t,x,y+2,bw,bh-2,'B'); }   // eave + walls (taller buildings)
-      else setRect(t,x,y+1,bw,bh-1,'B'); };
-    const tower=(x,y,bw,bh)=>{ setRect(t,x,y,bw,1,'r'); setRect(t,x,y+1,bw,bh-1,'G');
+      else setRect(t,x,y+1,bw,bh-1,'B'); stampStyle(x,y,bw,bh,st||0); };
+    const tower=(x,y,bw,bh,st)=>{ setRect(t,x,y,bw,1,'r'); setRect(t,x,y+1,bw,bh-1,'G');
       // UNIFORM entrance on every tower: 2 tiles wide x 2 tiles tall, centred
       if(bh>=3 && bw>=2){ const dw=2, dx0=x+Math.round((bw-dw)/2), rows=Math.min(2,bh-1);
         for(let r=0;r<rows;r++) for(let c=0;c<dw;c++){ const yy=y+bh-1-r, xx=dx0+c; if(inb(xx,yy)) t[yy][xx]='g'; } }
-      else if(bh>=2){ const dx=x+((bw-1)>>1); if(inb(dx,y+bh-1)) t[y+bh-1][dx]='g'; } };
-    const shop=(x,y,bw)=>{ setRect(t,x,y,bw,1,'R'); setRect(t,x,y+1,bw,1,'A'); };
+      else if(bh>=2){ const dx=x+((bw-1)>>1); if(inb(dx,y+bh-1)) t[y+bh-1][dx]='g'; }
+      stampStyle(x,y,bw,bh,st||0); };
+    const shop=(x,y,bw,st)=>{ setRect(t,x,y,bw,1,'R'); setRect(t,x,y+1,bw,1,'A'); stampStyle(x,y,bw,2,st||0); };
     const put=(arr,ch)=>arr.forEach(([x,y])=>{ if(inb(x,y)) t[y][x]=ch; });
     const grassPut=(arr,ch)=>arr.forEach(([x,y])=>{ if(inb(x,y)&&t[y][x]==='.') t[y][x]=ch; });
     // avenues
@@ -1807,19 +1883,20 @@ function buildMaps(){
     path(9,2,9,37); path(37,2,37,37);
     // ---- DOWNTOWN core: stone pavement + skyline + shops + plaza ----
     pave(14,2,32,26);
-    tower(15,2,4,7); tower(20,2,4,8); tower(27,2,4,6); tower(31,3,2,5);   // skyline (all even width so doors centre)
-    shop(14,12,3); shop(30,12,3); shop(14,20,3); shop(30,20,3);          // storefronts
+    tower(15,2,4,7, 0); tower(20,2,4,8, 3); tower(27,2,4,6, 1); tower(31,3,2,5, 2);   // skyline: blue / charcoal / teal / bronze glass
+    shop(14,12,3, 0); shop(30,12,3, 1); shop(14,20,3, 2); shop(30,20,3, 3);           // storefronts: red / green / blue / gold awnings
     setRect(t,22,15,2,2,'P');                                            // plaza centre (water tiles removed - looked bad)
     put([[17,15],[29,15],[17,25],[29,25],[23,11]],'L');                  // lampposts
     grassPut([[19,24],[27,24]],'f');
     // ---- functional buildings (door + label + warp) ----
-    house(4,4,6,4);   t[7][7]='D';   // LAB            door (7,7)
-    house(38,4,7,5);  t[8][41]='D';  // POWER STATION  door (41,8)
-    house(4,30,7,5);  t[34][7]='D';  // EMBER WAREHOUSE door (7,34)
-    house(36,30,7,5); t[34][39]='D'; // MOONLIT GARDEN door (39,34)
-    house(2,1,4,2);   t[2][4]='D';   // HIDEOUT cellar  door (4,2) - far top-left, a long walk from the garden exit
-    // ---- decorative residences ----
-    [[11,4,4,3],[3,13,4,3],[3,19,5,3],[3,24,4,3],[40,13,4,3],[39,19,5,3],[40,24,4,3],[13,30,5,3],[28,30,5,3]].forEach(b=>house(b[0],b[1],b[2],b[3]));
+    house(4,4,6,4, 4);   t[7][7]='D';   // LAB            - clean pale-blue stucco + tile
+    house(38,4,7,5, 5);  t[8][41]='D';  // POWER STATION  - dark sandstone + asphalt shingle (industrial)
+    house(4,30,7,5, 1);  t[34][7]='D';  // EMBER WAREHOUSE- red brick + slate (classic warehouse)
+    house(36,30,7,5, 3); t[34][39]='D'; // MOONLIT GARDEN - grey stone + green copper (garden pavilion)
+    house(2,1,4,2, 5);   t[2][4]='D';   // HIDEOUT cellar  - dark, low-key
+    // ---- decorative residences (each a different material so the streets read as a real neighbourhood) ----
+    [[11,4,4,3],[3,13,4,3],[3,19,5,3],[3,24,4,3],[40,13,4,3],[39,19,5,3],[40,24,4,3],[13,30,5,3],[28,30,5,3]]
+      .forEach((b,i)=>house(b[0],b[1],b[2],b[3], [2,1,0,2,5,1,4,0,3][i]));   // timber/brick/stucco/timber/sandstone/brick/pastel/stucco/stone
     t[26][4]='D';   // KEEPER'S HOUSE door (the retired station keeper lives here)
     // ---- greenery, ponds, signs ----
     grassPut([[2,3],[44,3],[44,38],[2,38],[12,9],[34,9],[12,27],[34,27],[20,30],[35,27],[10,36],[44,18]],'T');
@@ -1845,7 +1922,7 @@ function buildMaps(){
     put([[18,13],[28,13],[18,22],[28,22]],'e');                                  // market stalls
     put([[20,11],[26,11],[16,24],[30,24]],'u');                                  // plaza flower beds
     put([[9,9],[37,9],[9,27],[37,27],[9,34],[37,34],[14,9],[32,9]],'x');         // crosswalks at junctions
-    M.town = { theme:'town', w, h, tiles:t, spawn:{x:7,y:9,dir:'down'},
+    M.town = { theme:'town', w, h, tiles:t, styleGrid:sg, spawn:{x:7,y:9,dir:'down'},
       labels:[
         {x:7,y:3,t:'OAK\'S LAB',c:'#2a3a6a'},
         {x:23,y:1,t:'DOWNTOWN',c:'#33414f'},
@@ -4079,8 +4156,8 @@ function dblDraw(){
   // per-sprite R so every Pokémon reads the same visual size despite different art fill ratios
   // (Eevee/Persian/Murkrow art fills ~0.97 of its canvas; Jolteon only ~0.72, so it needs a bigger R)
   const allyR=[18,24];   // [Eevee, Jolteon]
-  battle.foes.forEach(f=>ellipse(f.x,f.y+17,30,9,'rgba(28,18,38,.5)'));
-  battle.allies.forEach((a,i)=>ellipse(a.x,a.y+16, i?34:30, 9,'rgba(28,18,38,.5)'));
+  battle.foes.forEach(f=>drawBattlePad(f.x,f.y+17,32,9,false,false));
+  battle.allies.forEach((a,i)=>drawBattlePad(a.x,a.y+16, i?36:32, 9,false,false));
   battle.foes.forEach((f,i)=>{ if(f.shown) drawBattleMon(f.species,f.x,f.y, 18, f.intro,f.blink,f.shake,f.faint, f.x); });
   battle.allies.forEach((a,i)=>{ if(a.shown) drawBattleMon(a.species,a.x,a.y, allyR[i], a.intro,a.blink,a.shake,a.faint, a.x*1.3); });
   drawMoveFx();
@@ -4318,7 +4395,8 @@ function drawHPBar(x,y,name,lv,hpShow,max,isPlayer,style){
           : style==='mini' ? {w:92, h:26,bw:56, nf:8, bf:7, ny:8, by:13,bh:3}
           :                  {w:112,h:32,bw:80, nf:8, bf:8, ny:9, by:18,bh:3};
   const w=S.w, h=S.h;
-  rrect(x,y,w,h,5,'#22283c'); rrect(x+2,y+2,w-4,h-4,4,'#f4efda');
+  g.save(); g.shadowColor='rgba(8,6,14,.42)'; g.shadowBlur=3; g.shadowOffsetY=2; rrect(x,y,w,h,5,'#22283c'); g.restore();
+  rrect(x+2,y+2,w-4,h-4,4,'#f4efda');
   g.textBaseline='middle';   // center each label on its row - robust to font metric differences
   fitText(name,x+7,y+S.ny,'#283048',S.nf,w-44);
   setFont(S.nf-1); const lvs='Lv'+lv; text(lvs,x+w-tw(lvs)-6,y+S.ny,'#283048',S.nf-1);
@@ -4335,31 +4413,37 @@ function drawHPBar(x,y,name,lv,hpShow,max,isPlayer,style){
 }
 function drawMainMenu(by){
   uiBox(4,by,150,46);
-  text('What will',14,by+12,'#283048',8);
-  fitText(battle.player.name+' do?',14,by+26,'#283048',8,134);
+  g.textAlign='left'; g.textBaseline='middle';                 // rows vertically centred, no longer crammed at the top edge
+  text('What will',16,by+16,'#283048',8);
+  fitText(battle.player.name+' do?',16,by+31,'#283048',8,128);
   const mx=160, mw=VW-mx-4; uiBox(mx,by,mw,46);
   const cmds=['FIGHT', F.maxPotions>0?('BAG('+F.maxPotions+')'):'BAG','POKéMON','RUN'];
-  for(let i=0;i<4;i++){ const cx=mx+14+(i%2)*42, cy=by+12+Math.floor(i/2)*18;
-    if(i===battle.mainSel){ poly([[cx-9,cy],[cx-9,cy+7],[cx-4,cy+3]],'#e23b3b'); }
+  const cb=Math.sin(anim/9)*1.2;                               // gently bobbing selection cursor
+  for(let i=0;i<4;i++){ const cx=mx+15+(i%2)*42, cy=by+16+Math.floor(i/2)*16;
+    if(i===battle.mainSel){ poly([[cx-10+cb,cy-3.4],[cx-10+cb,cy+3.4],[cx-5+cb,cy]],'#e23b3b'); }   // cursor centred right beside the word
     text(cmds[i],cx,cy,'#283048',8); }
+  g.textBaseline='alphabetic';
 }
 function drawFightMenu(by){
   uiBox(4,by,176,46);
+  g.textAlign='left'; g.textBaseline='middle';
   const umbra = battle.player.species==='umbreon';   // Umbreon's whole kit reads BOLD, like raw power
   if(umbra) fontBold=true;
-  for(let i=0;i<4;i++){ const mv=battle.player.moves[i]; const cx=18+(i%2)*86, cy=by+12+Math.floor(i/2)*18;
-    if(i===battle.moveSel){ poly([[cx-9,cy],[cx-9,cy+7],[cx-4,cy+3]],'#e23b3b'); }
-    fitText(mv.name,cx,cy, mv.pp>0?'#283048':'#b04040',8, (i%2?180:104)-cx-3); }
+  const cb=Math.sin(anim/9)*1.2;   // gently bobbing selection cursor
+  for(let i=0;i<4;i++){ const mv=battle.player.moves[i]; const cx=20+(i%2)*86, cy=by+16+Math.floor(i/2)*16;
+    if(i===battle.moveSel){ poly([[cx-10+cb,cy-3.4],[cx-10+cb,cy+3.4],[cx-5+cb,cy]],'#e23b3b'); }
+    fitText(mv.name,cx,cy, mv.pp>0?'#283048':'#b04040',8, (i%2?180:106)-cx-3); }
   fontBold=false;
   const ix=184, iw=VW-ix-4; uiBox(ix,by,iw,46);
   const mv=battle.player.moves[battle.moveSel];
   const typeCol={Normal:'#8a8a7a',Dark:'#6a5a7a',Electric:'#d8a818',Fire:'#e8602a',Poison:'#9a4aa8',Flying:'#6a9ad0',Dragon:'#5a6ad8',Psychic:'#e05a9a',Fighting:'#c04030'}[mv.type]||'#3a78c8';
-  text('PP '+mv.pp+'/'+mv.maxpp, ix+10,by+12,'#283048',8);
-  text(mv.type.toUpperCase(), ix+10,by+25, typeCol,8);
+  text('PP '+mv.pp+'/'+mv.maxpp, ix+10,by+16,'#283048',8);
+  text(mv.type.toUpperCase(), ix+10,by+30, typeCol,8);
   const foe = battle.double ? (battle.foes&&battle.foes[battle.tgt]) : curEnemy();
   if(foe){ const m=typeMult(mv.type, foe.type);
     const lbl = m>1.5?'SUPER!' : (m===0?'NO EFFECT' : '');   // no "not very" clutter under the type
-    if(lbl) text(lbl, ix+10, by+37, '#e8a020', 8); }
+    if(lbl) text(lbl, ix+10, by+41, '#e8a020', 8); }
+  g.textBaseline='alphabetic';
 }
 function drawBattleMsg(by){
   const mby=by-4;                                  // taller box: 3 lines of text never clip the frame
@@ -4381,6 +4465,17 @@ function drawBattleMsg(by){
     poly([[VW-18,mby+42],[VW-12,mby+42],[VW-15,mby+46]],'#4a73c0');
   }
 }
+// grounds a battle sprite: a feathered cast shadow (so it isn't floating) + an optional faint luminous "stage" ring
+function drawBattlePad(cx, cy, rx, ry, boss, ring){
+  const sh=g.createRadialGradient(cx,cy,0,cx,cy,rx);
+  sh.addColorStop(0,'rgba(16,12,22,.44)'); sh.addColorStop(0.5,'rgba(16,12,22,.30)'); sh.addColorStop(1,'rgba(16,12,22,0)');
+  g.save(); g.translate(cx,cy); g.scale(1,ry/rx); g.fillStyle=sh; g.beginPath(); g.arc(0,0,rx,0,7); g.fill(); g.restore();
+  if(ring){
+    const ri=g.createRadialGradient(cx,cy,rx*0.5,cx,cy,rx*1.05);
+    ri.addColorStop(0,'rgba(0,0,0,0)'); ri.addColorStop(0.82, boss?'rgba(178,128,208,.12)':'rgba(224,246,182,.16)'); ri.addColorStop(1,'rgba(0,0,0,0)');
+    g.save(); g.translate(cx,cy); g.scale(1,ry/rx); g.fillStyle=ri; g.beginPath(); g.arc(0,0,rx*1.05,0,7); g.fill(); g.restore();
+  }
+}
 function battleDraw(){
   if(battle.double){ dblDraw(); return; }
   const boss=!!battle.cfg.sylveonHelp || battle.scripted || battle.cfg.music==='boss' || battle.cfg.kind==='rook';
@@ -4400,8 +4495,8 @@ function battleDraw(){
     grd.addColorStop(0.6, boss?'#6a4a36':'#a3d36e'); grd.addColorStop(1, boss?'#4a3024':'#7cb44c');
     g.fillStyle=grd; g.fillRect(-6,-6,VW+12,VH+12);
   }
-  ellipse(battle.EX, battle.EY+26, 50, 13, boss?'rgba(40,20,40,.5)':'rgba(86,150,66,.55)');
-  ellipse(battle.PX, battle.PY+20, 58, 15, boss?'rgba(40,20,40,.5)':'rgba(66,138,56,.6)');
+  drawBattlePad(battle.EX, battle.EY+26, 48, 13, boss, true);
+  drawBattlePad(battle.PX, battle.PY+20, 58, 15, boss, true);
   const e=curEnemy();
   // opponent trainer (slides off-screen as it sends out)
   if(battle.trainerShown){ const tx=battle.EX-4+battle.trainerX, ty=battle.EY-12;
@@ -4503,7 +4598,8 @@ function titleDraw(){
       const opts=['New Game','Continue'];
       for(let i=0;i<2;i++){ const ox=VW/2-40+i*70, sel=game.titleSel===i;
         textShadow(opts[i], ox, 126, sel?'#ffe24a':'#cfd6ff', '#2a2a4a', 9);
-        if(sel && Math.floor(anim/42)%2) textShadow('▸', ox-12, 126, '#ffe24a','#2a2a4a',9);
+        if(sel && Math.floor(anim/42)%2){ setFont(9); const lw=tw(opts[i]);   // arrow sits just LEFT of the word, never over it
+          g.textAlign='left'; textShadow('▸', ox-lw/2-10, 126, '#ffe24a','#2a2a4a',9); g.textAlign='center'; }
       }
     } else if(Math.floor(anim/52)%2){ textShadow('Press SPACE / ENTER to start',VW/2,146,'#fff','#2a2a4a',9); }
   } else {
@@ -4588,15 +4684,15 @@ function cardScanDraw(){
   } else if(cardScan.snap){ drawCover(cardScan.snap,1,0); }
   // dim vignette so the UI text reads over the video
   g.fillStyle='rgba(8,6,18,.34)'; g.fillRect(0,0,VW,VH);
-  g.fillStyle='#070610'; g.fillRect(0,0,VW,15); g.fillRect(0,VH-19,VW,19);
-  g.textAlign='center';
-  textShadow('SCAN PLAYER ID', VW/2, 11, '#bfe0ff', '#0a1830', 9);
+  g.fillStyle='#070610'; g.fillRect(0,0,VW,17); g.fillRect(0,VH-24,VW,24);   // slightly taller header/footer bars
+  g.textAlign='center'; g.textBaseline='alphabetic';                          // fixed baseline so bottom hints never clip the frame edge
+  textShadow('SCAN PLAYER ID', VW/2, 12, '#bfe0ff', '#0a1830', 9);
 
   if(cardScan.phase==='live'){
     const pulse=0.5+0.5*Math.sin(anim/12);
     cardBracket(CARD_X,CARD_Y,CARD_W,CARD_H,16, 'rgba(120,210,255,'+(0.45+pulse*0.5).toFixed(2)+')');
     const ready = cardScan.stream || cardScan.err;   // only invite a scan once the camera is actually on (or unavailable)
-    if(Math.floor(anim/46)%2) textShadow(ready?'Hold up your card  ·  press SPACE to scan':'Starting camera…  one moment', VW/2, VH-7, ready?'#fff':'#bfe0ff', '#0a1830', 8);
+    if(Math.floor(anim/46)%2) textShadow(ready?'Hold up your card  ·  press SPACE to scan':'Starting camera…  one moment', VW/2, VH-11, ready?'#fff':'#bfe0ff', '#0a1830', 8);
   } else if(cardScan.phase==='scanning'){
     cardBracket(CARD_X,CARD_Y,CARD_W,CARD_H,16, 'rgba(120,210,255,.85)');
     const prog=Math.min(1,cardScan.t/1500), sy=CARD_Y+CARD_H*prog;
@@ -4605,7 +4701,7 @@ function cardScanDraw(){
     g.fillStyle=grd; g.fillRect(CARD_X,sy-12,CARD_W,24);
     g.strokeStyle='rgba(190,250,255,.95)'; g.lineWidth=1.5; g.beginPath(); g.moveTo(CARD_X,sy); g.lineTo(CARD_X+CARD_W,sy); g.stroke();
     const n=Math.floor(cardScan.t/300)%4; let d=''; for(let i=0;i<n;i++) d+='.';
-    textShadow('SCANNING'+d, VW/2, VH-7, '#bfe0ff', '#0a1830', 9);
+    textShadow('SCANNING'+d, VW/2, VH-11, '#bfe0ff', '#0a1830', 9);
   } else if(cardScan.phase==='processing'){
     cardBracket(CARD_X,CARD_Y,CARD_W,CARD_H,16, 'rgba(120,210,255,.7)');
     const pct=Math.min(100, Math.floor(cardScan.t/80));   // 8000ms -> 100%
@@ -4615,7 +4711,7 @@ function cardScanDraw(){
     g.fillStyle=grd; rpath(bx,by,Math.max(0,bw*pct/100),5,2); g.fill();
     if(pct<100 && Math.floor(anim/8)%3===0){ g.fillStyle='rgba(255,255,255,.5)'; g.fillRect(bx+bw*pct/100-2,by,2,5); }   // leading sparkle
     textShadow('PROCESSING  '+pct+'%', VW/2, by-6, '#cfeaff', '#0a1830', 9);
-    textShadow('Verifying player ID…', VW/2, VH-7, '#9fc4e8', '#0a1830', 8);
+    textShadow('Verifying player ID…', VW/2, VH-11, '#9fc4e8', '#0a1830', 8);
   } else { // verified
     const a=Math.min(1,cardScan.t/180);
     g.fillStyle='rgba(40,200,120,'+(0.22*a).toFixed(2)+')'; g.fillRect(0,0,VW,VH);
@@ -4623,7 +4719,7 @@ function cardScanDraw(){
     g.strokeStyle='#7dffb0'; g.lineWidth=3; g.lineCap='round'; g.beginPath();   // check mark
     g.moveTo(VW/2-13,VH/2-2); g.lineTo(VW/2-3,VH/2+9); g.lineTo(VW/2+15,VH/2-13); g.stroke(); g.lineCap='butt';
     textShadow('VERIFIED', VW/2, VH/2+30, '#9affc0', '#06301a', 12);
-    textShadow('Poppy card accepted ♥', VW/2, VH-7, '#f6a8c8', '#3a1028', 8);
+    textShadow('Poppy card accepted ♥', VW/2, VH-11, '#f6a8c8', '#3a1028', 8);
   }
   g.textAlign='left';
   for(const h of game.hearts){ drawHeart(h.x,h.y,3,clamp(1-h.t/h.life,0,1)); }
