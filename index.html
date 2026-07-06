@@ -2419,6 +2419,36 @@ function drawFestivalLights(ox,oy){
   }
   g.lineCap='butt';
 }
+/* ---- interiors: a soft cast shadow below wall tiles so the room isn't a flat grid ---- */
+function interiorShadowPass(m,x0,x1,y0,y1,ox,oy){
+  const t=m.tiles, wall=(x,y)=> !!(t[y]&&(t[y][x]==='#'||t[y][x]==='='));
+  for(let ty=Math.max(1,y0);ty<=Math.min(m.h-1,y1);ty++) for(let tx=Math.max(0,x0);tx<=Math.min(m.w-1,x1);tx++){
+    if(wall(tx,ty)) continue;
+    if(wall(tx,ty-1)){ const sx=tx*TS+ox, sy=ty*TS+oy; g.globalAlpha=0.15; rect(sx,sy,TS,2,'#0a0812'); g.globalAlpha=0.07; rect(sx,sy+2,TS,2,'#0a0812'); g.globalAlpha=1; }
+  }
+}
+/* ---- interiors: a per-room mood grade (warm hearth, clinical lab, ember foundry, moonlit garden...) ---- */
+function interiorGrade(theme){
+  if(theme==='home'){        // cosy hearth: a warm amber wash pooling in the centre
+    const grd=g.createRadialGradient(VW*0.5,VH*0.4,8,VW*0.5,VH*0.5,VH*0.95); grd.addColorStop(0,'rgba(255,196,120,.12)'); grd.addColorStop(1,'rgba(70,36,16,.14)'); g.fillStyle=grd; g.fillRect(0,0,VW,VH);
+    g.globalAlpha=0.05; g.fillStyle='#ff9a3c'; g.fillRect(0,0,VW,VH); g.globalAlpha=1;
+  } else if(theme==='lab'){   // clean, cool light from above
+    const grd=g.createLinearGradient(0,0,0,VH); grd.addColorStop(0,'rgba(212,232,255,.13)'); grd.addColorStop(1,'rgba(86,96,136,.10)'); g.fillStyle=grd; g.fillRect(0,0,VW,VH);
+  } else if(theme==='station'){ // cold electric blue + an occasional flicker
+    g.globalAlpha=0.11; g.fillStyle='#26466e'; g.fillRect(0,0,VW,VH); g.globalAlpha=1;
+    if((Math.sin(anim/6)+Math.sin(anim/2.1))>1.2){ g.globalAlpha=0.06; g.fillStyle='#9fd0f0'; g.fillRect(0,0,VW,VH); g.globalAlpha=1; }
+  } else if(theme==='warehouse'){ // furnace ember glow from the top
+    const grd=g.createRadialGradient(VW*0.5,VH*0.1,8,VW*0.5,VH*0.32,VH*1.1); grd.addColorStop(0,'rgba(255,120,40,.17)'); grd.addColorStop(1,'rgba(58,18,8,.16)'); g.fillStyle=grd; g.fillRect(0,0,VW,VH);
+  } else if(theme==='garden'){ // moonlit cool + a soft moon glow upper-right
+    g.globalAlpha=0.16; g.fillStyle='#16324a'; g.fillRect(0,0,VW,VH); g.globalAlpha=1;
+    const grd=g.createRadialGradient(VW*0.72,VH*0.14,6,VW*0.72,VH*0.2,VH*0.95); grd.addColorStop(0,'rgba(180,222,240,.13)'); grd.addColorStop(1,'rgba(180,222,240,0)'); g.fillStyle=grd; g.fillRect(0,0,VW,VH);
+  } else if(theme==='hideout'){ // ominous violet-red, edges crushed
+    g.globalAlpha=0.15; g.fillStyle='#28101e'; g.fillRect(0,0,VW,VH); g.globalAlpha=1;
+    const grd=g.createRadialGradient(VW*0.5,VH*0.5,VH*0.22,VW*0.5,VH*0.5,VH*0.95); grd.addColorStop(0,'rgba(0,0,0,0)'); grd.addColorStop(1,'rgba(92,10,32,.42)'); g.fillStyle=grd; g.fillRect(0,0,VW,VH);
+  } else if(theme==='route'){ // soft warm daylight
+    const grd=g.createLinearGradient(0,0,0,VH); grd.addColorStop(0,'rgba(255,240,180,.09)'); grd.addColorStop(1,'rgba(120,160,90,.09)'); g.fillStyle=grd; g.fillRect(0,0,VW,VH);
+  }
+}
 function drawWorld(){
   const m=game.map; if(!m) return;
   // town time-of-day: a slow day -> dusk -> night -> dawn cycle (~4 min) so the festival lights & windows get to glow
@@ -2442,6 +2472,7 @@ function drawWorld(){
     drawTile(m.tiles[ty][tx], m.theme, tx*TS+ox, ty*TS+oy, tx, ty);
   }
   if(m.theme==='town') townShadowPass(m,x0,x1,y0,y1,ox,oy);   // ground buildings/trees with soft cast shadows + kerbs
+  else interiorShadowPass(m,x0,x1,y0,y1,ox,oy);               // ground interior walls with a soft cast shadow
   // entities sorted by y
   const ents=game.entities.filter(e=>e.visible).slice().sort((a,b)=>(a.py+ (a.kind==='mon'?8:0))-(b.py));
   for(const e of ents){
@@ -2491,6 +2522,7 @@ function drawWorld(){
         g.fillStyle=lf; g.fillRect(0,0,VW,VH); }
     }
   }
+  else interiorGrade(m.theme);   // per-room mood lighting so interiors match the town's graded look
   // soft vignette for depth so the flat tile field reads as a lit space, not a grid
   const vg=g.createRadialGradient(VW/2,VH*0.46,VH*0.34,VW/2,VH*0.5,VH*0.92);
   vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(18,16,28,.26)');
