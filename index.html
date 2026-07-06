@@ -2739,8 +2739,8 @@ function spawnFountain(){
 }
 /* ---- the town's hero landmark: a stone clock tower capping the downtown axis, clock aglow at night ---- */
 function spawnClockTower(){
-  for(const [tx,ty] of [[22,8],[23,8]]) placeEntity(newEntity({id:'ct'+tx,kind:'obj',tx,ty,dir:'down',solid:true,visible:false}));   // solid base
-  placeEntity(newEntity({id:'clocktower',kind:'obj',tx:22,ty:8,dir:'down',solid:true,visible:true,
+  for(const [tx,ty] of [[17,24],[18,24]]) placeEntity(newEntity({id:'ct'+tx,kind:'obj',tx,ty,dir:'down',solid:true,visible:false}));   // solid base in the lower plaza (so the full tower fits on screen near the fountain)
+  placeEntity(newEntity({id:'clocktower',kind:'obj',tx:17,ty:24,dir:'down',solid:true,visible:true,
     draw:(ex,ey)=>{
       const cx=ex+16, gy=ey+14, nk=nightK;
       ellipse(cx,gy+3,16,5,C.shadow);
