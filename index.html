@@ -1486,6 +1486,12 @@ function drawRoof(sx,sy,S,isEave){
   if(!isEave) rect(sx,sy,TS,1.8,S.rridge);
   if(isEave){ rect(sx,sy+TS-3,TS,3,S.rsh); rect(sx,sy+TS-1,TS,1,S.rsh); }
 }
+// a failing-streetlamp flicker: mostly bright, with occasional abrupt stutters toward dark
+function faultyFlicker(seed){
+  const base=0.85+0.15*Math.sin(anim/6+seed*2);
+  const stut=(Math.sin(anim*0.07+seed*3.1)>0.8) ? (0.2+0.25*Math.abs(Math.sin(anim*0.9+seed))) : 1;
+  return clamp(base*stut,0.1,1);
+}
 function townTile(ch,sx,sy,alt,tx,ty){
   // grass base tinted in organic 2x2 patches (hashed) instead of a strict checkerboard
   let gh=(tx>>1)*374761393 + (ty>>1)*668265263; gh=((gh^(gh>>13))*1274126177); gh=(gh^(gh>>16))>>>0;
@@ -1565,12 +1571,15 @@ function townTile(ch,sx,sy,alt,tx,ty){
     rrect(sx+2,sy+2.5,TS-5,2.6,1.6,'#5aa03c'); ellipse(sx+5,sy+3.6,1.8,1,'#6cc049');                 // sunlit crown
     circle(sx+5,sy+9,0.8,'#e0556a'); circle(sx+11,sy+7,0.8,'#e0556a'); circle(sx+8,sy+11,0.7,'#f4ec5e'); return; }   // berries / a bloom
   if(ch==='S'){ rect(sx+7,sy+5,2,10,'#7a5230'); rrect(sx+1.5,sy+1,13,5,1,'#e7d2a4'); g.strokeStyle='#7a5230'; g.lineWidth=1; g.strokeRect(sx+1.5,sy+1,13,5); rect(sx+3,sy+2.5,3,1,'#8a6a44'); rect(sx+3,sy+4,7,1,'#8a6a44'); return; }
-  if(ch==='L'){ // lamppost (sits on pavement) with a soft warm glow that blazes after dark
+  if(ch==='L'){ // lamppost (sits on pavement) with a soft warm glow that blazes after dark - and fails/flickers in the finale
     rect(sx,sy,TS,TS,'#bcbfc7'); rect(sx,sy,TS,1,'#d0d3d9');
-    const lr=8*(1+0.55*nightK), lg=clamp((0.30+0.06*Math.sin(anim/40))*(1+1.7*nightK),0,0.95);
+    const faulty = townScary && ((tx*13+ty*7)%2===0);              // about half the street lamps are on the fritz during the finale
+    const flick = faulty ? faultyFlicker(tx*3+ty) : 1;
+    const lr=8*(1+0.55*nightK), lg=clamp((0.30+0.06*Math.sin(anim/40))*(1+1.7*nightK)*flick,0,0.95);
     const gl=g.createRadialGradient(sx+8,sy+3,1,sx+8,sy+3,lr); gl.addColorStop(0,'rgba(255,226,128,'+lg.toFixed(3)+')'); gl.addColorStop(1,'rgba(255,226,128,0)');
     g.fillStyle=gl; g.beginPath(); g.arc(sx+8,sy+3,lr,0,7); g.fill();
-    rect(sx+7,sy+4,2,11,'#384049'); ellipse(sx+8,sy+15,3.5,1.4,C.shadow); ellipse(sx+8,sy+3.5,3.4,3,'rgba(255,236,150,.5)'); rrect(sx+5.5,sy+1.5,5,4,1.5,'#ffe45c'); rect(sx+6.5,sy+1,3,1,'#3a3f4a'); return; }
+    rect(sx+7,sy+4,2,11,'#384049'); ellipse(sx+8,sy+15,3.5,1.4,C.shadow);
+    ellipse(sx+8,sy+3.5,3.4,3,'rgba(255,236,150,'+(0.5*flick).toFixed(2)+')'); rrect(sx+5.5,sy+1.5,5,4,1.5, flick>0.4?'#ffe45c':'#7c6e34'); rect(sx+6.5,sy+1,3,1,'#3a3f4a'); return; }
   // ---- residential building ----
   if(ch==='B'){ // building wall - material varies per building; windows on alternating tiles
     const S=HOUSE_STYLES[bStyle%HOUSE_STYLES.length];
@@ -2010,6 +2019,7 @@ const game = {
 };
 let anim=0, animAcc=0;   // anim = integer animation frame, advanced at a fixed 60/sec regardless of the display's refresh rate
 let nightK=0;            // town time-of-day darkness 0=day .. 1=night (slow cycle; set each frame in drawWorld, read by townTile/festival lights)
+let townScary=false;     // finale mood: forces night + failing lamps + deserted streets (set in drawWorld)
 
 function newEntity(o){ return Object.assign({
   kind:'char', sub:'grunt', tx:0, ty:0, dir:'down', px:0, py:0,
@@ -2380,11 +2390,12 @@ function drawWorld(){
   let townFinale=false;
   if(m.theme==='town'){
     townFinale = !!(F && F.gardenCleared && !F.gameWon);         // the night-time finale: hunting the sealed ??? door
+    townScary = townFinale;
     if(townFinale){ nightK=1; }                                  // finale is locked to full night (city lights ablaze, dread in the air)
     else { const p=(anim/14400)%1;
       let nk = p<0.46?0 : p<0.63?(p-0.46)/0.17 : p<0.85?1 : 1-(p-0.85)/0.15;
       nightK = nk*nk*(3-2*nk); }                                 // otherwise a slow day/dusk/night/dawn cycle (smoothstep)
-  } else nightK=0;
+  } else { nightK=0; townScary=false; }
   rect(0,0,VW,VH,'#0c0e18');   // frame colour behind any margins
   let ox=-Math.round(game.cam.x), oy=-Math.round(game.cam.y);
   if(game.shake>0 && settings.shake){ ox += (Math.random()*2-1)*2|0; oy += (Math.random()*2-1)*2|0; }
@@ -2439,6 +2450,10 @@ function drawWorld(){
       cv.addColorStop(0,'rgba(0,0,0,0)'); cv.addColorStop(0.6,'rgba(6,4,14,.34)'); cv.addColorStop(1,'rgba(30,2,8,'+(0.56+0.12*dread).toFixed(3)+')');
       g.fillStyle=cv; g.fillRect(0,0,VW,VH);
       g.globalAlpha=0.09; for(let i=0;i<3;i++){ const fx=((anim*0.12+i*95)%(VW+140))-70; ellipse(fx, VH*0.72+i*13, 80, 18, '#9aa4be'); } g.globalAlpha=1;   // low drifting fog
+      const lc=anim%940;                                            // distant lightning: a cold double-flash from above every ~16s
+      if(lc<7 || (lc>12 && lc<16)){ const fa=(lc<7?(1-lc/7):(1-(lc-12)/4))*0.3;
+        const lf=g.createLinearGradient(0,0,0,VH); lf.addColorStop(0,'rgba(206,220,255,'+fa.toFixed(3)+')'); lf.addColorStop(0.55,'rgba(206,220,255,'+(fa*0.28).toFixed(3)+')'); lf.addColorStop(1,'rgba(206,220,255,0)');
+        g.fillStyle=lf; g.fillRect(0,0,VW,VH); }
     }
   }
   // soft vignette for depth so the flat tile field reads as a lit space, not a grid
@@ -2521,16 +2536,22 @@ function setupTown(){
       {type:'say',name:'Town Map',text:'PALLET TOWN.  NW: Prof. Oak\'s Lab.  NE: Old Power Station.  SW: Ember Warehouse.  SE: Moonlit Garden.  The building names float above their roofs - follow the labels.'},
     ],()=>game.state='play'); }}));
   spawnFountain();   // big multi-tile plaza fountain (drawn as an entity so it isn't clipped to one tile)
-  // ---- everyday townsfolk: a little life around the plaza (placed clear of warps, crystals & the quest kid) ----
-  const stroll=(e,r)=>{ e.wander=true; e.hx=e.tx; e.hy=e.ty; e.wr=r||3; return e; };   // wander within r tiles of home, then pause
-  stroll(npc('towns1','woman1',18,18,'right',[{name:'Townswoman',text:'Pallet Town\'s prettiest in spring. Mind the fountain - the little ones love to splash there!'}]),3);
-  stroll(npc('towns2','man1',  28,18,'left', [{name:'Townsman',text:'You\'re Oen, aren\'t you? The whole town\'s cheering you on. Go bring those Pokemon home.'}]),3);
-  npc('towns3','gal',   24,25,'up',   [{name:'Girl',text:'The downtown lights were strung up for the festival. Aren\'t they pretty when they glow?'}]).idle=true;
-  npc('towns4','oldman',26,16,'down', [{name:'Old Man',text:'That Eevee of yours wouldn\'t take any stone. It simply wants to be itself. There is a quiet courage in that.'}]).idle=true;
-  stroll(npc('towns5','kid',   30,22,'down', [{name:'Townsfolk',text:'I keep walking the same loop hoping the festival lights switch on. Any minute now!'}]),3);
-  stroll(npc('towns6','man1',  16,22,'right',[{name:'Townsfolk',text:'Just stretching my legs round the plaza. Lovely spot, isn\'t it?'}]),3);
-  spawnSoccer();   // two kids kicking a ball around the lower plaza
-  spawnBirds();    // ground birds pecking & hopping around the plaza
+  const finaleNight = F.gardenCleared && !F.gameWon;   // the ??? act: night has fallen, everyone's shut indoors
+  if(!finaleNight){
+    // ---- everyday townsfolk: a little life around the plaza (placed clear of warps, crystals & the quest kid) ----
+    const stroll=(e,r)=>{ e.wander=true; e.hx=e.tx; e.hy=e.ty; e.wr=r||3; return e; };   // wander within r tiles of home, then pause
+    stroll(npc('towns1','woman1',18,18,'right',[{name:'Townswoman',text:'Pallet Town\'s prettiest in spring. Mind the fountain - the little ones love to splash there!'}]),3);
+    stroll(npc('towns2','man1',  28,18,'left', [{name:'Townsman',text:'You\'re Oen, aren\'t you? The whole town\'s cheering you on. Go bring those Pokemon home.'}]),3);
+    npc('towns3','gal',   24,25,'up',   [{name:'Girl',text:'The downtown lights were strung up for the festival. Aren\'t they pretty when they glow?'}]).idle=true;
+    npc('towns4','oldman',26,16,'down', [{name:'Old Man',text:'That Eevee of yours wouldn\'t take any stone. It simply wants to be itself. There is a quiet courage in that.'}]).idle=true;
+    stroll(npc('towns5','kid',   30,22,'down', [{name:'Townsfolk',text:'I keep walking the same loop hoping the festival lights switch on. Any minute now!'}]),3);
+    stroll(npc('towns6','man1',  16,22,'right',[{name:'Townsfolk',text:'Just stretching my legs round the plaza. Lovely spot, isn\'t it?'}]),3);
+    spawnSoccer();   // two kids kicking a ball around the lower plaza
+    spawnBirds();    // ground birds pecking & hopping around the plaza
+  } else {
+    // deserted finale: one lone townsperson lingers by the fountain, uneasy
+    npc('townsLate','oldman',20,17,'down',[{name:'Townsfolk',text:'You feel it too? The festival lights are still on... but everyone bolted their doors. Team Rocket\'s about. Be careful out there, Oen.'}]).idle=true;
+  }
   spawnYamper();   // the keeper's Yamper roams town until caught
   // Flareon rescue: 5 Spring Crystals scattered across town
   if(F.flareonQuest && !F.flareonRescued){
