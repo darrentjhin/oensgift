@@ -2107,6 +2107,32 @@ function dlgUpdate(){
     }
   }
 }
+// map a dialogue speaker name to a portrait sprite (character or Pokémon)
+function speakerFace(name){
+  if(!name) return null;
+  const n=name.toLowerCase();
+  if(/jolteon/.test(n)) return {mon:'jolteon'}; if(/flareon/.test(n)) return {mon:'flareon'};
+  if(/sylveon/.test(n)) return {mon:'sylveon'}; if(/umbreon/.test(n)) return {mon:'umbreon'};
+  if(/yamper/.test(n)) return {mon:'yamper'};   if(/eevee/.test(n)) return {mon:'eevee'};
+  if(/oak/.test(n)) return {char:'oak'};       if(/rook/.test(n)) return {char:'rook'};
+  if(/giovanni/.test(n)) return {char:'giovanni'}; if(/ariana/.test(n)) return {char:'ariana'};
+  if(/engineer|cole|grunt|rocket/.test(n)) return {char:'grunt'};
+  if(/keeper|old man/.test(n)) return {char:'oldman'};
+  if(/girl/.test(n)) return {char:'gal'};      if(/kid|townsfolk/.test(n)) return {char:'kid'};
+  if(/townswoman|woman/.test(n)) return {char:'woman1'};
+  if(/townsman|townsfolk|man/.test(n)) return {char:'man1'};
+  if(/oen/.test(n)) return {char:'oen'};
+  return null;   // narrator / Evo Tracker / Note / Town Map -> no portrait
+}
+function drawDlgPortrait(face, x, y, S){
+  rrect(x-1,y-1,S+2,S+2,5,'#1d2336');                       // dark frame
+  rrect(x,y,S,S,4, face.mon?'#d2e2f2':'#dbe4f2');           // face backing
+  g.save(); g.beginPath(); g.rect(x+1,y+1,S-2,S-2); g.clip();
+  if(face.mon){ drawMon(face.mon, x+S/2, y+S/2+2, 11); }
+  else { g.translate(x+S/2, y+S/2); g.scale(2.1,2.1); drawChar(face.char, -8, -9, 'down', {idle:anim*0.03}); }
+  g.restore();
+  g.globalAlpha=0.5; rrect(x,y,S,1.6,4,'#ffffff'); g.globalAlpha=1;   // top sheen
+}
 function dlgDraw(){
   if(!dlg.active) return;
   const bx=6, by=VH-54, bw=VW-12, bh=48;
@@ -2115,10 +2141,12 @@ function dlgDraw(){
   g.textBaseline='top';                 // glyph TOP sits at ty - predictable padding regardless of prior state
   let ty=by+9;                          // 3 lines (lh 12) fit evenly: by+9, +21, +33 -> bottom ~by+41 in a 48px box
   if(page.name){
+    const face=speakerFace(page.name), nameX = face? bx+34 : bx+8;
+    if(face) drawDlgPortrait(face, bx+3, by-23, 26);        // speaker bust rising above the box, top-left
     g.textBaseline='middle'; setFont(8);
-    const tagW=Math.min(tw(page.name)+10, bw-12);   // never let the name tag exceed the box
-    rrect(bx+8,by-9,tagW,13,4,'#1d2336'); rrect(bx+9,by-8,tagW-2,11,3,'#4a73c0');
-    fitText(page.name,bx+13,by-2,'#fff',8,tagW-10);  // centered in the tag; shrink so it never spills
+    const tagW=Math.min(tw(page.name)+10, bw-(nameX-bx)-8);   // never let the name tag exceed the box
+    rrect(nameX,by-9,tagW,13,4,'#1d2336'); rrect(nameX+1,by-8,tagW-2,11,3,'#4a73c0');
+    fitText(page.name,nameX+5,by-2,'#fff',8,tagW-10);  // centered in the tag; shrink so it never spills
     g.textBaseline='top';
   }
   // revealed text (clipped to the box as a safety net so it can never spill out)
