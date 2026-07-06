@@ -2257,9 +2257,25 @@ function onPlayerArrive(){
         if(!dlg.active && !activeSeq) runSeq([{type:'say',name:'Evo Tracker',text:wp.hint||'It\'s locked.'}],()=>{ game.state='play'; });
         return;
       }
-      audio.sfx('door'); enterMap(wp.to, wp.tx, wp.ty, wp.dir); return;
+      startWipe(()=>enterMap(wp.to, wp.tx, wp.ty, wp.dir)); return;   // iris-close on the player, swap map, iris-open
     }
   }
+}
+/* ---- area transition: an iris that closes on the player, swaps the map at the darkest point, then opens ---- */
+const WIPE_OUT=200, WIPE_IN=260;
+function startWipe(cb){ game.wipe={t:0, cb:cb, swapped:false}; audio.sfx('door'); }
+function updateWipe(dt){ const W=game.wipe; if(!W) return;
+  W.t+=dt;
+  if(!W.swapped && W.t>=WIPE_OUT){ W.swapped=true; if(W.cb){ W.cb(); W.cb=null; } }   // swap at the darkest moment
+  if(W.t>=WIPE_OUT+WIPE_IN) game.wipe=null;
+}
+function drawWipe(){ const W=game.wipe; if(!W) return;
+  const close = W.t<WIPE_OUT ? W.t/WIPE_OUT : 1-(W.t-WIPE_OUT)/WIPE_IN;   // 0 open .. 1 shut
+  const maxR=Math.hypot(VW,VH)+8, r=maxR*(1-clamp(close,0,1));
+  let cx=VW/2, cy=VH/2;
+  if(game.player){ cx=clamp(game.player.px-game.cam.x+8,0,VW); cy=clamp(game.player.py-game.cam.y+4,0,VH); }
+  g.fillStyle='#0a0a12'; g.beginPath(); g.rect(0,0,VW,VH); g.arc(cx,cy,Math.max(0,r),0,Math.PI*2); g.fill('evenodd');
+  if(r>1 && r<maxR-2){ g.strokeStyle='rgba(255,226,140,.28)'; g.lineWidth=1.5; g.beginPath(); g.arc(cx,cy,r,0,Math.PI*2); g.stroke(); }   // warm rim on the iris
 }
 
 /* =========================================================================
@@ -2467,14 +2483,22 @@ function drawWorld(){
     rrect(lx-bw2/2, ly-1, bw2, bh2, 3, 'rgba(252,250,240,.88)');
     textShadow(L.t, lx, ly-1+bh2/2, L.c||'#2a2a3a', 'rgba(255,255,255,.6)', 8); } g.textAlign='left'; g.textBaseline='top'; }
 }
+function objGlow(bw,bh){   // a pulsing golden glow the moment the goal changes, so a new objective can't be missed
+  const fl=game.objFlash>0 ? clamp(game.objFlash/70,0,1) : 0; if(fl<=0) return;
+  g.save(); g.globalAlpha=fl; g.shadowColor='rgba(246,214,46,.95)'; g.shadowBlur=5+7*(0.5+0.5*Math.sin(anim/4));
+  g.strokeStyle='#fff0a0'; g.lineWidth=1.5; g.strokeRect(4.5,4.5,bw-1,bh-1); g.restore();
+}
 function drawObjectiveHUD(){
   if(!game.objective || dlg.active || (typeof estActive==='function' && estActive())){ game.objRect=null; return; }
+  if(game.objective!==game._objLast){ game._objLast=game.objective; game.objFlash=95; }   // detect a new goal -> trigger the flash
+  if(game.objFlash>0) game.objFlash--;
   if(settings.objMin){          // collapsed: a small tab (click it / press H to expand)
     const bw=22, bh=14; game.objRect={x:4,y:4,w:bw,h:bh};
     rrect(4,4,bw,bh,3,'rgba(20,18,30,.85)');
     g.strokeStyle='#f6d62e'; g.lineWidth=1; g.strokeRect(4.5,4.5,bw-1,bh-1);
     g.fillStyle='#f6d62e';      // little checklist icon
     for(let i=0;i<3;i++){ g.fillRect(8,7.5+i*3,2,1.4); g.fillRect(11,7.5+i*3,7,1.4); }
+    objGlow(bw,bh);
     return;
   }
   const txt=game.objective; const lines=wrap(txt,VW-46,8);
@@ -2487,6 +2511,7 @@ function drawObjectiveHUD(){
   for(let i=0;i<lines.length;i++) text((i?'  ':'▸ ')+lines[i], 9, 9+i*11, '#f6d62e', 8);
   g.textBaseline='alphabetic';
   g.fillStyle='#f6d62e'; g.fillRect(4+bw-12, 8, 7, 1.6);   // "–" minimize affordance (top-right)
+  objGlow(bw,bh);
   game.objRect={x:4,y:4,w:bw,h:bh};                        // whole bar is clickable to collapse
 }
 
@@ -5132,23 +5157,41 @@ const PAUSE_ITEMS=6;
 function pauseBtns(){ return ['Resume','Save Game','Text Speed: '+TEXT_SPEED_LABEL[settings.textSpeed],
   'Screen Shake: '+(settings.shake?'On':'Off'), 'Volume: '+VOL_LABEL[settings.volume],'Title']; }
 function pauseDraw(){
-  drawWorld(); drawObjectiveHUD();
-  g.fillStyle='rgba(10,8,16,.8)'; g.fillRect(0,0,VW,VH);
-  const bw=196, bh=152, bx=(VW-bw)/2, by=(VH-bh)/2;
+  drawWorld();
+  g.fillStyle='rgba(10,8,16,.82)'; g.fillRect(0,0,VW,VH);
+  const bw=232, bh=162, bx=(VW-bw)/2, by=(VH-bh)/2;
   uiBox(bx,by,bw,bh);
-  g.textAlign='center'; textShadow('PAUSED',VW/2,by+13,'#283048','#aac',11); g.textAlign='left';
-  const btns=pauseBtns();
-  const by0=by+34, bh0=16, gap=3;
-  for(let i=0;i<btns.length;i++){
-    const byi=by0+i*(bh0+gap);
-    if(i===pause.sel){ poly([[bx+8,byi+1],[bx+8,byi+9],[bx+13,byi+5]],'#e23b3b');
-      rrect(bx+16,byi-4,bw-24,15,3,'rgba(74,115,192,.14)'); }
-    const adj=(i===2||i===3||i===4);
-    text((i===pause.sel&&adj?'◂ ':'')+btns[i], bx+20, byi+6, i===pause.sel?'#16203a':'#445', 8);
+  g.textAlign='center'; textShadow('PAUSED',VW/2,by+12,'#283048','#aac',11); g.textAlign='left';
+  const midX=bx+114;
+  g.strokeStyle='rgba(90,100,130,.4)'; g.lineWidth=1; g.beginPath(); g.moveTo(midX,by+22); g.lineTo(midX,by+bh-10); g.stroke();
+  g.textBaseline='top';
+  // ---- LEFT: rescue progress + current goal ----
+  const lx=bx+12;
+  text('RESCUE PROGRESS', lx, by+24, '#6a7290', 7);
+  const roster=[{sp:'jolteon',name:'Jolteon',got:!!F.jolteonRescued},{sp:'flareon',name:'Flareon',got:!!F.flareonRescued},{sp:'sylveon',name:'Sylveon',got:!!F.gardenCleared}];
+  for(let i=0;i<3;i++){ const R=roster[i], cx=lx+16+i*31, cy=by+48;
+    rrect(cx-13,cy-13,26,26,5, R.got?'rgba(80,120,170,.26)':'rgba(28,32,46,.5)');
+    g.strokeStyle=R.got?'#7fd0ff':'#3a4152'; g.lineWidth=1; g.strokeRect(cx-12.5,cy-12.5,25,25);
+    if(R.got){ drawMon(R.sp, cx, cy, 8); }
+    else { circle(cx,cy,7,'#2a2f40'); g.textAlign='center'; g.textBaseline='middle'; textShadow('?',cx,cy,'#6a7290','#000',10); g.textAlign='left'; g.textBaseline='top'; }
+    g.textAlign='center'; text(R.got?R.name:'???', cx, cy+16, R.got?'#cdd6e6':'#5a6076', 6); g.textAlign='left';
   }
+  if(F.gameWon){ g.textAlign='center'; textShadow('★ EVOLVED: UMBREON', lx+47, by+72, '#d0b0ff','#2a1840', 6); g.textAlign='left'; }
+  text('CURRENT GOAL', lx, by+84, '#6a7290', 7);
+  const gl=wrap(game.objective||'-', 94, 7);
+  for(let i=0;i<gl.length && i<6;i++) text(gl[i], lx, by+96+i*10, '#c7cbd8', 7);
+  // ---- RIGHT: options ----
+  const ox0=midX+12; text('OPTIONS', ox0, by+24, '#6a7290', 7);
+  const btns=pauseBtns(), by0=by+38, step=15.5;
+  for(let i=0;i<btns.length;i++){ const byi=by0+i*step;
+    if(i===pause.sel){ rrect(ox0-5, byi-3, bx+bw-8-(ox0-5), 15, 3, 'rgba(74,115,192,.18)'); poly([[ox0-1,byi+1],[ox0-1,byi+8],[ox0+4,byi+4.5]],'#e23b3b'); }
+    const adj=(i===2||i===3||i===4);
+    text((i===pause.sel&&adj?'◂ ':'')+btns[i], ox0+8, byi+1, i===pause.sel?'#16203a':'#5a6076', 8);
+  }
+  g.textBaseline='alphabetic';
   if(pause.msg && pause.msgT>0){ pause.msgT--; const alph=Math.min(1,pause.msgT/60); g.globalAlpha=alph;
-    rrect(bx+8,by+bh-20,bw-16,15,4,'rgba(32,48,72,.96)');
-    g.globalAlpha=alph; g.textAlign='center'; text(pause.msg,VW/2,by+bh-10,'#fff',8); g.textAlign='left'; g.globalAlpha=1;
+    rrect(bx+8,by+bh-15,bw-16,12,3,'rgba(32,48,72,.97)');
+    g.textAlign='center'; g.textBaseline='middle'; text(pause.msg,VW/2,by+bh-9,'#fff',7); g.textAlign='left'; g.textBaseline='alphabetic'; g.globalAlpha=1;
   }
 }
 function pauseUpdate(){
@@ -5226,6 +5269,8 @@ function update(dt){
 
   if(boot.active){ bootUpdate(dt); if(boot.fade<=0){ clearPressed(); } }  // swallow input until the splash starts fading
 
+  if(game.wipe){ updateWipe(dt); if(game.player&&(game.state==='play'||game.state==='cutscene')) updateCamera(); return; }   // freeze gameplay during an area transition
+
   if(game.paused){ pauseUpdate(); return; }
 
   // cinematic establishing shot holds gameplay/cutscene briefly (skippable with SPACE)
@@ -5289,6 +5334,7 @@ function render(){
   if(game.flash>0){ g.globalAlpha=game.flash*0.8; g.fillStyle=game.flashCol; g.fillRect(0,0,VW,VH); g.globalAlpha=1; }
   // fade
   if(game.fade>0){ g.globalAlpha=game.fade; g.fillStyle='#000'; g.fillRect(0,0,VW,VH); g.globalAlpha=1; }
+  drawWipe();   // area-transition iris (on top of the fade)
   // mute indicator
   if(audio.muted){ text('[mute]',VW-32,VH-11,'#888',8); }
   // autosave toast (top-right, fades)
