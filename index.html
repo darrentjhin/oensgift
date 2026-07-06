@@ -2377,10 +2377,14 @@ function drawFestivalLights(ox,oy){
 function drawWorld(){
   const m=game.map; if(!m) return;
   // town time-of-day: a slow day -> dusk -> night -> dawn cycle (~4 min) so the festival lights & windows get to glow
-  if(m.theme==='town'){ const p=(anim/14400)%1;
-    let nk = p<0.46?0 : p<0.63?(p-0.46)/0.17 : p<0.85?1 : 1-(p-0.85)/0.15;
-    nightK = nk*nk*(3-2*nk); }                                  // smoothstep
-  else nightK=0;
+  let townFinale=false;
+  if(m.theme==='town'){
+    townFinale = !!(F && F.gardenCleared && !F.gameWon);         // the night-time finale: hunting the sealed ??? door
+    if(townFinale){ nightK=1; }                                  // finale is locked to full night (city lights ablaze, dread in the air)
+    else { const p=(anim/14400)%1;
+      let nk = p<0.46?0 : p<0.63?(p-0.46)/0.17 : p<0.85?1 : 1-(p-0.85)/0.15;
+      nightK = nk*nk*(3-2*nk); }                                 // otherwise a slow day/dusk/night/dawn cycle (smoothstep)
+  } else nightK=0;
   rect(0,0,VW,VH,'#0c0e18');   // frame colour behind any margins
   let ox=-Math.round(game.cam.x), oy=-Math.round(game.cam.y);
   if(game.shake>0 && settings.shake){ ox += (Math.random()*2-1)*2|0; oy += (Math.random()*2-1)*2|0; }
@@ -2426,6 +2430,15 @@ function drawWorld(){
       g.fillStyle=nz; g.fillRect(0,0,VW,VH);
       const dusk=Math.sin(clamp(nightK,0,1)*Math.PI);   // strongest mid-transition
       if(dusk>0.02){ const hz=g.createLinearGradient(0,VH*0.55,0,VH); hz.addColorStop(0,'rgba(255,138,74,0)'); hz.addColorStop(1,'rgba(255,120,80,'+(0.10*dusk).toFixed(3)+')'); g.fillStyle=hz; g.fillRect(0,VH*0.55,VW,VH*0.45); }
+    }
+    if(townFinale){   // the ??? finale: an oppressive closing vignette + red menace + drifting fog, but the city lights stay vivid pools in the gloom
+      const dread=0.5+0.5*Math.sin(anim/80);
+      g.globalAlpha=0.12+0.04*dread; g.fillStyle='#080a18'; g.fillRect(0,0,VW,VH); g.globalAlpha=1;   // a gentle press of extra dark
+      g.globalAlpha=0.07; g.fillStyle='#123040'; g.fillRect(0,0,VW,VH); g.globalAlpha=1;              // cold cast
+      const cv=g.createRadialGradient(VW/2,VH*0.5,VH*0.18,VW/2,VH*0.5,VH*0.92);                        // heavy closing vignette w/ a red menace crushing the edges
+      cv.addColorStop(0,'rgba(0,0,0,0)'); cv.addColorStop(0.6,'rgba(6,4,14,.34)'); cv.addColorStop(1,'rgba(30,2,8,'+(0.56+0.12*dread).toFixed(3)+')');
+      g.fillStyle=cv; g.fillRect(0,0,VW,VH);
+      g.globalAlpha=0.09; for(let i=0;i<3;i++){ const fx=((anim*0.12+i*95)%(VW+140))-70; ellipse(fx, VH*0.72+i*13, 80, 18, '#9aa4be'); } g.globalAlpha=1;   // low drifting fog
     }
   }
   // soft vignette for depth so the flat tile field reads as a lit space, not a grid
