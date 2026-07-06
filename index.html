@@ -1579,7 +1579,15 @@ function townTile(ch,sx,sy,alt,tx,ty){
     const gl=g.createRadialGradient(sx+8,sy+3,1,sx+8,sy+3,lr); gl.addColorStop(0,'rgba(255,226,128,'+lg.toFixed(3)+')'); gl.addColorStop(1,'rgba(255,226,128,0)');
     g.fillStyle=gl; g.beginPath(); g.arc(sx+8,sy+3,lr,0,7); g.fill();
     rect(sx+7,sy+4,2,11,'#384049'); ellipse(sx+8,sy+15,3.5,1.4,C.shadow);
-    ellipse(sx+8,sy+3.5,3.4,3,'rgba(255,236,150,'+(0.5*flick).toFixed(2)+')'); rrect(sx+5.5,sy+1.5,5,4,1.5, flick>0.4?'#ffe45c':'#7c6e34'); rect(sx+6.5,sy+1,3,1,'#3a3f4a'); return; }
+    ellipse(sx+8,sy+3.5,3.4,3,'rgba(255,236,150,'+(0.5*flick).toFixed(2)+')'); rrect(sx+5.5,sy+1.5,5,4,1.5, flick>0.4?'#ffe45c':'#7c6e34'); rect(sx+6.5,sy+1,3,1,'#3a3f4a');
+    if(nightK>0.3 && flick>0.35){   // moths flutter in the lamp's glow after dark (and scatter when it stutters)
+      const mk=(nightK-0.3)/0.7;
+      for(let mI=0;mI<2;mI++){ const a=anim/7+mI*3.1+(tx*5+ty*3), rx=5+Math.sin(anim/13+mI)*2, ry=3+Math.cos(anim/11+mI)*1.6;
+        const mx=sx+8+Math.cos(a)*rx, my=sy+3+Math.sin(a*1.3)*ry; const wf=0.6+0.4*Math.sin(anim/2+mI);
+        g.globalAlpha=0.75*mk; ellipse(mx-0.7,my,1*wf,0.7,'#e6ddc4'); ellipse(mx+0.7,my,1*wf,0.7,'#e6ddc4'); circle(mx,my,0.5,'#8a7f66'); }
+      g.globalAlpha=1;
+    }
+    return; }
   // ---- residential building ----
   if(ch==='B'){ // building wall - material varies per building; windows on alternating tiles
     const S=HOUSE_STYLES[bStyle%HOUSE_STYLES.length];
@@ -1608,7 +1616,15 @@ function townTile(ch,sx,sy,alt,tx,ty){
       else { rect(sx+5,sy+5,6,7,'rgba(0,0,0,.12)'); rect(sx+5,sy+5,6,1,'rgba(255,255,255,.22)'); }                        // recessed panel (neutral, reads on any wall)
     }
     return; }
-  if(ch==='R'){ drawRoof(sx,sy,HOUSE_STYLES[bStyle%HOUSE_STYLES.length],false); return; }   // roof ridge (top course)
+  if(ch==='R'){ drawRoof(sx,sy,HOUSE_STYLES[bStyle%HOUSE_STYLES.length],false);   // roof ridge (top course)
+    if((tx*5+ty*7)%7===0){   // a chimney on some rooftops, curling smoke that warms at dusk
+      rect(sx+3,sy-4,3.6,6,'#6a5240'); rect(sx+3,sy-4,3.6,1.5,'#84684e'); rect(sx+2.6,sy-4.8,4.4,1.1,'#3a2c20');   // brick chimney + cap
+      const warm=nightK>0.3, smoke=warm?'#cab692':'#c6cad2';
+      for(let p=0;p<4;p++){ const life=((anim*0.55 + p*22 + tx*13)%88)/88, puffY=sy-5-life*20, puffX=sx+4.8+Math.sin(life*6+tx)*3.4, r=1.1+life*3.4;
+        g.globalAlpha=(1-life)*0.26*(warm?1.1:0.9); g.fillStyle=smoke; g.beginPath(); g.arc(puffX,puffY,r,0,7); g.fill(); }
+      g.globalAlpha=1;
+    }
+    return; }
   if(ch==='E'){ drawRoof(sx,sy,HOUSE_STYLES[bStyle%HOUSE_STYLES.length],true);  return; }   // roof eave (lower course)
   if(ch==='D'){ // building entrance with a step, framed in the building's own wall + trim
     const S=HOUSE_STYLES[bStyle%HOUSE_STYLES.length];
@@ -2350,6 +2366,9 @@ function drawAmbient(theme){
     if(bp<300){ const prog=bp/300, baseX=VW*prog-10; g.strokeStyle='rgba(44,48,64,.5)'; g.lineWidth=1;
       for(let b=0;b<3;b++){ const bx=baseX-b*9, by=22+b*6+Math.sin(prog*6.28+b)*4, fl=Math.sin(t/4+b)*2.2;
         g.beginPath(); g.moveTo(bx-3,by+fl); g.lineTo(bx,by); g.lineTo(bx+3,by+fl); g.stroke(); } }
+    if(nightK>0.25){ const fk=(nightK-0.25)/0.75;      // fireflies emerge after dusk - warm, sparse, drifting
+      for(let i=0;i<14;i++){ const px=((i*67+Math.sin((t+i*44)/50)*30)%VW+VW)%VW, py=((i*83+Math.sin((t+i*33)/40)*22)%VH+VH)%VH, gl=(Math.sin((t+i*26)/16)+1)/2;
+        g.globalAlpha=(0.10+gl*0.28)*fk; circle(px,py,1.5+gl,'#ffe27a'); g.globalAlpha=(0.4+gl*0.5)*fk; circle(px,py,0.7+gl*0.5,'#fff6c8'); } g.globalAlpha=1; }
   } else if(theme==='lab'){       // slow dust motes
     for(let i=0;i<10;i++){ const px=((i*79+Math.sin((t+i*40)/80)*14)%VW+VW)%VW, py=((i*57+Math.sin((t+i*28)/65)*10)%VH+VH)%VH;
       g.globalAlpha=0.06+0.06*((Math.sin((t+i*22)/30)+1)/2); circle(px,py,1,'#ffffff'); } g.globalAlpha=1;
@@ -2561,6 +2580,7 @@ function setupTown(){
       {type:'say',name:'Town Map',text:'PALLET TOWN.  NW: Prof. Oak\'s Lab.  NE: Old Power Station.  SW: Ember Warehouse.  SE: Moonlit Garden.  The building names float above their roofs - follow the labels.'},
     ],()=>game.state='play'); }}));
   spawnFountain();   // big multi-tile plaza fountain (drawn as an entity so it isn't clipped to one tile)
+  spawnClockTower(); // downtown clock-tower landmark (caps the central axis)
   const finaleNight = F.gardenCleared && !F.gameWon;   // the ??? act: night has fallen, everyone's shut indoors
   if(!finaleNight){
     // ---- everyday townsfolk: a little life around the plaza (placed clear of warps, crystals & the quest kid) ----
@@ -2692,6 +2712,16 @@ function spawnFountain(){
       for(let k=0;k<2;k++){ const r=((anim/19)+k*3)%6; g.globalAlpha=clamp(1-r/6,0,1)*0.45; g.strokeStyle='#e6f6ff'; g.lineWidth=0.7;
         g.beginPath(); g.ellipse(cx,cy+3,2+r*1.6,1+r*0.7,0,0,7); g.stroke(); } g.globalAlpha=1;
       g.globalAlpha=0.55; g.strokeStyle='#dfe3ea'; g.lineWidth=1; g.beginPath(); g.ellipse(cx,cy+5.4,15.4,7.3,0,0.18,Math.PI-0.18); g.stroke(); g.globalAlpha=1;   // front-rim catch-light
+      // ---- reflections on the pool surface ----
+      if(nightK>0.25){   // night: a soft glow + the festival lights shimmer on the water
+        const rk=(nightK-0.25)/0.75;
+        g.globalAlpha=0.3*rk; const wg=g.createRadialGradient(cx,cy+3,1,cx,cy+3,13); wg.addColorStop(0,'#6fd0ff'); wg.addColorStop(1,'rgba(111,208,255,0)'); g.fillStyle=wg; g.beginPath(); g.arc(cx,cy+3,13,0,7); g.fill(); g.globalAlpha=1;
+        const rc=['#ffd86a','#ff8f6a','#7fd0ff','#b6ff8a','#ff6ea6'];
+        for(let i=0;i<6;i++){ const bx=cx-8+i*3.2+Math.sin(anim/20+i)*0.8, by=cy+2.4+Math.sin(anim/9+i*1.7)*0.7, gl2=(Math.sin(anim/12+i*1.3)+1)/2;
+          g.globalAlpha=(0.3+gl2*0.4)*rk; ellipse(bx,by,1.2,0.55,rc[i%rc.length]); } g.globalAlpha=1;
+      } else {           // day: a pale sky reflection catching the pool
+        g.globalAlpha=0.32; ellipse(cx-2,cy+1.8,6.5,2.2,'#dff0ff'); g.globalAlpha=0.18; ellipse(cx+3.5,cy+3.2,4,1.4,'#eaf7ff'); g.globalAlpha=1;
+      }
       // ---- central pedestal + upper bowl ----
       rect(cx-3,cy-6,6,9,'#aab0ba'); rect(cx-3,cy-6,2,9,'#c8ccd4'); rect(cx+1.6,cy-6,1.2,9,'#888d97');               // pedestal w/ lit + shaded edges
       ellipse(cx,cy-6,5,2,'#b2b6c0'); ellipse(cx,cy-6.2,4,1.5,'#c8ccd4'); ellipse(cx,cy-6.6,3.2,1.1,'#5aa6d8');       // upper bowl + its little pool
@@ -2706,6 +2736,34 @@ function spawnFountain(){
       for(let s=-1;s<=1;s+=2){ const sr=((anim/17)+(s>0?2:0))%4; g.globalAlpha=clamp(1-sr/4,0,1)*0.32; g.strokeStyle='#eaf8ff'; g.lineWidth=0.6;   // splash rings where the spray lands
         g.beginPath(); g.ellipse(cx+s*9,cy+3.6,1+sr,0.5+sr*0.4,0,0,7); g.stroke(); } g.globalAlpha=1;
       circle(cx,cy-7-jh,1.2,'#f4fbff'); }}));
+}
+/* ---- the town's hero landmark: a stone clock tower capping the downtown axis, clock aglow at night ---- */
+function spawnClockTower(){
+  for(const [tx,ty] of [[22,8],[23,8]]) placeEntity(newEntity({id:'ct'+tx,kind:'obj',tx,ty,dir:'down',solid:true,visible:false}));   // solid base
+  placeEntity(newEntity({id:'clocktower',kind:'obj',tx:22,ty:8,dir:'down',solid:true,visible:true,
+    draw:(ex,ey)=>{
+      const cx=ex+16, gy=ey+14, nk=nightK;
+      ellipse(cx,gy+3,16,5,C.shadow);
+      rrect(cx-13,gy-6,26,11,1.5,'#8a8478'); rect(cx-13,gy-6,26,1.6,'#a8a292'); rect(cx-13,gy+3,26,2,'#5e594e');   // plinth
+      const bx=cx-11, bw=22, bTop=gy-92, bH=(gy-6)-bTop;                                                          // body
+      rect(bx,bTop,bw,bH,'#bdb7a6'); rect(bx,bTop,3,bH,'#d0caba'); rect(bx+bw-3,bTop,3,bH,'#9a9484');
+      g.globalAlpha=0.35; for(let r=1;r<8;r++) rect(bx,bTop+r*11,bw,0.8,'#8f8979'); g.globalAlpha=1;               // stone courses
+      for(let wq=0;wq<3;wq++){ const wy=gy-30-wq*20, litw=nk>0.4;                                                 // lancet windows, lit at night
+        rrect(cx-3,wy,6,10,2,'#2e2a22'); g.globalAlpha=litw?clamp(0.7+nk,0,1):0.8; rect(cx-2,wy+1,4,8, litw?'#ffcf72':'#8fb0c8'); g.globalAlpha=1;
+        if(litw){ g.globalAlpha=0.4*nk; const wg=g.createRadialGradient(cx,wy+5,1,cx,wy+5,7); wg.addColorStop(0,'#ffcf72'); wg.addColorStop(1,'rgba(255,207,114,0)'); g.fillStyle=wg; g.beginPath(); g.arc(cx,wy+5,7,0,7); g.fill(); g.globalAlpha=1; } }
+      rect(cx-13,gy-74,26,5,'#a8a292'); rect(cx-13,gy-74,26,1.4,'#c4beae');                                       // cornice
+      rrect(cx-8,gy-68,7,11,3,'#241f18'); rrect(cx+1,gy-68,7,11,3,'#241f18');                                     // belfry arches
+      g.fillStyle='#7a5a2a'; g.beginPath(); g.moveTo(cx-6.5,gy-64); g.lineTo(cx-2.5,gy-64); g.lineTo(cx-3,gy-59); g.lineTo(cx-6,gy-59); g.closePath(); g.fill(); circle(cx-4.5,gy-58.5,0.7,'#5a3f1c');   // a bell in the arch
+      const cly=gy-88;                                                                                            // ---- clock face ----
+      if(nk>0.3){ g.globalAlpha=0.5*nk; const cg=g.createRadialGradient(cx,cly,2,cx,cly,15); cg.addColorStop(0,'#fff0b0'); cg.addColorStop(1,'rgba(255,240,176,0)'); g.fillStyle=cg; g.beginPath(); g.arc(cx,cly,15,0,7); g.fill(); g.globalAlpha=1; }
+      circle(cx,cly,9,'#3a352c'); circle(cx,cly,8, nk>0.3?'#f7efd6':'#efe7cf');
+      for(let h=0;h<12;h++){ const a=h*Math.PI/6; rect(cx+Math.cos(a)*6.6-0.4, cly+Math.sin(a)*6.6-0.4, 0.9,0.9,'#5a5442'); }
+      const hh=-Math.PI/2+(8/12)*6.2832, mm=-Math.PI/2+(15/60)*6.2832;                                            // hands fixed near 8:15
+      g.strokeStyle='#2e2a22'; g.lineWidth=1.4; g.beginPath(); g.moveTo(cx,cly); g.lineTo(cx+Math.cos(hh)*3.6,cly+Math.sin(hh)*3.6); g.stroke();
+      g.lineWidth=1; g.beginPath(); g.moveTo(cx,cly); g.lineTo(cx+Math.cos(mm)*5.6,cly+Math.sin(mm)*5.6); g.stroke(); circle(cx,cly,1,'#2e2a22');
+      poly([[cx-13,gy-92],[cx+13,gy-92],[cx,gy-112]],'#3a8f6e'); poly([[cx-13,gy-92],[cx,gy-112],[cx-4,gy-92]],'#46997a'); rect(cx-13,gy-93,26,2,'#2a6a50');   // copper roof
+      rect(cx-0.8,gy-120,1.6,8,'#6a6252'); circle(cx,gy-120,1.6,'#f6d62e'); if(nk>0.3){ g.globalAlpha=0.6*nk; circle(cx,gy-120,3.2,'#ffe680'); g.globalAlpha=1; }   // spire + finial beacon
+    }}));
 }
 /* ---- little ground birds: peck, hop a tile or two, and startle away when you get close ---- */
 const BIRD_KINDS=[{c:'#9a6a3e',l:'#b6824c',d:'#74502c'},{c:'#8a8d96',l:'#a8abb4',d:'#6c6f78'},{c:'#5d6a7a',l:'#7a8696',d:'#47525f'}];
