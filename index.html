@@ -524,7 +524,18 @@ const audio = {
     else if(kind==='mSwift'){ const n=[784,988,1175,1568]; n.forEach((f,i)=>this.note(f,0.10,'sine',0.3,0.10+i*0.12,M)); this.note(2349,0.12,'sine',0.25,0.55,M); }
     else if(kind==='mFire'){ this.sweep(300,80,0.4,'sawtooth',0.35,0.1); this.noise(0.35,0.4,0.12,1600); }
     else if(kind==='mZap'){ for(let i=0;i<5;i++) this.note(1600+Math.random()*900,0.03,'square',0.25,0.12+i*0.04,M); this.noise(0.18,0.3,0.12,4000); }
-  }
+    // ---- overworld foley & ambience ----
+    else if(kind==='footstep'){ const p=0.88+Math.random()*0.28; this.note(150*p,0.045,'sine',0.09,0,M); this.noise(0.045,0.07,0,520*p); }
+    else if(kind==='bump'){ this.note(104,0.09,'sine',0.32,0,M); this.noise(0.06,0.16,0,380); }
+    else if(kind==='thunder'){ this.noise(0.9,0.42,0,300); this.sweep(120,38,1.2,'sine',0.4); this.note(50,1.1,'triangle',0.30,0.12,M); this.noise(0.5,0.2,0.5,900); }
+    else if(kind==='chirp'){ const b=1650+Math.random()*550; this.note(b,0.05,'sine',0.10,0,M); this.note(b*1.28,0.04,'sine',0.08,0.06,M); this.note(b*1.12,0.05,'sine',0.07,0.11,M); }
+    else if(kind==='wind'){ this.noise(1.6,0.10,0,560); }
+    else if(kind==='hum'){ this.note(120,0.55,'sawtooth',0.08,0,M); this.note(240,0.55,'sine',0.045,0,M); }
+    else if(kind==='drip'){ this.sweep(950,300,0.14,'sine',0.14); }
+    else if(kind==='groan'){ this.sweep(88,52,1.5,'sine',0.15); }
+  },
+  // gently duck the music bus while dialogue is on screen so speech reads clearly (called each frame)
+  duckTick(){ if(!this.ctx||!this.music) return; const target=(typeof dlg!=='undefined'&&dlg.active)?1:0; this._duck=(this._duck||0)+(target-(this._duck||0))*0.12; this.music.gain.value=0.5*(1-0.44*this._duck); },
 };
 
 /* =========================================================================
@@ -2218,9 +2229,10 @@ function tryStep(e, dir, ignoreEnt){
   e.dir=dir;
   const [dx,dy]=DIRV[dir];
   const ntx=e.tx+dx, nty=e.ty+dy;
-  if(!walkable(game.map,ntx,nty)){ if(e===game.player){ e.bumpT=110; e.bumpDir=dir; } return false; }   // bump feedback on walls
+  if(!walkable(game.map,ntx,nty)){ if(e===game.player){ e.bumpT=110; e.bumpDir=dir; if(game.state==='play') audio.sfx('bump'); } return false; }   // bump feedback on walls
   if(!ignoreEnt && entAt(ntx,nty)) return false;
   e.stepping=true; e.sp=0; e.fromx=e.px; e.fromy=e.py; e.tx=ntx; e.ty=nty;
+  if(e===game.player && game.state==='play') audio.sfx('footstep');   // a soft footstep per tile
   return true;
 }
 function updateEntity(e,dt){
@@ -2307,6 +2319,25 @@ function playUpdate(dt){
     if(dir){ tryStep(p,dir); }
     if(consume('ok')){ interact(); }
   }
+  ambientTick(dt);
+}
+// sparse environmental audio bed: an occasional theme-appropriate sound + thunder synced to the finale lightning
+function ambientTick(dt){
+  if(audio.muted || !audio.started) return;
+  const th=game.map&&game.map.theme;
+  // finale thunder: fire once per lightning cycle, matching drawWorld's flash timing
+  if(th==='town' && F.gardenCleared && !F.gameWon){
+    const lc=anim%940;
+    if(lc<7){ if(game._thunderArmed){ game._thunderArmed=false; audio.sfx('thunder'); } } else if(lc>20){ game._thunderArmed=true; }
+  }
+  game._ambT=(game._ambT==null?1800:game._ambT)-dt;
+  if(game._ambT>0) return;
+  game._ambT = 2600 + Math.random()*4200;                     // next ambient in ~2.6-6.8s
+  const night = (th==='town' && nightK>0.5);
+  if(th==='town'||th==='route'||th==='garden'){ audio.sfx(night||th==='garden'?'wind':'chirp'); }
+  else if(th==='warehouse'){ audio.sfx('drip'); }
+  else if(th==='station'){ audio.sfx('hum'); }
+  else if(th==='hideout'){ audio.sfx('groan'); }
 }
 function interact(){
   const p=game.player; const [dx,dy]=DIRV[p.dir];
@@ -5348,6 +5379,7 @@ function loop(now){
   let dt=now-last; last=now; if(dt>60) dt=60;
   animAcc += dt; while(animAcc>=16.667){ anim++; animAcc-=16.667; }   // fixed 60fps animation clock (so 120/144Hz screens don't run everything double-speed)
   if(game.shake>0) game.shake-=dt;
+  audio.duckTick();          // dip the music under on-screen dialogue
   update(dt);
   render();
   requestAnimationFrame(loop);
