@@ -438,6 +438,8 @@ const audio = {
     peak:     {tempo:104, lead:[466,0,415,466,0,392,349,415,440,0,370,349,311,0,349,0], bass:[110,110,104,104,98,98,93,93,116,116,110,110,87,87,82,82], arp:[233,311,370,311,247,330,392,330], drum:'k.skk.sk.skks.s.'},
     // CATCH - bouncy, playful tension theme for the Yamper catch minigame
     catchgo:  {tempo:128, lead:[659,784,659,880,784,659,587,659,523,659,784,659,587,523,587,659], bass:[131,131,165,165,196,196,165,165], arp:[523,659,784,659,587,698,587,523], drum:'k.h.s.h.k.h.s.hh'},
+    // ROYAL - triumphant C-major coronation fanfare: trumpet-call lead over a proud march
+    royal:    {tempo:140, lead:[523,523,659,0,784,784,1047,0, 880,784,659,784,1047,0,784,0], bass:[131,196,165,196,131,196,165,196], arp:[523,659,784,1047,784,659,523,659], drum:'k.h.s.h.k.h.s.hh'},
   },
   play(name){
     // already on this exact track and it's still playing? leave it running so the music
@@ -2123,6 +2125,41 @@ function drawTitleCard(){
   g.textAlign='left'; g.textBaseline='alphabetic'; g.globalAlpha=1;
 }
 function tw2(s,size){ setFont(size); return g.measureText(s).width; }
+/* ---- MEMORY FRAGMENTS: a quiet full-screen keepsake card the moment each Light comes home.
+   ★ EDIT HERE if you want your own words on these cards - change `lines` (2 short lines) and `foot`. ---- */
+const MEMORY_CARDS={
+  joy:    {mon:'jolteon', col:'#f6d62e', glow:'246,214,46',  title:'THE GOLD LIGHT OF JOY',
+           lines:['Jolteon is safe - and all over Pallet Town,','the lamps seem to burn a little brighter.'],
+           foot:'One light home. Two still lost in the dark.'},
+  courage:{mon:'flareon', col:'#f0904a', glow:'240,144,74',  title:'THE RED LIGHT OF COURAGE',
+           lines:['Flareon is safe - and every hearth in town','crackles warm again, chasing out the cold.'],
+           foot:'Two lights home. One still calls for help.'},
+  love:   {mon:'sylveon', col:'#f6a8c8', glow:'246,168,200', title:'THE PINK LIGHT OF LOVE',
+           lines:['Sylveon is safe - and the whole town feels it,','like a ribbon gently tied back into its bow.'],
+           foot:'All three lights are home. Well done, Oen.  ♥'},
+};
+function drawMemoryCard(){
+  const m=game.memCard; if(!m) return;
+  const a=clamp(m.t/700,0,1), e=a*a*(3-2*a);
+  g.globalAlpha=e*0.88; g.fillStyle='#0a0816'; g.fillRect(0,0,VW,VH); g.globalAlpha=1;
+  const gl=g.createRadialGradient(VW/2,72,6,VW/2,72,112);
+  gl.addColorStop(0,'rgba('+m.glow+','+(0.34*e).toFixed(3)+')'); gl.addColorStop(1,'rgba('+m.glow+',0)');
+  g.fillStyle=gl; g.fillRect(0,0,VW,VH);
+  for(let i=0;i<16;i++){ // slow orbiting sparkles around the light
+    const sx=VW/2+Math.sin(anim/46+i*2.4)*(26+i*5.5), sy=72+Math.cos(anim/38+i*1.7)*(16+i*3.2);
+    const tw3=(Math.sin((anim+i*29)/15)+1)/2; g.globalAlpha=e*tw3*0.85; rect(sx|0,sy|0,1.2,1.2,'#fff'); }
+  g.globalAlpha=e;
+  const bob=Math.sin(anim/22)*1.6;
+  drawMon(m.mon, VW/2, 68+bob, 20);
+  g.textAlign='center'; g.textBaseline='alphabetic';
+  textShadow(m.title, VW/2, 110, m.col, '#141020', 12);
+  g.globalAlpha=e*0.9; rect(VW/2-52,114.5,104,0.8,m.col); g.globalAlpha=e;   // thin rule under the title
+  text(m.lines[0], VW/2, 128, '#eceef8', 8);
+  text(m.lines[1], VW/2, 140, '#eceef8', 8);
+  text(m.foot, VW/2, 158, '#b8bccf', 8);
+  if(m.t>1500 && Math.floor(anim/32)%2) text('SPACE  ▸', VW/2, VH-10, '#8890a8', 7);
+  g.textAlign='left'; g.globalAlpha=1;
+}
 function drawHeart(x,y,s,a){
   g.globalAlpha=a; g.fillStyle=C.pink;
   circle(x-s*0.4,y,s*0.5,C.pink); circle(x+s*0.4,y,s*0.5,C.pink);
@@ -2251,6 +2288,12 @@ class Seq {
     switch(act.type){
       case 'say': this.busy=true; say(act.pages||{name:act.name,text:act.text}, ()=>this.resolve()); break;
       case 'wait': { this.busy=true; let t=act.ms; this.tick=(dt)=>{ t-=dt; if(t<=0) this.resolve(); }; break; }
+      case 'memory': { // full-screen keepsake card; holds until the player has read it (SPACE)
+        this.busy=true; const mc=MEMORY_CARDS[act.light]; if(!mc){ this.resolve(); break; }
+        game.memCard={...mc, t:0}; clearPressed(); audio.sfx('heal');
+        this.tick=(dt)=>{ const m=game.memCard; if(!m){ this.resolve(); return; } m.t+=dt;
+          if(m.t>1500 && consume('ok')){ audio.sfx('confirm'); game.memCard=null; this.resolve(); } };
+        break; }
       case 'flag': F[act.set]=true; break;
       case 'clearflag': delete F[act.name]; break;
       case 'objective': game.objective=act.text; break;
@@ -2474,7 +2517,7 @@ function drawAmbient(theme){
       g.globalAlpha=0.10+0.10*((Math.sin((t+i*40)/30)+1)/2); circle(px,py,1,'#d86a96'); } g.globalAlpha=1;
   } else if(theme==='town'){      // drifting leaves swaying down + the odd flock gliding over
     for(let i=0;i<11;i++){ const py=((t*0.05+i*39)%(VH+24))-12, px=((i*71+Math.sin((t+i*60)/48)*12)%VW+VW)%VW;
-      const a=0.18+0.12*((Math.sin((t+i*20)/26)+1)/2), col=i%3===0?'#e0a64a':(i%3===1?'#8fbf55':'#cf8a3a');
+      const a=0.18+0.12*((Math.sin((t+i*20)/26)+1)/2), col=i%4===0?'#f4b8d4':(i%4===1?'#8fbf55':(i%4===2?'#e0a64a':'#fbe3ee'));   // spring mix: pink petals among the leaves
       g.save(); g.translate(px,py); g.rotate((t+i*90)/28); g.globalAlpha=a;
       ellipse(0,0,2.3,1.05,col); g.strokeStyle=col; g.lineWidth=0.5; g.beginPath(); g.moveTo(-2.3,0); g.lineTo(2.3,0); g.stroke();
       g.restore(); }
@@ -2648,6 +2691,29 @@ function drawWorld(){
     const bw2=tw(L.t)+10, bh2=12;
     rrect(lx-bw2/2, ly-1, bw2, bh2, 3, 'rgba(252,250,240,.88)');
     textShadow(L.t, lx, ly-1+bh2/2, L.c||'#2a2a3a', 'rgba(255,255,255,.6)', 8); } g.textAlign='left'; g.textBaseline='top'; }
+  // "!" goal marker: floats over whichever town door/person the current objective points at,
+  // and becomes a screen-edge arrow when that spot is off-camera - so Oen is never lost
+  if(m.theme==='town' && game.state==='play' && !game.memCard && !F.coronation){
+    const gsp=townGoal();
+    if(gsp){
+      const gx=gsp.x*TS+8+ox, gy=gsp.y*TS+oy;
+      const bob=Math.abs(Math.sin(anim/11))*2.5, pulse=0.65+0.35*Math.sin(anim/13);
+      if(gx>=10&&gx<=VW-10&&gy>=38&&gy<=VH-6){                    // on-screen & clear of the objective HUD: bouncing "!" over the spot
+        const my=gy-16-bob;
+        g.globalAlpha=0.35*pulse; circle(gx,my,7,'#f6d62e'); g.globalAlpha=1;
+        g.textAlign='center'; g.textBaseline='middle';
+        textShadow('!', gx, my, '#f6d62e', '#3a2a06', 13);
+        g.textAlign='left'; g.textBaseline='alphabetic';
+      } else {                                                    // off-screen: a gold arrow on the edge, pointing the way
+        const cx2=clamp(gx,12,VW-12), cy2=clamp(gy,42,VH-24), ang=Math.atan2(gy-cy2,gx-cx2);
+        g.save(); g.translate(cx2,cy2); g.rotate(ang); g.globalAlpha=0.5+0.4*pulse;
+        poly([[7,0],[-3,-4.5],[-1,0],[-3,4.5]],'#f6d62e');
+        g.strokeStyle='#3a2a06'; g.lineWidth=0.8; g.beginPath();
+        g.moveTo(7,0); g.lineTo(-3,-4.5); g.lineTo(-1,0); g.lineTo(-3,4.5); g.closePath(); g.stroke();
+        g.restore(); g.globalAlpha=1;
+      }
+    }
+  }
   // arrival marker: a bobbing gold chevron over Oen for a moment after each map change
   if(game.arriveT>0 && game.player && game.state==='play'){
     const p=game.player, a=Math.min(1, game.arriveT/500);
@@ -2703,10 +2769,31 @@ function enterMap(name, tx, ty, dir){
   game.state='play';
   game.arriveT=2400;   // brief "you are here" chevron over Oen so she's easy to spot in a busy scene
   setupScene(name);
+  eeveeCompanionLine(name);   // partner Eevee greets each new area, so Oen never explores alone
   // silent autosave once the area has settled into normal play (never mid-story-cutscene)
   if(game.state==='play' && F && Object.keys(F).length){ saveSystem.save(); game.savedT=80; }
 }
 
+/* ---- partner Eevee's little companion lines: the first time Oen steps into each area,
+   Eevee reacts to it, so the map never feels lonely. Fires only in quiet moments
+   (never over an entry cutscene) and only once per area per save. ---- */
+const EEVEE_LINES={
+  town:     'Vee! (Eevee hops along at your heel, nose twitching at the festival air.)',
+  route1:   '(Eevee trots ahead with its tail up... then looks back to make sure you\'re coming.)',
+  station:  '(Eevee\'s fur stands on end with static. It can feel Jolteon somewhere close!)',
+  warehouse:'(Eevee sneezes at the ash... then plants its paws and puffs up its chest, trying to look brave.)',
+  garden:   '(Eevee\'s ears turn toward the moonlit chimes. It presses in close to your side.)',
+  hideout:  '(Eevee shivers in the dark... then quietly steps in front of you, ready to protect its trainer.)',
+  keeper:   '(Eevee sniffs the cosy hearth and gives a happy little wag.)',
+};
+function eeveeCompanionLine(name){
+  if(!F.gotEevee || F.coronation) return;                      // no partner yet / the ceremony owns the stage
+  if(game.state!=='play' || activeSeq || dlg.active) return;   // an entry cutscene is already talking
+  const line=EEVEE_LINES[name];
+  if(!line || F['eevSaid_'+name]) return;
+  F['eevSaid_'+name]=true;
+  runSeq([{type:'say',name:'Eevee',text:line}], ()=>{ game.state='play'; });
+}
 // Scene setup: spawn NPCs/objects per flags, and trigger cutscenes
 function setupScene(name){
   if(name==='lab'){ setupLab(); }
@@ -2764,6 +2851,22 @@ function setupTown(){
     spawnCrystal('cryst3','gotCrystal3', 34, 30, 2);   // south-east
     spawnCrystal('cryst4','gotCrystal4', 40, 22, 3);   // east residences
     spawnCrystal('cryst5','gotCrystal5', 18, 30, 4);   // south district
+    // a girl by the plaza turns the hunt into a riddle game - she hints at whichever crystal is still missing
+    placeEntity(newEntity({id:'crystgal',kind:'char',sub:'gal',tx:21,ty:16,dir:'down',solid:true,
+      talk:(e)=>{
+        const hints=[
+          ['gotCrystal1','One sleeps almost under your nose... look right beside the big fountain!'],
+          ['gotCrystal2','One rolled off to the WEST, where the plaza squeezes into the avenue.'],
+          ['gotCrystal3','One glitters far to the SOUTH-EAST, out by the garden district.'],
+          ['gotCrystal4','One is hiding among the little houses on the EAST side of town.'],
+          ['gotCrystal5','One fell in the SOUTH district - I saw it shining between the flowers!'],
+        ];
+        const missing=hints.filter(h=>!F[h[0]]);
+        const text = missing.length===0
+          ? 'You found all five?! You\'re AMAZING, Oen! Now run them to the warehouse altar!'
+          : 'I love riddles! Want a clue? '+missing[0][1]+(missing.length>1?'  ('+missing.length+' still out there!)':'  (That\'s the last one!)');
+        runSeq([{type:'say',name:'Girl',text}],()=>{ game.state='play'; });
+      }}));
   }
   if(!F.routeClear){
     // the Grunt only exists AFTER the kid tips you off (talk to the kid first)
@@ -2822,6 +2925,21 @@ function setupTown(){
   }
 }
 
+// where should the town's "!" goal marker sit right now? (mirrors the objective text)
+function townGoal(){
+  if(!F.introDone) return null;
+  if(!F.routeClear) return F.gotNote? {x:4,y:36} : {x:25,y:17};        // the hidden grunt (SW) / the plaza kid
+  if(!F.jolteonRescued){
+    if(F.gotBreaker) return {x:41,y:7};                                 // station door
+    if(F.yamperQuest && !F.yamperCaught) return null;                   // the Yamper itself is the (moving) target
+    if(F.needBreaker || F.yamperCaught) return {x:4,y:20};              // keeper's house door
+    return {x:41,y:7};
+  }
+  if(!F.flareonRescued) return (F.flareonQuest && crystalCount()<5)? null : {x:5,y:31};   // crystals glow on their own
+  if(!F.gardenCleared) return {x:41,y:31};                              // garden gate
+  if(!F.gameWon) return {x:3,y:2};                                      // the sealed ??? door
+  return {x:7,y:7};                                                     // home to Prof. Oak's lab
+}
 // ---- helper: a generic NPC ----
 function npc(id,sub,tx,ty,dir,lines){
   return placeEntity(newEntity({id,kind:'char',sub,tx,ty,dir,solid:true,
@@ -3146,6 +3264,7 @@ function setupCoronation(){
     {type:'say',name:'The King',text:'Kneel, young Oen. Every legend must begin somewhere - and every beginner deserves a legend\'s welcome.'},
     {type:'wait',ms:600},
     {type:'say',name:'The King',text:'By the Gold Light of Joy... the Red Light of Courage... and the Pink Light of Love... I hereby dub thee -'},
+    {type:'music',name:'royal'},   // the coronation fanfare blazes in right on the dub
     {type:'func',fn:()=>{ showTitleCard('OEN THE NOOBIE','Hero of the Three Lights',6400); spawnConfetti(80); audio.fanfare(); }},
     {type:'wait',ms:1400},
     {type:'say',name:'',text:'The whole town erupts in cheers!  "OEN!  OEN!  OEN THE NOOBIE!"'},
@@ -3454,6 +3573,7 @@ function setupStation(){
       {type:'flash',col:'#fff',ms:400},{type:'func',fn:()=>audio.fanfare()},
       {type:'despawn',id:'joltC'},
       {type:'flag',set:'jolteonRescued'},
+      {type:'memory',light:'joy'},
       {type:'say',name:'Evo Tracker',text:'Jolteon returned to the lab. Fire energy detected in town - head to the Ember Warehouse (south-west).'},
       {type:'say',name:'Prof. Oak',text:'Now make your way back outside, Oen. Leave through the door to the south.'},
       {type:'objective',text:'Leave the Power Station - walk out through the door (south).'},
@@ -3528,6 +3648,7 @@ function setupWarehouse(){
       {type:'flash',col:'#fff',ms:400},{type:'func',fn:()=>audio.fanfare()},
       {type:'despawn',id:'flaC'},
       {type:'flag',set:'flareonRescued'},
+      {type:'memory',light:'courage'},
       {type:'say',name:'Prof. Oak',text:'You\'ve saved Jolteon and Flareon. But Sylveon\'s signal is strange... almost like it\'s calling for help.'},
       {type:'say',name:'Evo Tracker',text:'Fairy energy detected back in town - search the Moonlit Garden (south-east).'},
       {type:'objective',text:'Leave the Ember Warehouse - walk out through the door (south).'},
@@ -3718,6 +3839,7 @@ function rookVictory(){
     {type:'say',name:'Oen',text:'You\'re safe now, Sylveon. Stay close to me - let\'s walk out of here together.'},
     {type:'flag',set:'sylveonRescued'},
     {type:'despawn',id:'sylH',hearts:true},
+    {type:'memory',light:'love'},
     {type:'func',fn:()=>{ F.gameWon=true; F.objText='Head home to Prof. Oak\'s lab (north-west of town).'; }},
     {type:'say',name:'',text:'With Sylveon safe in your arms, it\'s time to head home.'},
     {type:'objective',text:'Leave the Hideout (door, south), then return to Prof. Oak\'s lab (north-west of town).'},
@@ -4385,6 +4507,7 @@ function finishTransform(){
   battle.transformed=true; F.partner='umbreon';
   battle.phpShow=battle.player.hp;
   audio.sfx('heal'); spawnHearts(battle.PX,battle.PY-14,7);
+  showTitleCard('A LIGHT NO ONE HAS EVER SEEN','Eevee evolved into UMBREON!',5600);   // the discovery deserves a banner
   bMsg('Eevee evolved into UMBREON! Its bond with Oen burns brighter than ever!', ()=>setTimeoutBattle(500, showMenu), 0);
 }
 function enemyFaint(){
@@ -5357,8 +5480,39 @@ function creditsUpdate(dt){
   }
   if(credits.phase==='card1'){ if(credits.phaseT>=7500){ audio.sfx('confirm'); credits.phase='card2'; credits.phaseT=0; } return; }
   if(credits.phase==='card2'){ if(credits.phaseT>=4000){ audio.fanfare(); credits.phase='thanks'; credits.phaseT=0; } return; }
-  if(credits.phase==='thanks'){ if(consume('ok')&&credits.phaseT>700){ credits.active=false; markGameComplete(); resetToTitle(); } return; }
+  if(credits.phase==='thanks'){ if(consume('ok')&&credits.phaseT>700){ audio.sfx('confirm'); credits.phase='letter'; credits.phaseT=0; } return; }
+  if(credits.phase==='letter'){                      // the real goodbye: a slow handwritten letter, revealed line by line
+    const total=FINAL_LETTER.join('').length, reveal=credits.phaseT/26;
+    if(consume('ok')){
+      if(reveal<total){ credits.phaseT=total*26; }               // first press: finish the reveal
+      else if(credits.phaseT>total*26+900){                       // second press (after a beat): back to the title
+        credits.active=false; markGameComplete(); resetToTitle(); }
+    }
+    return;
+  }
 }
+/* ★★★ EDIT HERE - THE FINAL LETTER ★★★
+   This is the very last thing shown after the credits: a quiet letter to Oen.
+   Replace these lines with your own words - keep each line short so it fits the page. */
+const FINAL_LETTER=[
+  'Dear Oen,',
+  '',
+  'This little town is made of pixels,',
+  'but every word in it is true.',
+  '',
+  'You are our three lights in one:',
+  'brighter than Jolteon, braver than',
+  'Flareon, and more loved than Sylveon',
+  'could ever say with all her ribbons.',
+  '',
+  'Whenever the world feels dark,',
+  'remember tonight -',
+  'the lights always find their way home.',
+  '',
+  'And so will you.',
+  '',
+  'With love, always.  ♥',
+];
 function creditsDraw(){
   g.textAlign='center';
   // the same warm pink wash backs every phase, so blank -> scroll -> photo all flow together
@@ -5390,6 +5544,27 @@ function creditsDraw(){
       g.fillStyle=sc; g.fillRect(0,VH-22,VW,22);
       if(Math.floor(anim/52)%2) textShadow('press SPACE to continue', VW/2, VH-8, '#fff', '#2a1020', 8);
     }
+  } else if(credits.phase==='letter'){
+    // a quiet candle-lit page, revealed like it's being read aloud
+    const bg=g.createLinearGradient(0,0,0,VH); bg.addColorStop(0,'#191226'); bg.addColorStop(1,'#241a2e');
+    g.fillStyle=bg; g.fillRect(0,0,VW,VH);
+    const px2=28, pw2=VW-56, ph2=VH-18, py2=9;
+    rrect(px2+2,py2+3,pw2,ph2,4,'rgba(0,0,0,.4)');                 // page shadow
+    rrect(px2,py2,pw2,ph2,4,'#f4ecd8'); rrect(px2+2,py2+2,pw2-4,ph2-4,3,'#efe5cc');   // parchment
+    g.globalAlpha=0.25; for(let i=0;i<5;i++) rect(px2+6,py2+10+i*30,pw2-12,0.6,'#c8b890'); g.globalAlpha=1;   // faint paper texture rules
+    const glow=g.createRadialGradient(VW/2,VH*0.45,10,VW/2,VH*0.45,150);              // candle-light pool
+    glow.addColorStop(0,'rgba(255,214,140,.10)'); glow.addColorStop(1,'rgba(255,214,140,0)');
+    g.fillStyle=glow; g.fillRect(0,0,VW,VH);
+    let count=(credits.phaseT/26)|0, yy=py2+13;
+    g.textAlign='center';
+    for(const ln of FINAL_LETTER){
+      const show=ln.slice(0,Math.max(0,count)); count-=ln.length; if(count<0)count=0;
+      if(show) text(show, VW/2, yy, ln.indexOf('♥')>=0?'#b85a7a':'#4a3a2e', 8);
+      yy+= ln===''?5:10;
+    }
+    const total=FINAL_LETTER.join('').length;
+    if((credits.phaseT/26)>=total && Math.floor(anim/34)%2){ drawHeart(VW/2, yy+3, 4, 1); text('press SPACE', VW/2, VH-4, 'rgba(255,255,255,.5)', 7); }
+    g.textAlign='left';
   } else {
     // card-dispenser black screens
     g.fillStyle='#000'; g.fillRect(0,0,VW,VH);
@@ -5650,7 +5825,8 @@ function render(){
     case 'credits': creditsDraw(); break;
   }
   if(GRADED_STATES[game.state]) cinematicGrade();   // film grain + warm light over every in-world frame
-  if(game.state==='play'||game.state==='cutscene'){ drawConfetti(); drawTitleCard(); }   // coronation celebration overlays
+  if(game.state==='play'||game.state==='cutscene'){ drawConfetti(); drawTitleCard(); drawMemoryCard(); }   // celebration + keepsake overlays
+  else if(game.state==='battle') drawTitleCard();   // the Umbreon evolution card pops over the battle
   if(estActive() && (game.state==='play'||game.state==='cutscene')) estDraw();   // never overlay full-screen states (level-up, battle…) or its text doubles up
   if(game.paused) pauseDraw();
   // travel text overlay
