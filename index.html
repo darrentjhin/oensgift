@@ -398,7 +398,23 @@ const audio = {
     o.connect(gg); gg.connect(dest||this.music); o.start(t); o.stop(t+dur+0.03);
   },
   // detuned lead pair = fuller, "16-bit" tone
-  lead(freq,dur,vol,when){ if(!freq) return; this.note(freq,dur,'square',vol*0.7,when); this.note(freq*1.005,dur,'sawtooth',vol*0.25,when); },
+  // melody voice: low-passed square (rounds off the buzz) + soft triangle doubling for body,
+  // with a gentle late-onset vibrato on sustained notes - much closer to a sung line
+  lead(freq,dur,vol,when){ if(!freq) return; this.leadNote(freq,dur,vol*0.78,when); this.note(freq*0.5,dur,'triangle',vol*0.30,when); },
+  leadNote(freq,dur,vol,when){
+    if(!this.ctx||this.muted||!freq) return;
+    const t=this.ctx.currentTime+(when||0);
+    const o=this.ctx.createOscillator(), gg=this.ctx.createGain(), fl=this.ctx.createBiquadFilter();
+    o.type='square'; o.frequency.value=freq;
+    fl.type='lowpass'; fl.frequency.value=Math.min(freq*3.2,5200); fl.Q.value=0.7;
+    if(dur>0.18){ const l=this.ctx.createOscillator(), lg=this.ctx.createGain();     // vibrato fades in after the attack
+      l.frequency.value=5.6; lg.gain.setValueAtTime(0,t); lg.gain.linearRampToValueAtTime(freq*0.007,t+0.16);
+      l.connect(lg); lg.connect(o.frequency); l.start(t); l.stop(t+dur+0.03); }
+    gg.gain.setValueAtTime(0,t); gg.gain.linearRampToValueAtTime(vol,t+0.014);
+    gg.gain.setValueAtTime(vol,t+dur*0.55); gg.gain.exponentialRampToValueAtTime(0.0008,t+dur);
+    o.connect(fl); fl.connect(gg); gg.connect(this.music);
+    o.start(t); o.stop(t+dur+0.04);
+  },
   noise(dur,vol,when,hp){
     if(!this.ctx||this.muted||!this.noiseBuf) return;
     const t=this.ctx.currentTime+(when||0);
@@ -535,6 +551,16 @@ const audio = {
     else if(kind==='confirm'){ this.note(587,0.05,'square',0.35,0,M); this.note(880,0.07,'square',0.35,0.05,M); }
     else if(kind==='cancel'){ this.note(440,0.06,'square',0.3,0,M); this.note(294,0.08,'square',0.3,0.05,M); }
     else if(kind==='heal'){ this.note(659,0.08,'sine',0.35,0,M); this.note(880,0.08,'sine',0.35,0.07,M); this.note(1175,0.14,'sine',0.3,0.14,M); }
+    else if(kind==='bell'){ // celebration church-bell peals: fundamental + minor-third partial + hum, struck twice
+      for(const [f,w] of [[523,0],[659,0.65]]){
+        this.note(f,1.7,'sine',0.42,w,M); this.note(f*2.76,0.8,'sine',0.10,w,M);
+        this.note(f*1.5,1.3,'sine',0.15,w,M); this.note(f*0.5,2.0,'sine',0.20,w,M); } }
+    else if(kind==='crowd'){ // a crowd roar: low swell + two waves of high cheer-noise + scattered whistles
+      this.noise(1.5,0.30,0,700); this.noise(1.1,0.26,0.25,1800); this.noise(0.9,0.20,0.55,2600);
+      for(let i=0;i<4;i++) this.note(1180+Math.random()*720,0.09,'sine',0.10,0.2+i*0.22,M); }
+    else if(kind==='memoryChime'){ // the keepsake-card chime: three soft rising bell tones, letting each ring
+      this.note(784,0.9,'sine',0.28,0,M); this.note(988,0.9,'sine',0.26,0.22,M);
+      this.note(1175,1.4,'sine',0.24,0.44,M); this.note(1568,1.0,'sine',0.10,0.44,M); }
     else if(kind==='faint'){ this.sweep(420,70,0.5,'sawtooth',0.4); }
     else if(kind==='spark'){ this.note(1000,0.04,'square',0.25,0,M); this.note(1400,0.04,'square',0.25,0.04,M); }
     else if(kind==='door'){ this.note(330,0.1,'square',0.3,0,M); }
@@ -2317,7 +2343,7 @@ class Seq {
       case 'wait': { this.busy=true; let t=act.ms; this.tick=(dt)=>{ t-=dt; if(t<=0) this.resolve(); }; break; }
       case 'memory': { // full-screen keepsake card; holds until the player has read it (SPACE)
         this.busy=true; const mc=MEMORY_CARDS[act.light]; if(!mc){ this.resolve(); break; }
-        game.memCard={...mc, t:0}; clearPressed(); audio.sfx('heal');
+        game.memCard={...mc, t:0}; clearPressed(); audio.sfx('memoryChime');
         this.tick=(dt)=>{ const m=game.memCard; if(!m){ this.resolve(); return; } m.t+=dt;
           if(m.t>1500 && consume('ok')){ audio.sfx('confirm'); game.memCard=null; this.resolve(); } };
         break; }
@@ -3304,7 +3330,7 @@ function setupCoronation(){
   // Sylveon pads in at Oen's side
   const syl=mon('sylvC','sylveon',22,29,6);
   game.objective='';
-  const cheer=(big)=>{ for(const e of crowd) spawnHearts(e.px+8,e.py,big?3:1); spawnConfetti(big?60:24); };
+  const cheer=(big)=>{ for(const e of crowd) spawnHearts(e.px+8,e.py,big?3:1); spawnConfetti(big?60:24); audio.sfx('crowd'); };
   runSeq([
     {type:'music',name:'warm'},
     {type:'wait',ms:500},
@@ -3348,7 +3374,7 @@ function setupCoronation(){
     {type:'wait',ms:900},
     {type:'say',name:'The King',text:'By the Gold Light of Joy... the Red Light of Courage... and the Pink Light of Love... I hereby dub thee -'},
     {type:'music',name:'royal'},   // the coronation fanfare blazes in right on the dub
-    {type:'func',fn:()=>{ showTitleCard('OEN THE NOOBIE','Hero of the Three Lights',6400); spawnConfetti(80); audio.fanfare(); }},
+    {type:'func',fn:()=>{ showTitleCard('OEN THE NOOBIE','Hero of the Three Lights',6400); spawnConfetti(80); audio.sfx('bell'); }},   // bells peal OVER the march (fanfare would interrupt it)
     {type:'wait',ms:1400},
     {type:'say',name:'',text:'The whole town erupts in cheers!  "OEN!  OEN!  OEN THE NOOBIE!"'},
     {type:'func',fn:()=>cheer(true)},
