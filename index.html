@@ -190,6 +190,7 @@ function playStoryVideo(key, onDone, onMissing){
   const src = ASSETS.video && ASSETS.video[key];
   const fb = onMissing || onDone;
   if(!src){ if(fb) fb(); return; }                          // no file -> graceful fallback
+  story.resume=audio.track; audio.stopMusic();              // the film's own soundtrack owns the speakers; theme resumes after
   if(!story.el){ const v=document.createElement('video'); v.playsInline=true; v.setAttribute('playsinline',''); v.preload='auto'; story.el=v; }
   const v=story.el; story.key=key; story.onDone=onDone; story.onMissing=onMissing||onDone; story.t=0;
   v.onended=()=>finishStoryVideo(false);
@@ -202,6 +203,7 @@ function playStoryVideo(key, onDone, onMissing){
 function finishStoryVideo(missing){ if(game.state!=='video') return;
   const cb = missing? story.onMissing : story.onDone; story.onDone=null; story.onMissing=null;
   if(story.el){ try{ story.el.pause(); }catch(e){} story.el.onended=null; story.el.onerror=null; }
+  if(story.resume){ audio.play(story.resume); story.resume=null; }   // bring the scene's theme back (cb may replace it)
   if(cb) cb(); }
 function videoUpdate(dt){ story.t+=dt;
   if(story.t>700 && consume('ok')){ finishStoryVideo(false); return; }   // skippable
@@ -436,8 +438,14 @@ const audio = {
     hideout:  {tempo:208, minor:true, echo:true, lead:[330,0,0,311,0,294,0,0,247,0,262,0,220,0,0,0], harm:[0,0,0,262,0,0,247,0,0,208,0,0,175,0,0,0], bass:[82,0,0,0,87,0,0,0], arp:[220,0,262,0,165,0,196,0], drum:'k.......s.......'},
     // PEAK - fierce, nerve-wracking theme for the final act (after the 2v2): garden room + town
     peak:     {tempo:104, minor:true, lead:[466,0,415,466,0,392,349,415,440,0,370,349,311,0,349,0], harm:[233,0,208,233,0,196,175,208,220,0,185,175,156,0,175,0], bass:[110,110,104,104,98,98,93,93,116,116,110,110,87,87,82,82], arp:[233,311,370,311,247,330,392,330], drum:'K.skk.sk.skks.s.'},
-    // CATCH - bouncy, playful tension theme for the Yamper catch minigame (off-beat answer voice)
-    catchgo:  {tempo:128, lead:[659,784,659,880,784,659,587,659,523,659,784,659,587,523,587,659], harm:[0,523,0,659,0,523,0,523,0,440,0,523,0,440,0,523], bass:[131,131,165,165,196,196,165,165], arp:[523,659,784,659,587,698,587,523], drum:'k.h.s.h.k.h.s.hh'},
+    // CATCH - bouncy, playful chase for the Yamper minigame: A phrase teases, B phrase
+    // scrambles higher as the pup slips away, snare roll into the loop (32 steps)
+    catchgo:  {tempo:128,
+      lead:[659,784,659,880,784,659,587,659, 523,659,784,659,587,523,587,659, 784,880,784,988,880,784,659,784, 880,988,1047,988,880,784,659,587],
+      harm:[0,523,0,659,0,523,0,523, 0,440,0,523,0,440,0,523, 0,659,0,784,0,659,0,659, 0,784,0,880,659,587,523,494],
+      bass:[131,131,165,165,196,196,165,165, 175,175,196,196,220,220,196,196],
+      arp:[523,659,784,659,587,698,587,523],
+      drum:'k.h.s.h.k.h.s.hhk.h.s.h.k.s.r.h.'},
     // ROYAL - triumphant C-major coronation march: trumpet-call lead in harmony over
     // timpani and snare rolls, with an echoing hall ambience (32-step, two full phrases)
     royal:    {tempo:150, echo:true,
@@ -446,6 +454,13 @@ const audio = {
       bass:[131,196,165,196, 131,196,165,196, 175,220,262,220, 196,196,147,196],
       arp:[523,659,784,1047,784,659,523,392],
       drum:'K.h.s.h.k.h.s.h.K.h.s.h.k.s.r.s.'},
+    // LEGEND - the storybook prologue: slow, modal, drumless, each phrase echoing away
+    // like a tale told by firelight (32 steps so it breathes; two rising-falling phrases)
+    legend:   {tempo:300, echo:true, minor:true,
+      lead:[392,0,440,0,523,0,587,659, 587,0,523,0,440,0,392,0, 349,0,392,0,440,0,523,587, 523,0,440,0,392,0,0,0],
+      harm:[0,0,0,0,330,0,392,440, 392,0,330,0,294,0,262,0, 262,0,294,0,330,0,392,440, 392,0,330,0,294,0,0,0],
+      bass:[98,0,131,0,110,0,131,0, 87,0,110,0,98,0,98,0],
+      arp:[196,262,330,262,220,294,349,294]},
   },
   play(name){
     // already on this exact track and it's still playing? leave it running so the music
@@ -5479,6 +5494,7 @@ function introUpdate(dt){
   if(consume('ok')){
     if(game.introT/1.2 < page.length){ game.introT=page.length*1.2; }
     else { game.intro++; game.introT=0; audio.sfx('select');
+      if(game.intro===INTRO_PAGES.length-1) audio.play('hideout');   // the "someone watching" page turns the music cold
       if(game.intro>=INTRO_PAGES.length){ enterMap('lab'); }
     }
   }
@@ -5667,7 +5683,7 @@ function newGame(){ // wipe all progress and start fresh from the intro
   game.intro=0; game.introT=0;
   if(!audio.started) audio.start();
   // opening cinematic film, then the illustrated text intro (falls straight to text if no video)
-  const startText=()=>{ game.state='intro'; game.intro=0; game.introT=0; };
+  const startText=()=>{ game.state='intro'; game.intro=0; game.introT=0; audio.play('legend'); };   // the storybook underscore
   playStoryVideo('intro', startText, startText);
 }
 
