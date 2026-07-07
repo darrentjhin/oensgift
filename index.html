@@ -2762,7 +2762,7 @@ function drawObjectiveHUD(){
    ========================================================================= */
 function enterMap(name, tx, ty, dir){
   game.mapName=name; game.map=MAPS[name];
-  game.entities=[]; game.hearts=[]; game.particles=[];
+  game.entities=[]; game.hearts=[]; game.particles=[]; game.followerEnt=null;
   game.fade=0; game.flash=0; game.shake=0; game.travelText='';
   const sp = (tx!==undefined)? {x:tx,y:ty,dir:dir||'down'} : game.map.spawn;
   game.player = placeEntity(newEntity({id:'player',kind:'char',sub:'oen',tx:sp.x,ty:sp.y,dir:sp.dir,solid:true}));
@@ -2788,11 +2788,33 @@ const EEVEE_LINES={
 };
 function eeveeCompanionLine(name){
   if(!F.gotEevee || F.coronation) return;                      // no partner yet / the ceremony owns the stage
-  if(game.state!=='play' || activeSeq || dlg.active) return;   // an entry cutscene is already talking
+  if(game.state!=='play' || (activeSeq && !activeSeq.done) || dlg.active) return;   // an entry cutscene is already talking
+  if(name==='town' && F.gardenCleared && !F.gameWon){          // the scary finale act gets its own, one-time line
+    if(F.eevSaid_townNight) return; F.eevSaid_townNight=true;
+    runSeq([{type:'say',name:'Eevee',text:'(Eevee presses tight against your leg. The lights are on... but every door is bolted. Vee...)'}], ()=>{ game.state='play'; });
+    return;
+  }
+  if(name==='town' && F.gameWon){                              // the walk home, with Sylveon at her side
+    if(F.eevSaid_townHome) return; F.eevSaid_townHome=true;
+    runSeq([{type:'say',name:'Sylveon',text:'(Sylveon pads quietly beside you, ribbons trailing in the sun. It won\'t leave your side again.)'}], ()=>{ game.state='play'; });
+    return;
+  }
   const line=EEVEE_LINES[name];
   if(!line || F['eevSaid_'+name]) return;
   F['eevSaid_'+name]=true;
   runSeq([{type:'say',name:'Eevee',text:line}], ()=>{ game.state='play'; });
+}
+/* ---- follower: after the hideout, Sylveon literally walks home beside Oen through town ---- */
+function updateFollower(){
+  const f=game.followerEnt; if(!f || !game.player || game.state!=='play') return;
+  if(f.stepping) return;
+  const p=game.player, dx=p.tx-f.tx, dy=p.ty-f.ty, dist=Math.abs(dx)+Math.abs(dy);
+  if(dist===1) return;                                          // right beside her - stay
+  if(dist===0){ for(const d of ['down','left','right','up']){ if(tryStep(f,d,false)) return; } return; }   // stacked: hop off
+  const dirs = Math.abs(dy)>=Math.abs(dx)
+    ? [dy>0?'down':'up', dx!==0?(dx>0?'right':'left'):null]
+    : [dx>0?'right':'left', dy!==0?(dy>0?'down':'up'):null];
+  for(const d of dirs){ if(d && tryStep(f,d,false)) return; }
 }
 // Scene setup: spawn NPCs/objects per flags, and trigger cutscenes
 function setupScene(name){
@@ -2810,6 +2832,13 @@ function setupTown(){
   if(F.coronation){ setupCoronation(); return; }   // the royal ceremony takes over the whole plaza
   // post-rescue: Sylveon's warm theme; final act (after the 2v2): the fierce 'peak' theme; otherwise the route theme
   audio.play(F.gameWon?'warm':(F.gardenCleared?'peak':'route'));
+  if(F.gameWon){ // the walk home: rescued Sylveon pads along beside Oen all the way to the lab
+    const p=game.player; let sx=p?p.tx:23, sy=p?p.ty:22;
+    if(p){ for(const [ax,ay] of [[0,1],[0,-1],[-1,0],[1,0]]){   // prefer a free tile at her side
+      if(walkable(game.map,p.tx+ax,p.ty+ay) && !entAt(p.tx+ax,p.ty+ay)){ sx=p.tx+ax; sy=p.ty+ay; break; } } }
+    const s=mon('sylvF','sylveon',sx,sy,6);
+    s.solid=false; game.followerEnt=s;
+  }
   if(!F.sawTown){ F.sawTown=true; showEstablishing('town','PALLET TOWN'); }   // painted establishing shot, first arrival only
   // town noticeboard near the lab / spawn
   placeEntity(newEntity({id:'board',kind:'obj',tx:10,ty:8,dir:'down',solid:true,visible:true,
@@ -3286,7 +3315,10 @@ function setupCoronation(){
     {type:'say',name:'The King',text:'Look up, everyone. Tonight all three lights shine again... because one little noobie refused to give up on them.'},
     {type:'func',fn:()=>cheer(false)},
     {type:'say',name:'The King',text:'Kneel, young Oen. Every legend must begin somewhere - and every beginner deserves a legend\'s welcome.'},
-    {type:'wait',ms:600},
+    // the blessing: a soft golden light settles on Oen as the plaza holds its breath
+    {type:'flash',col:'#fff4c8',ms:420},{type:'sfx',name:'heal'},
+    {type:'func',fn:()=>{ const p=game.player; if(p){ spawnSpark(p.px+8,p.py+4,16,'#f6d62e'); spawnSpark(p.px+8,p.py+8,10,'#fff8d0'); } }},
+    {type:'wait',ms:900},
     {type:'say',name:'The King',text:'By the Gold Light of Joy... the Red Light of Courage... and the Pink Light of Love... I hereby dub thee -'},
     {type:'music',name:'royal'},   // the coronation fanfare blazes in right on the dub
     {type:'func',fn:()=>{ showTitleCard('OEN THE NOOBIE','Hero of the Three Lights',6400); spawnConfetti(80); audio.fanfare(); }},
@@ -5766,6 +5798,7 @@ function loop(now){
 }
 function update(dt){
   updateParticles();
+  updateFollower();   // Sylveon keeps pace beside Oen on the walk home
   if(game.titleCard){ game.titleCard.t+=dt; if(game.titleCard.t>=game.titleCard.dur) game.titleCard=null; }
   if(game.arriveT>0) game.arriveT-=dt;   // "you are here" marker over Oen after a map change
   // global entity animation
