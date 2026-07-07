@@ -426,20 +426,26 @@ const audio = {
     warm:   {tempo:300, lead:[523,0,659,0,784,659,587,0,659,0,523,0,587,494,523,0], bass:[131,0,196,0,165,0,131,0], arp:[262,330,392,523,392,330,392,523], drum:'h...h...h...h...'},
     emotion:{tempo:330, lead:[659,0,784,0,659,587,523,0,587,0,494,0,523,587,523,0], bass:[147,0,110,0,131,0,98,0], arp:[330,392,494,587,494,392,330,392], drum:'h.......h.......'},
     // ---- per-scene themes (synth-only; no audio files, so these always play) ----
-    // THEFT - the opening break-in: urgent, alarming, dissonant minor
-    theft:    {tempo:135, lead:[440,0,466,440,0,392,349,392,440,0,349,330,294,0,330,0], bass:[110,110,0,98,98,0,87,0], arp:[220,294,349,294,233,277,330,277], drum:'k..hs.hkk..hs.hh'},
-    // STATION (Jolteon) - bright, fast, electric and buzzing
-    station:  {tempo:118, lead:[659,784,880,988,880,784,659,784,880,988,1047,988,880,784,659,587], bass:[165,165,196,196,220,220,196,196], arp:[659,880,1047,880,784,988,1175,988], drum:'k.hskkh.k.hskkh.'},
-    // WAREHOUSE (Flareon) - warm but smouldering, mid-tempo tension
-    warehouse:{tempo:152, lead:[523,0,587,523,466,0,440,466,523,0,587,698,587,0,523,0], bass:[131,131,0,116,116,0,98,98], arp:[262,330,392,330,294,349,440,349], drum:'k...s..kk...s..h'},
-    // HIDEOUT (Sylveon) - dark, sparse, eerie, slow and underground
-    hideout:  {tempo:208, lead:[330,0,0,311,0,294,0,0,247,0,262,0,220,0,0,0], bass:[82,0,0,0,87,0,0,0], arp:[220,0,262,0,165,0,196,0], drum:'k.......s.......'},
+    // THEFT - the opening break-in: urgent, alarming, dissonant minor (now in two grim voices)
+    theft:    {tempo:135, minor:true, lead:[440,0,466,440,0,392,349,392,440,0,349,330,294,0,330,0], harm:[349,0,370,349,0,311,277,311,349,0,277,262,233,0,262,0], bass:[110,110,0,98,98,0,87,0], arp:[220,294,349,294,233,277,330,277], drum:'k..hs.hkk..hs.hh'},
+    // STATION (Jolteon) - bright, fast, electric and buzzing, with a crackling echo trail
+    station:  {tempo:118, echo:true, lead:[659,784,880,988,880,784,659,784,880,988,1047,988,880,784,659,587], harm:[523,0,587,0,659,0,587,0], bass:[165,165,196,196,220,220,196,196], arp:[659,880,1047,880,784,988,1175,988], drum:'k.hskkh.k.hskkh.'},
+    // WAREHOUSE (Flareon) - warm but smouldering, mid-tempo tension in low parallel minor thirds
+    warehouse:{tempo:152, minor:true, lead:[523,0,587,523,466,0,440,466,523,0,587,698,587,0,523,0], harm:[415,0,466,415,370,0,349,370,415,0,466,587,466,0,415,0], bass:[131,131,0,116,116,0,98,98], arp:[262,330,392,330,294,349,440,349], drum:'k...s..kk...s..h'},
+    // HIDEOUT (Sylveon) - dark, sparse, eerie: long echoes and a low answering voice in the dark
+    hideout:  {tempo:208, minor:true, echo:true, lead:[330,0,0,311,0,294,0,0,247,0,262,0,220,0,0,0], harm:[0,0,0,262,0,0,247,0,0,208,0,0,175,0,0,0], bass:[82,0,0,0,87,0,0,0], arp:[220,0,262,0,165,0,196,0], drum:'k.......s.......'},
     // PEAK - fierce, nerve-wracking theme for the final act (after the 2v2): garden room + town
-    peak:     {tempo:104, lead:[466,0,415,466,0,392,349,415,440,0,370,349,311,0,349,0], bass:[110,110,104,104,98,98,93,93,116,116,110,110,87,87,82,82], arp:[233,311,370,311,247,330,392,330], drum:'k.skk.sk.skks.s.'},
-    // CATCH - bouncy, playful tension theme for the Yamper catch minigame
-    catchgo:  {tempo:128, lead:[659,784,659,880,784,659,587,659,523,659,784,659,587,523,587,659], bass:[131,131,165,165,196,196,165,165], arp:[523,659,784,659,587,698,587,523], drum:'k.h.s.h.k.h.s.hh'},
-    // ROYAL - triumphant C-major coronation fanfare: trumpet-call lead over a proud march
-    royal:    {tempo:140, lead:[523,523,659,0,784,784,1047,0, 880,784,659,784,1047,0,784,0], bass:[131,196,165,196,131,196,165,196], arp:[523,659,784,1047,784,659,523,659], drum:'k.h.s.h.k.h.s.hh'},
+    peak:     {tempo:104, minor:true, lead:[466,0,415,466,0,392,349,415,440,0,370,349,311,0,349,0], harm:[233,0,208,233,0,196,175,208,220,0,185,175,156,0,175,0], bass:[110,110,104,104,98,98,93,93,116,116,110,110,87,87,82,82], arp:[233,311,370,311,247,330,392,330], drum:'K.skk.sk.skks.s.'},
+    // CATCH - bouncy, playful tension theme for the Yamper catch minigame (off-beat answer voice)
+    catchgo:  {tempo:128, lead:[659,784,659,880,784,659,587,659,523,659,784,659,587,523,587,659], harm:[0,523,0,659,0,523,0,523,0,440,0,523,0,440,0,523], bass:[131,131,165,165,196,196,165,165], arp:[523,659,784,659,587,698,587,523], drum:'k.h.s.h.k.h.s.hh'},
+    // ROYAL - triumphant C-major coronation march: trumpet-call lead in harmony over
+    // timpani and snare rolls, with an echoing hall ambience (32-step, two full phrases)
+    royal:    {tempo:150, echo:true,
+      lead:[523,523,659,0, 784,784,1047,0, 880,784,659,784, 1047,0,784,0, 698,698,880,0, 1047,988,880,784, 659,784,880,988, 1047,0,0,0],
+      harm:[330,330,392,0, 523,523,659,0, 587,523,392,523, 659,0,523,0, 440,440,523,0, 659,587,523,392, 392,523,587,587, 659,0,0,0],
+      bass:[131,196,165,196, 131,196,165,196, 175,220,262,220, 196,196,147,196],
+      arp:[523,659,784,1047,784,659,523,392],
+      drum:'K.h.s.h.k.h.s.h.K.h.s.h.k.s.r.s.'},
   },
   play(name){
     // already on this exact track and it's still playing? leave it running so the music
@@ -471,15 +477,21 @@ const audio = {
       const lf=tr.lead[i%tr.lead.length];
       const bf=tr.bass[i%tr.bass.length];
       const af=tr.arp? tr.arp[i%tr.arp.length]:0;
+      const hf=tr.harm? tr.harm[i%tr.harm.length]:0;                  // optional second voice in harmony
       const dr=tr.drum? tr.drum[i%tr.drum.length]:'.';
-      if(lf) this.lead(lf, sec*1.5, 0.30);
+      if(lf){ this.lead(lf, sec*1.5, 0.30);
+        if(tr.echo) this.note(lf, sec*1.1, 'square', 0.065, sec*0.72); }   // ghost echo trails the melody
+      if(hf) this.note(hf, sec*1.3, 'square', 0.12);
       if(bf) this.note(bf/2, sec*1.7, 'triangle', 0.5);
       if(af) this.note(af, sec*0.5, 'square', 0.09);
-      // sustained pad chord on each bar = warmer, fuller original soundtrack
-      if(i%8===0 && bf){ this.note(bf, sec*8, 'triangle', 0.10); this.note(bf*1.26, sec*8, 'triangle', 0.06); this.note(bf*1.5, sec*8, 'sine', 0.07); }
+      // sustained pad chord on each bar = warmer, fuller original soundtrack (minor-aware third)
+      if(i%8===0 && bf){ const third=tr.minor?1.189:1.26;
+        this.note(bf, sec*8, 'triangle', 0.10); this.note(bf*third, sec*8, 'triangle', 0.06); this.note(bf*1.5, sec*8, 'sine', 0.07); }
       if(dr==='k'){ this.note(70,0.14,'sine',0.7); this.noise(0.05,0.25); }
       else if(dr==='s'){ this.noise(0.10,0.32,0,1500); this.note(180,0.06,'triangle',0.3); }
       else if(dr==='h'){ this.noise(0.035,0.10,0,6000); }
+      else if(dr==='K'){ this.note(58,0.30,'sine',0.85); this.note(87,0.20,'triangle',0.4); this.noise(0.10,0.30,0,240); }   // timpani boom
+      else if(dr==='r'){ this.noise(0.05,0.24,0,1600); this.noise(0.05,0.20,0.07,1500); this.noise(0.07,0.28,0.14,1700); }   // quick snare roll
       this.idx++;
     };
     step(); this.loop=setInterval(step, tr.tempo);
