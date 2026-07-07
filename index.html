@@ -566,6 +566,8 @@ const CHAR = {
   giovanni:{hair:'#16161b', cap:null, shirt:'#d2772a', coat:'#b8631f', pants:'#23222a', skin:C.skin, logo:'#3a2410'}, // orange suit, slicked black hair
   ariana:  {hair:'#e02f3a', cap:null, shirt:'#f1f1f6', coat:'#e3e3ea', pants:'#e8e8ee', skin:C.skin, logo:C.red},      // scarlet hair, white jacket + R
   // ---- everyday townsfolk (colour variety so the city feels populated) ----
+  // the King of Pallet Town (coronation finale): gold crown, ermine collar, deep royal robe
+  king:  {hair:'#e0d8c8', cap:null, shirt:'#6a2848', pants:'#2e1e34', skin:'#e8c8a0', cape:'#a01830', crown:'#f6d62e', ermine:'#f4f0e6'},
   man1:   {hair:'#5a3a1a', cap:null, shirt:'#3a6ea0', pants:'#33333f', skin:C.skin},
   woman1: {hair:'#7a3a1a', cap:null, shirt:'#d05a8a', pants:'#8a4a6a', skin:C.skin},
   gal:    {hair:'#2a2a2a', cap:'#e85a5a', capB:'#b83a3a', shirt:'#f0e6c8', pants:'#56a0a0', skin:C.skin},
@@ -606,8 +608,11 @@ function drawChar(kind,x,y,dir,mv){
   if(kick>0 && faceX>0) kickLeg(cx+1); else { rect(cx+1-strideX, hipY, 2, Math.max(1,footR-hipY-1), p.pants); foot(cx+1-strideX, footR-1); }   // right leg (front when facing right)
   // ---- torso (rides the bob + lean) ----
   const tx = cx + lean;
-  if(p.cape){ poly([[tx-5,by+5],[tx+5,by+5],[tx+4,by+13],[tx-4,by+13]], p.cape); }   // rook cape, behind
+  if(p.cape){ poly([[tx-5,by+5],[tx+5,by+5],[tx+4,by+13],[tx-4,by+13]], p.cape); }   // rook/royal cape, behind
   rrect(tx-4, by+5, 8, 8, 2, p.shirt);
+  if(p.ermine){ rect(tx-4,by+5,8,1.8,p.ermine); rect(tx-4.6,by+5,1.6,7,p.ermine); rect(tx+3,by+5,1.6,7,p.ermine);   // white fur collar + robe edges
+    rect(tx-4.2,by+7.5,0.8,0.8,'#3a3a44'); rect(tx+3.4,by+9.5,0.8,0.8,'#3a3a44'); }                                 // ermine spots
+  if(p.crown && p.ermine){ rect(tx-1,by+8,2,2,p.crown); }                                                            // gold clasp on the chest
   g.globalAlpha=0.14; rect(tx-4,by+9.5,8,3.5,'#000'); g.globalAlpha=0.20; rect(tx-3.4,by+5,6.8,1.3,'#fff'); g.globalAlpha=1;   // shaded hem + lit shoulders
   g.globalAlpha=0.10; rect(tx-4,by+5,1.3,8,'#000'); rect(tx+2.7,by+5,1.3,8,'#000'); g.globalAlpha=1;   // rounded side shading
   if(p.coat){ rect(tx-5,by+5,2,8,p.coat); rect(tx+3,by+5,2,8,p.coat); }              // lab-coat sides
@@ -630,6 +635,15 @@ function drawChar(kind,x,y,dir,mv){
     rect(hx-5, hy-1, 10, 1, 'rgba(255,255,255,.14)');                               // hair sheen
     if(dir==='down'){ rect(hx-5,hy+2,2,2,p.hair); rect(hx+3,hy+2,2,2,p.hair); }
     else if(faceX){ rect(hx-faceX*4.6, hy+1.4, 2, 2.6, p.hair); }                   // sideburn on the back of the head
+  }
+  if(p.crown){ // gold crown: band + three points + jewels, riding on top of the hair
+    rect(hx-4, hy-2.6, 8, 1.8, p.crown);
+    tri([hx-4,hy-2.6],[hx-2.8,hy-4.8],[hx-1.6,hy-2.6], p.crown);
+    tri([hx-1.2,hy-2.6],[hx,hy-5.4],[hx+1.2,hy-2.6], p.crown);
+    tri([hx+1.6,hy-2.6],[hx+2.8,hy-4.8],[hx+4,hy-2.6], p.crown);
+    rect(hx-4, hy-2.6, 8, 0.6, '#fff3b0');                                          // band sheen
+    circle(hx, hy-1.7, 0.65, '#d83848'); circle(hx-2.8, hy-1.7, 0.5, '#3a78c8'); circle(hx+2.8, hy-1.7, 0.5, '#3a78c8');   // ruby + sapphires
+    if(Math.floor((anim+hx)/34)%5===0) rect(hx+1.2, hy-4.6, 0.9, 0.9, '#fffbe0');    // an occasional glint
   }
   // face features (eyes blink occasionally while idle)
   const blink = (!walking) && (Math.floor(idlePh*0.6)%7===0) && (idlePh*0.6%1<0.12);
@@ -1515,6 +1529,7 @@ function townTile(ch,sx,sy,alt,tx,ty){
   if(ch==='.'){ // grass with soft mottling + tufts / clover / wildflowers so the lawn reads lush
     if((tx*5+ty*7)%3===0){ g.globalAlpha=0.45; ellipse(sx+6,sy+8,7,4.5, alt?'#6cb13c':'#64a734'); g.globalAlpha=1; }   // gentle two-tone patch
     if((tx*3+ty*11)%4===0){ g.globalAlpha=0.30; ellipse(sx+11,sy+12,4,2.4,'#5f9e34'); g.globalAlpha=1; }                // a darker dapple
+    if(game.map && game.map.bare && game.map.bare[tx+'_'+ty]) return;   // marked tiles stay clear so NPCs standing there aren't overlapped by tufts/flowers
     const n=(tx*7+ty*5)%6;
     if(n===0){ rect(sx+3,sy+11,1,2,'#5f9e34'); rect(sx+4,sy+9,1,4,'#67a93a'); rect(sx+5,sy+10,1,3,'#5f9e34'); rect(sx+4,sy+9,1,1.4,'#86c95e'); }   // grass tuft (lit tips)
     else if(n===2){ rect(sx+10,sy+7,1,3,'#5f9e34'); rect(sx+11,sy+6,1,4,'#67a93a'); rect(sx+12,sy+7,1,3,'#5f9e34'); rect(sx+11,sy+6,1,1.4,'#86c95e'); }
@@ -1534,28 +1549,28 @@ function townTile(ch,sx,sy,alt,tx,ty){
     else if(d===5){ rect(sx+11,sy+11,2,1.4,'#a88f58'); circle(sx+3,sy+8,0.8,'#c8b07a'); }
     else { rect(sx+3+((tx*3)%7),sy+4+((ty*5)%8),1,1,'#b39a62'); }
     return; }
-  if(ch==='P'){ // city stone pavement - RUNNING-BOND flagstones (staggered joints break the square grid)
+  if(ch==='P'){ // city stone pavement - warm SANDSTONE flagstones in running bond (sunny, inviting, not office-grey)
     const v=(tx*7+ty*13)%5;
-    rect(sx,sy,TS,TS, v===0?'#b6b9c1' : v===1?'#c1c4cc' : v===2?'#b9bcc4' : v===3?'#bdc0c8' : '#babdc5');
-    rect(sx,sy,TS,1,'#d2d5db');                                    // course sheen (aligns across tiles)
-    g.strokeStyle='rgba(104,108,118,.42)'; g.lineWidth=0.7; g.beginPath();
+    rect(sx,sy,TS,TS, v===0?'#cdbb9b' : v===1?'#d7c6a6' : v===2?'#d0bf9f' : v===3?'#d4c3a3' : '#d1c0a0');
+    rect(sx,sy,TS,1,'#e4d5b4');                                    // course sheen (aligns across tiles)
+    g.strokeStyle='rgba(130,112,82,.42)'; g.lineWidth=0.7; g.beginPath();
     g.moveTo(sx,sy+0.5); g.lineTo(sx+TS,sy+0.5); g.moveTo(sx,sy+8.5); g.lineTo(sx+TS,sy+8.5);   // horizontal course joints (2 per tile -> squarer stones)
     g.stroke();
-    g.strokeStyle='rgba(108,112,122,.24)'; g.lineWidth=0.7; g.beginPath();                       // softer vertical joints so it reads as flagstone, not planks
+    g.strokeStyle='rgba(134,116,86,.24)'; g.lineWidth=0.7; g.beginPath();                       // softer vertical joints so it reads as flagstone, not planks
     if(ty&1){ g.moveTo(sx+4,sy); g.lineTo(sx+4,sy+TS); g.moveTo(sx+12,sy); g.lineTo(sx+12,sy+TS); }   // odd rows: offset by 4 -> stones straddle the tile edge
     else    { g.moveTo(sx,sy);   g.lineTo(sx,sy+TS);   g.moveTo(sx+8,sy); g.lineTo(sx+8,sy+TS); }      // even rows: joints on the 8px grid
     g.stroke();
-    g.globalAlpha=0.4; g.strokeStyle='#d6d9df'; g.beginPath(); g.moveTo(sx,sy+1.3); g.lineTo(sx+TS,sy+1.3); g.stroke(); g.globalAlpha=1;   // stone top highlight
+    g.globalAlpha=0.4; g.strokeStyle='#e8dabb'; g.beginPath(); g.moveTo(sx,sy+1.3); g.lineTo(sx+TS,sy+1.3); g.stroke(); g.globalAlpha=1;   // stone top highlight
     // radial "medallion" banding centred on the plaza fountain
     if(tx>=15&&tx<=31&&ty>=14&&ty<=27){ const rd=Math.hypot(tx-23,ty-19.5);
-      if(Math.floor(rd/1.7)&1){ g.globalAlpha=0.055; rect(sx,sy,TS,TS,'#332f4a'); g.globalAlpha=1; }                 // concentric bands
-      if(Math.abs(rd-3.1)<0.32 || Math.abs(rd-5.0)<0.32){ g.globalAlpha=0.14; rect(sx,sy,TS,TS,'#8c9098'); g.globalAlpha=1; }   // accent rings
+      if(Math.floor(rd/1.7)&1){ g.globalAlpha=0.06; rect(sx,sy,TS,TS,'#5a3c22'); g.globalAlpha=1; }                 // concentric bands
+      if(Math.abs(rd-3.1)<0.32 || Math.abs(rd-5.0)<0.32){ g.globalAlpha=0.16; rect(sx,sy,TS,TS,'#b09468'); g.globalAlpha=1; }   // accent rings
     }
     const d=(tx*5+ty*9)%13;
-    if(d===0){ g.strokeStyle='rgba(104,108,118,.5)'; g.lineWidth=0.7; g.beginPath(); g.moveTo(sx+3,sy+5); g.lineTo(sx+6.5,sy+9); g.stroke(); }   // hairline crack
-    else if(d===4){ rect(sx+5,sy+6,6,5,'#9a9ea8'); g.fillStyle='rgba(40,44,54,.15)'; g.fillRect(sx+5,sy+6,6,5); for(let i=0;i<3;i++) rect(sx+5.5,sy+7+i*1.5,5,0.7,'#787c86'); }   // drain grate
-    else if(d===7){ g.globalAlpha=0.09; ellipse(sx+9,sy+9,4.5,3,'#6e727c'); g.globalAlpha=1; }       // faint stain
-    else if(d===9){ rect(sx+3,sy+11,2,1,'#c8cbd2'); }                                                // pebble fleck
+    if(d===0){ g.strokeStyle='rgba(130,112,82,.5)'; g.lineWidth=0.7; g.beginPath(); g.moveTo(sx+3,sy+5); g.lineTo(sx+6.5,sy+9); g.stroke(); }   // hairline crack
+    else if(d===4){ rect(sx+5,sy+6,6,5,'#a8a099'); g.fillStyle='rgba(50,44,34,.15)'; g.fillRect(sx+5,sy+6,6,5); for(let i=0;i<3;i++) rect(sx+5.5,sy+7+i*1.5,5,0.7,'#847c72'); }   // drain grate (metal stays cool)
+    else if(d===7){ g.globalAlpha=0.09; ellipse(sx+9,sy+9,4.5,3,'#8a7454'); g.globalAlpha=1; }       // faint stain
+    else if(d===9){ rect(sx+3,sy+11,2,1,'#e0d2b0'); }                                                // pebble fleck
     return; }
   if(ch==='T'){ // layered leafy tree; size & tone vary per tile so a treeline isn't a wall of clones
     const hsh=(tx*7+ty*13)%3, sc=[0.85,1.0,1.15][hsh];
@@ -1991,6 +2006,7 @@ function buildMaps(){
     path(3,34,5,37);
     put([[2,35],[3,35],[5,35],[6,35],[2,36],[6,36]],'h');   // hedge screen, gap at x=4
     M.town = { theme:'town', w, h, tiles:t, styleGrid:sg, spawn:{x:7,y:9,dir:'down'},
+      bare:{'4_36':1},   // decoration-free grass where the SW grunt lurks, so no flower pokes through him
       labels:[
         {x:7,y:2,t:'OAK\'S LAB',c:'#2a3a6a'},
         {x:23,y:1,t:'DOWNTOWN',c:'#33414f'},
@@ -2066,7 +2082,47 @@ function spawnSpark(x,y,n,col){ for(let i=0;i<(n||8);i++) game.particles.push({x
 function updateParticles(){
   for(let i=game.hearts.length-1;i>=0;i--){ const h=game.hearts[i]; h.t++; h.y+=h.vy; h.x+=h.vx; if(h.t>h.life) game.hearts.splice(i,1); }
   for(let i=game.particles.length-1;i>=0;i--){ const p=game.particles[i]; p.t++; p.x+=p.vx; p.y+=p.vy; if(p.t>p.life) game.particles.splice(i,1); }
+  // celebration confetti (screen-space: it rains over the whole view, whatever the camera does)
+  for(let i=confetti.length-1;i>=0;i--){ const c=confetti[i]; c.t++; c.y+=c.vy; c.x+=c.vx+Math.sin((anim+c.ph)/9)*0.5; c.rot+=c.vr; if(c.y>VH+6||c.t>c.life) confetti.splice(i,1); }
 }
+/* ---- coronation confetti + royal title card ---- */
+const confetti=[];
+const CONFETTI_COLS=['#f6d62e','#f0a8d0','#7cc1ec','#8ee08e','#f4a04a','#e86868','#caa6f4'];
+function spawnConfetti(n){ for(let i=0;i<(n||40);i++) confetti.push({
+  x:Math.random()*VW, y:-6-Math.random()*VH*0.5, vx:(Math.random()-0.5)*0.4, vy:0.55+Math.random()*0.75,
+  rot:Math.random()*6.28, vr:(Math.random()-0.5)*0.22, w:2+Math.random()*1.6, h:1+Math.random()*1.2,
+  ph:Math.random()*100, life:900+Math.random()*400, col:CONFETTI_COLS[(Math.random()*CONFETTI_COLS.length)|0] }); }
+function drawConfetti(){
+  if(!confetti.length) return;
+  for(const c of confetti){ g.save(); g.translate(c.x,c.y); g.rotate(c.rot);
+    const fl=0.35+0.65*Math.abs(Math.sin((anim+c.ph)/13));           // pieces catch the light as they tumble
+    g.globalAlpha = c.t>c.life-60 ? Math.max(0,(c.life-c.t)/60) : 1;
+    g.fillStyle=c.col; g.fillRect(-c.w/2,-c.h*fl/2,c.w,c.h*fl); g.restore(); }
+  g.globalAlpha=1;
+}
+// a big golden banner card announcing Oen's new royal title (drawn over the world during the ceremony)
+function showTitleCard(main,sub,ms){ game.titleCard={main,sub,t:0,dur:ms||5200}; }
+function drawTitleCard(){
+  const tc=game.titleCard; if(!tc) return;
+  const inK=clamp(tc.t/450,0,1), outK=clamp((tc.dur-tc.t)/450,0,1), k=Math.min(inK,outK);
+  const ease=k*k*(3-2*k);
+  const y=34 - (1-ease)*26;
+  g.globalAlpha=ease;
+  const bw=Math.min(VW-24, tw2(tc.main,13)+44), bx=VW/2-bw/2;
+  // banner: deep royal backing, gold double rule, swallow-tail ends
+  poly([[bx-9,y-2],[bx,y+7],[bx-9,y+16]],'#7a1626'); poly([[bx+bw+9,y-2],[bx+bw,y+7],[bx+bw+9,y+16]],'#7a1626');
+  rrect(bx,y-8,bw,30,3,'rgba(26,14,34,.92)');
+  g.strokeStyle='#f6d62e'; g.lineWidth=1; g.strokeRect(bx+2.5,y-5.5,bw-5,25);
+  g.strokeStyle='rgba(246,214,46,.4)'; g.strokeRect(bx+4.5,y-3.5,bw-9,21);
+  g.textAlign='center'; g.textBaseline='middle';
+  // shine sweeps across the gold lettering
+  const sh=((anim*2)%(bw+80))-40;
+  textShadow(tc.main, VW/2, y+3, '#f6d62e', '#3a2408', 13);
+  g.save(); g.beginPath(); g.rect(bx+sh,y-6,26,16); g.clip(); textShadow(tc.main, VW/2, y+3, '#fff8d0', '#3a2408', 13); g.restore();
+  if(tc.sub) text(tc.sub, VW/2, y+14, '#e8d8f0', 8);
+  g.textAlign='left'; g.textBaseline='alphabetic'; g.globalAlpha=1;
+}
+function tw2(s,size){ setFont(size); return g.measureText(s).width; }
 function drawHeart(x,y,s,a){
   g.globalAlpha=a; g.fillStyle=C.pink;
   circle(x-s*0.4,y,s*0.5,C.pink); circle(x+s*0.4,y,s*0.5,C.pink);
@@ -2115,6 +2171,7 @@ function speakerFace(name){
   if(/sylveon/.test(n)) return {mon:'sylveon'}; if(/umbreon/.test(n)) return {mon:'umbreon'};
   if(/yamper/.test(n)) return {mon:'yamper'};   if(/eevee/.test(n)) return {mon:'eevee'};
   if(/oak/.test(n)) return {char:'oak'};       if(/rook/.test(n)) return {char:'rook'};
+  if(/king/.test(n)) return {char:'king'};     if(/herald/.test(n)) return {char:'man1'};
   if(/giovanni/.test(n)) return {char:'giovanni'}; if(/ariana/.test(n)) return {char:'ariana'};
   if(/engineer|cole|grunt|rocket/.test(n)) return {char:'grunt'};
   if(/keeper|old man/.test(n)) return {char:'oldman'};
@@ -2129,7 +2186,8 @@ function drawDlgPortrait(face, x, y, S){
   rrect(x,y,S,S,4, face.mon?'#d2e2f2':'#dbe4f2');           // face backing
   g.save(); g.beginPath(); g.rect(x+1,y+1,S-2,S-2); g.clip();
   if(face.mon){ drawMon(face.mon, x+S/2, y+S/2+2, 11); }
-  else { g.translate(x+S/2, y+S/2); g.scale(2.1,2.1); drawChar(face.char, -8, -9, 'down', {idle:anim*0.03}); }
+  else { // zoom on the FACE (classic mugshot framing) - the head fills the frame, shoulders just visible below
+    g.translate(x+S/2, y+S/2); g.scale(2.6,2.6); drawChar(face.char, -8, -6.2, 'down', {idle:anim*0.03}); }
   g.restore();
   g.globalAlpha=0.5; rrect(x,y,S,1.6,4,'#ffffff'); g.globalAlpha=1;   // top sheen
 }
@@ -2257,7 +2315,7 @@ function tryStep(e, dir, ignoreEnt){
   e.dir=dir;
   const [dx,dy]=DIRV[dir];
   const ntx=e.tx+dx, nty=e.ty+dy;
-  if(!walkable(game.map,ntx,nty)){ if(e===game.player){ e.bumpT=110; e.bumpDir=dir; if(game.state==='play') audio.sfx('bump'); } return false; }   // bump feedback on walls
+  if(!walkable(game.map,ntx,nty)){ if(e===game.player){ e.bumpT=110; e.bumpDir=dir; } return false; }   // silent bump feedback on walls (visual nudge only)
   if(!ignoreEnt && entAt(ntx,nty)) return false;
   e.stepping=true; e.sp=0; e.fromx=e.px; e.fromy=e.py; e.tx=ntx; e.ty=nty;
   if(e===game.player && game.state==='play') audio.sfx('footstep');   // a soft footstep per tile
@@ -2306,8 +2364,8 @@ function onPlayerArrive(){
   // warp check
   for(const wp of (game.map.warps||[])){
     if(wp.x===p.tx && wp.y===p.ty){
-      // ENDING: after choosing Sylveon, stepping out the lab door rolls the credits
-      if(F.endQuest && game.mapName==='lab'){ F.endQuest=false; game.state='cutscene'; startCredits(()=>{}); return; }
+      // ENDING: after choosing Sylveon, stepping out the lab door leads to the CORONATION in the plaza
+      if(F.endQuest && game.mapName==='lab'){ F.endQuest=false; F.coronation=true; startWipe(()=>enterMap('town',23,29,'up')); return; }
       if(wp.to==='__north'){ if(F.routeClear){ triggerNorth(); } return; }
       if(wp.gate && !F[wp.gate]){   // locked building: show a hint, don't enter
         if(!dlg.active && !activeSeq) runSeq([{type:'say',name:'Evo Tracker',text:wp.hint||'It\'s locked.'}],()=>{ game.state='play'; });
@@ -2447,11 +2505,11 @@ function townShadowPass(m,x0,x1,y0,y1,ox,oy){
     if(n){  g.globalAlpha=0.20; rect(sx,sy,TS,2,'#241f33'); g.globalAlpha=0.11; rect(sx,sy+2,TS,2,'#241f33'); g.globalAlpha=0.05; rect(sx,sy+4,TS,2,'#241f33'); g.globalAlpha=1; }
     if(wst){ g.globalAlpha=0.17; rect(sx,sy,2,TS,'#241f33'); g.globalAlpha=0.09; rect(sx+2,sy,2,TS,'#241f33'); g.globalAlpha=1; }
     if(nw&&!n&&!wst){ g.globalAlpha=0.15; rect(sx,sy,4,4,'#241f33'); g.globalAlpha=1; }
-    if(c==='p'||c==='P'){                                                        // raised kerb where a street meets grass
-      if(grass(tx,ty-1)){ rect(sx,sy,TS,1.4,'#d4d7de'); rect(sx,sy+1.4,TS,0.6,'rgba(88,92,102,.5)'); }
-      if(grass(tx,ty+1)){ rect(sx,sy+TS-2,TS,0.6,'rgba(88,92,102,.5)'); rect(sx,sy+TS-1.4,TS,1.4,'#c6c9d0'); }
-      if(grass(tx-1,ty)){ rect(sx,sy,1.4,TS,'#d4d7de'); rect(sx+1.4,sy,0.6,TS,'rgba(88,92,102,.5)'); }
-      if(grass(tx+1,ty)){ rect(sx+TS-2,sy,0.6,TS,'rgba(88,92,102,.5)'); rect(sx+TS-1.4,sy,1.4,TS,'#c6c9d0'); }
+    if(c==='p'||c==='P'){                                                        // raised sandstone kerb where a street meets grass
+      if(grass(tx,ty-1)){ rect(sx,sy,TS,1.4,'#e6d8b8'); rect(sx,sy+1.4,TS,0.6,'rgba(120,100,70,.5)'); }
+      if(grass(tx,ty+1)){ rect(sx,sy+TS-2,TS,0.6,'rgba(120,100,70,.5)'); rect(sx,sy+TS-1.4,TS,1.4,'#d8caa8'); }
+      if(grass(tx-1,ty)){ rect(sx,sy,1.4,TS,'#e6d8b8'); rect(sx+1.4,sy,0.6,TS,'rgba(120,100,70,.5)'); }
+      if(grass(tx+1,ty)){ rect(sx+TS-2,sy,0.6,TS,'rgba(120,100,70,.5)'); rect(sx+TS-1.4,sy,1.4,TS,'#d8caa8'); }
     }
   }
 }
@@ -2510,15 +2568,13 @@ function interiorGrade(theme){
 }
 function drawWorld(){
   const m=game.map; if(!m) return;
-  // town time-of-day: a slow day -> dusk -> night -> dawn cycle (~4 min) so the festival lights & windows get to glow
+  // town time-of-day: bright sunny daylight for the whole adventure - night falls ONLY for
+  // the creepy finale act (after the garden 2v2, hunting the sealed ??? door / Admin Rook)
   let townFinale=false;
   if(m.theme==='town'){
     townFinale = !!(F && F.gardenCleared && !F.gameWon);         // the night-time finale: hunting the sealed ??? door
     townScary = townFinale;
-    if(townFinale){ nightK=1; }                                  // finale is locked to full night (city lights ablaze, dread in the air)
-    else { const p=(anim/14400)%1;
-      let nk = p<0.46?0 : p<0.63?(p-0.46)/0.17 : p<0.85?1 : 1-(p-0.85)/0.15;
-      nightK = nk*nk*(3-2*nk); }                                 // otherwise a slow day/dusk/night/dawn cycle (smoothstep)
+    nightK = townFinale ? 1 : 0;                                 // full night in the finale, full sun otherwise
   } else { nightK=0; townScary=false; }
   rect(0,0,VW,VH,'#0c0e18');   // frame colour behind any margins
   let ox=-Math.round(game.cam.x), oy=-Math.round(game.cam.y);
@@ -2592,6 +2648,16 @@ function drawWorld(){
     const bw2=tw(L.t)+10, bh2=12;
     rrect(lx-bw2/2, ly-1, bw2, bh2, 3, 'rgba(252,250,240,.88)');
     textShadow(L.t, lx, ly-1+bh2/2, L.c||'#2a2a3a', 'rgba(255,255,255,.6)', 8); } g.textAlign='left'; g.textBaseline='top'; }
+  // arrival marker: a bobbing gold chevron over Oen for a moment after each map change
+  if(game.arriveT>0 && game.player && game.state==='play'){
+    const p=game.player, a=Math.min(1, game.arriveT/500);
+    const ax=Math.round(p.px+8+ox), ay=Math.round(p.py+oy)-12 - Math.abs(Math.sin(anim/9))*2.5;
+    g.globalAlpha=a*0.9;
+    poly([[ax-4.5,ay-4],[ax+4.5,ay-4],[ax,ay+1]],'#2a2408');       // dark under-edge for contrast
+    poly([[ax-3.6,ay-4.4],[ax+3.6,ay-4.4],[ax,ay-0.2]],'#f6d62e'); // gold chevron
+    g.globalAlpha=a*0.5; poly([[ax-2.2,ay-4.4],[ax+2.2,ay-4.4],[ax,ay-1.9]],'#fff8d0'); // inner shine
+    g.globalAlpha=1;
+  }
 }
 function objGlow(bw,bh){   // a pulsing golden glow the moment the goal changes, so a new objective can't be missed
   const fl=game.objFlash>0 ? clamp(game.objFlash/70,0,1) : 0; if(fl<=0) return;
@@ -2635,6 +2701,7 @@ function enterMap(name, tx, ty, dir){
   const sp = (tx!==undefined)? {x:tx,y:ty,dir:dir||'down'} : game.map.spawn;
   game.player = placeEntity(newEntity({id:'player',kind:'char',sub:'oen',tx:sp.x,ty:sp.y,dir:sp.dir,solid:true}));
   game.state='play';
+  game.arriveT=2400;   // brief "you are here" chevron over Oen so she's easy to spot in a busy scene
   setupScene(name);
   // silent autosave once the area has settled into normal play (never mid-story-cutscene)
   if(game.state==='play' && F && Object.keys(F).length){ saveSystem.save(); game.savedT=80; }
@@ -2653,6 +2720,7 @@ function setupScene(name){
 }
 /* ================= TOWN (explorable hub) ================= */
 function setupTown(){
+  if(F.coronation){ setupCoronation(); return; }   // the royal ceremony takes over the whole plaza
   // post-rescue: Sylveon's warm theme; final act (after the 2v2): the fierce 'peak' theme; otherwise the route theme
   audio.play(F.gameWon?'warm':(F.gardenCleared?'peak':'route'));
   if(!F.sawTown){ F.sawTown=true; showEstablishing('town','PALLET TOWN'); }   // painted establishing shot, first arrival only
@@ -2764,6 +2832,15 @@ function mon(id,sub,tx,ty,R){ return placeEntity(newEntity({id,kind:'mon',sub,tx
 /* ---- Flareon rescue: 3 Spring Crystals scattered in town, presented at the warehouse altar ---- */
 /* ---- the keeper's wild Yamper: roams town, one throw per encounter, bolts to a new spot until caught ---- */
 const YAMPER_SPOTS=[[26,16],[10,20],[34,30],[18,30],[40,22],[30,24]];
+// pick the next Yamper spot that no NPC/object (or the player) is standing on, so the pup never overlaps anyone
+function freeYamperSpot(startIdx){
+  for(let i=0;i<YAMPER_SPOTS.length;i++){
+    const idx=(startIdx+i)%YAMPER_SPOTS.length, s=YAMPER_SPOTS[idx];
+    const p=game.player, onPlayer = p && p.tx===s[0] && p.ty===s[1];
+    if(!entAt(s[0],s[1]) && !onPlayer) return idx;
+  }
+  return startIdx%YAMPER_SPOTS.length;
+}
 function yamperResult(pts, caught){
   F.yamperPoints=pts;
   if(caught){ F.yamperCaught=true;
@@ -2773,7 +2850,7 @@ function yamperResult(pts, caught){
       {type:'objective',text:'Bring Yamper to the keeper - the KEEPER\'S HOUSE is on the WEST side of town.'},
     ],()=>game.state='play');
   } else {
-    F.yamperSpot=((F.yamperSpot||0)+1)%YAMPER_SPOTS.length;
+    F.yamperSpot=freeYamperSpot(((F.yamperSpot||0)+1)%YAMPER_SPOTS.length);
     const y=findEnt('yamper'); if(y){ const s=YAMPER_SPOTS[F.yamperSpot]; y.tx=s[0]; y.ty=s[1]; y.px=s[0]*TS; y.py=s[1]*TS; }
     runSeq([
       {type:'say',name:'',text:'Yamper wriggled free and bolted to another corner of Pallet Town!  ('+pts+'/50 left.)  Track it down and try again!'},
@@ -2925,7 +3002,8 @@ function spawnSoccer(){
 function spawnYamper(){
   if(!(F.yamperQuest && !F.yamperCaught)) return;
   if(F.yamperSpot==null) F.yamperSpot=0;
-  const s=YAMPER_SPOTS[F.yamperSpot%YAMPER_SPOTS.length];
+  F.yamperSpot=freeYamperSpot(F.yamperSpot%YAMPER_SPOTS.length);   // never spawn on top of an NPC
+  const s=YAMPER_SPOTS[F.yamperSpot];
   const y=mon('yamper','yamper',s[0],s[1],6); y.solid=true;
   y.talk=(e)=>{ if(F.yamperPoints==null) F.yamperPoints=50; startCatch(F.yamperPoints, yamperResult); };
 }
@@ -2980,7 +3058,8 @@ function runLabIntro(oak,asst){
     {type:'say',name:'Prof. Oak',text:'Amazing... absolutely amazing! Jolteon\'s electricity is stable. Flareon\'s flame is controlled.'},
     {type:'say',name:'Prof. Oak',text:'And Sylveon\'s bond readings are higher than I have ever seen!'},
     {type:'say',name:'Assistant',text:'Professor, the evolution test is a complete success.'},
-    {type:'say',name:'Prof. Oak',text:'These three Eevee evolutions are living proof that care and trust can bring out incredible strength.'},
+    {type:'say',name:'Prof. Oak',text:'Do you understand what this means, Oen? The old legend is TRUE. These three carry the Three Lights of Pallet Town - Joy, Courage, and Love.'},
+    {type:'say',name:'Prof. Oak',text:'As long as they are safe and happy, the whole town stays bright. They are living proof that care and trust can bring out incredible strength.'},
     {type:'face',id:'sylveon',dir:'down'},
     {type:'func',fn:reach}, {type:'hearts',id:'sylveon'},
     {type:'say',name:'Prof. Oak',text:'Ah, Oen! You arrived at the perfect time. These Pokémon need someone kind to help observe them today.'},
@@ -2997,7 +3076,7 @@ function runLabIntro(oak,asst){
     {type:'say',name:'Rocket Grunt',text:'Three evolved Eevees, all in one place. Team Rocket couldn\'t ask for a better prize!'},
     {type:'face',id:'oak',dir:'up'},
     {type:'say',name:'Prof. Oak',text:'Team Rocket! Stay away from those Pokémon!'},
-    {type:'say',name:'Rocket Grunt',text:'Sorry, Professor. Jolteon\'s power, Flareon\'s fire, and Sylveon\'s bond energy are exactly what we need.'},
+    {type:'say',name:'Rocket Grunt',text:'Sorry, Professor. The famous Three Lights of Pallet Town - Joy, Courage, and Love. The boss has BIG plans for that kind of power.'},
     {type:'flash',col:'#bbb',ms:500},{type:'shake',ms:500},{type:'sfx',name:'spark'},
     {type:'video',key:'theft'},                          // the three are seized - opening cinematic
     {type:'despawn',id:'jolteon'},{type:'despawn',id:'flareon'},
@@ -3027,6 +3106,62 @@ function runLabIntro(oak,asst){
     {type:'func',fn:()=>{ F.objText='Explore Pallet Town and find the stolen Pokémon.'; }},
     {type:'func',fn:()=>{ game.state='play'; }},
   ], ()=>{ game.state='play'; });
+}
+
+/* ================= CORONATION (the grand finale in the plaza) =================
+   After Sylveon chooses Oen, the whole town gathers: the King bestows the royal
+   title "OEN THE NOOBIE", the crowd cheers under falling confetti, and Prof. Oak
+   sends Oen off into the wide world. Then the credits roll. */
+function setupCoronation(){
+  audio.play('warm');
+  spawnFountain(); spawnClockTower();
+  // the crowd lines a centre aisle up the plaza (facing it), waiting for Oen
+  const crowd=[];
+  const cheerAt=(sub,tx,ty,dir)=>{ const e=placeEntity(newEntity({id:'crd'+tx+'_'+ty,kind:'char',sub,tx,ty,dir,solid:true})); crowd.push(e); return e; };
+  const L=[['woman1',20,23],['man1',20,24],['kid',20,25],['gal',20,26],['oldman',20,27]];
+  const R=[['man1',26,23],['gal',26,24],['asst',26,25],['woman1',26,26],['kid',26,27]];
+  for(const [s,x,y] of L) cheerAt(s,x,y,'right');
+  for(const [s,x,y] of R) cheerAt(s,x,y,'left');
+  cheerAt('woman1',21,21,'down'); cheerAt('man1',25,21,'down');   // two more tucked in beside the dais
+  // the dais: the King before the fountain, Prof. Oak at his side
+  placeEntity(newEntity({id:'kingC',kind:'char',sub:'king',tx:23,ty:22,dir:'down',solid:true}));
+  placeEntity(newEntity({id:'oakC', kind:'char',sub:'oak', tx:25,ty:22,dir:'down',solid:true}));
+  // Sylveon pads in at Oen's side
+  const syl=mon('sylvC','sylveon',22,29,6);
+  game.objective='';
+  const cheer=(big)=>{ for(const e of crowd) spawnHearts(e.px+8,e.py,big?3:1); spawnConfetti(big?60:24); };
+  runSeq([
+    {type:'music',name:'warm'},
+    {type:'wait',ms:500},
+    {type:'say',name:'Herald',text:'Presenting: OEN of Pallet Town! Rescuer of Jolteon, Flareon and Sylveon - the trainer who brought home the THREE LIGHTS!'},
+    {type:'func',fn:()=>cheer(false)},{type:'sfx',name:'confirm'},
+    {type:'move',id:'player',path:['up','up','up','up','up']},
+    {type:'move',id:'sylvC',path:['up','up','up','up','up']},
+    {type:'face',id:'sylvC',dir:'down'},{type:'face',id:'player',dir:'up'},
+    {type:'wait',ms:400},
+    {type:'say',name:'The King',text:'People of Pallet Town! For three days our lamps guttered, our hearths grew cold, and our ribbons came untied.'},
+    {type:'say',name:'The King',text:'Then one small trainer - with one very stubborn Eevee - walked into the dark and carried our Three Lights home.'},
+    {type:'say',name:'The King',text:'Joy burns in the station. Courage roars in the warehouse. And Love... Love walks beside her, wearing ribbons.'},
+    {type:'hearts',id:'sylvC'},
+    {type:'say',name:'The King',text:'Kneel, young Oen. Every legend must begin somewhere - and every beginner deserves a legend\'s welcome.'},
+    {type:'wait',ms:600},
+    {type:'say',name:'The King',text:'By the Gold Light of Joy... the Red Light of Courage... and the Pink Light of Love... I hereby dub thee -'},
+    {type:'func',fn:()=>{ showTitleCard('OEN THE NOOBIE','Hero of the Three Lights',6400); spawnConfetti(80); audio.fanfare(); }},
+    {type:'wait',ms:1400},
+    {type:'say',name:'',text:'The whole town erupts in cheers!  "OEN!  OEN!  OEN THE NOOBIE!"'},
+    {type:'func',fn:()=>cheer(true)},
+    {type:'wait',ms:900},
+    {type:'func',fn:()=>cheer(false)},
+    {type:'say',name:'The King',text:'Wear the title proudly, little hero. Every master was once a noobie - but not every noobie saves a town.'},
+    {type:'face',id:'oakC',dir:'down'},
+    {type:'say',name:'Prof. Oak',text:'Oen... I have studied Pokémon my whole life, and I have never been prouder of anyone.'},
+    {type:'say',name:'Prof. Oak',text:'Beyond Route 1 there are mountains, oceans, and Pokémon no one has ever seen. Your adventure isn\'t ending today - it\'s beginning.'},
+    {type:'say',name:'Prof. Oak',text:'Go, Oen the Noobie. Go and explore the world of Pokémon - with Sylveon by your side, you will never walk alone.'},
+    {type:'hearts',id:'player'},{type:'hearts',id:'sylvC'},{type:'sfx',name:'heal'},
+    {type:'func',fn:()=>spawnConfetti(50)},
+    {type:'wait',ms:1600},
+    {type:'fade',dir:'out',ms:1200},
+  ], ()=>{ delete F.coronation; game.state='credits'; startCredits(()=>{}); });
 }
 
 /* ================= ROUTE 1 ================= */
@@ -3809,9 +3944,10 @@ function chooseSylveon(){
     {type:'hearts',id:'player'},{type:'hearts',id:'eSyl'},
     {type:'func',fn:()=>audio.fanfare()},
     {type:'wait',ms:1000},
-    {type:'say',name:'Prof. Oak',text:'Sylveon chose you, Oen. Go on - step out that door and explore the world of Pokémon with your new partner.'},
+    {type:'say',name:'Prof. Oak',text:'Sylveon chose you, Oen. And... ah, I nearly forgot! A royal messenger came by - the KING himself has summoned you to the plaza!'},
+    {type:'say',name:'Prof. Oak',text:'The whole town is waiting out there. Go on - step out that door. You\'ve earned this.'},
     {type:'func',fn:()=>{ F.endQuest=true; }},
-    {type:'objective',text:'Step out the lab door and begin your adventure!'},
+    {type:'objective',text:'Step out the lab door - the King awaits you in the plaza!'},
   ], ()=>{ game.state='play'; });
 }
 function cinemaBackdrop(){
@@ -5109,16 +5245,27 @@ function charIntroDraw(){
   for(const h of game.hearts){ drawHeart(h.x,h.y,3,clamp(1-h.t/h.life,0,1)); }
 }
 
+// The opening storybook: first the LEGEND OF THE THREE LIGHTS (why these three Pokémon
+// matter so much to Pallet Town), then Professor Oak's discovery that the legend is real.
+// Each page picks a painted panel + a soft colour tint matching its light.
 const INTRO_PAGES=[
-  'In the peaceful town of Pallet, Professor Oak has studied one of the most mysterious Pokémon of all: Eevee.',
-  'Eevee is special. It can evolve into many forms, each shaped by its bond, its environment, and its energy.',
-  'After months of research, the Professor\'s newest experiment has finally succeeded...',
-  'Three Eevee evolutions, stabilized at last: Jolteon, Flareon, and Sylveon.',
+  {panel:'town',    text:'Long ago, when Pallet Town was just a circle of little houses, the elders spoke of THREE LIGHTS that kept watch over it.'},
+  {panel:'station', tint:'rgba(246,214,46,.14)',  text:'The GOLD LIGHT of JOY - it kept every lamp burning, every machine humming, and every heart laughing.'},
+  {panel:'warehouse',tint:'rgba(232,90,60,.14)',  text:'The RED LIGHT of COURAGE - it kept every hearth warm, and made even the smallest heart brave.'},
+  {panel:'garden',  tint:'rgba(246,168,200,.16)', text:'And the PINK LIGHT of LOVE - the strongest of the three. It tied the whole town together, like a ribbon.'},
+  {panel:'town',    text:'"As long as the Three Lights shine," the elders promised, "no darkness will ever touch Pallet Town."'},
+  {panel:'intro1',  text:'In our time, Professor Oak made an incredible discovery: the Three Lights are real... and they live on inside Pokémon.'},
+  {panel:'intro2',  text:'Eevee is special. It can evolve into many forms, each shaped by its bond, its environment, and its energy.'},
+  {panel:'intro3',  text:'After months of gentle care, the Professor\'s research finally succeeded...'},
+  {panel:'intro4',  text:'JOLTEON, keeper of Joy. FLAREON, keeper of Courage. SYLVEON, keeper of Love. The Three Lights of Pallet Town, reborn.'},
+  {panel:'hideout', tint:'rgba(40,20,60,.22)',    text:'But every light casts a shadow... and out in the dark, someone else had been watching them, too.'},
 ];
 function introDraw(){
-  const panel = sceneImg('intro'+(game.intro+1));
+  const pg=INTRO_PAGES[game.intro];
+  const panel = sceneImg(pg.panel);
   if(panel){
     drawCover(panel, 1, Math.sin(anim/700)*3);   // illustrated story panel + slow drift
+    if(pg.tint){ g.fillStyle=pg.tint; g.fillRect(0,0,VW,VH); }   // the page's light colours the whole scene
     const bot=g.createLinearGradient(0,VH-66,0,VH); bot.addColorStop(0,'rgba(8,8,18,0)'); bot.addColorStop(1,'rgba(8,8,18,.92)');
     g.fillStyle=bot; g.fillRect(0,VH-66,VW,66);
     g.fillStyle='rgba(8,8,18,.45)'; g.fillRect(0,0,VW,14);
@@ -5126,7 +5273,7 @@ function introDraw(){
     g.fillStyle='#0a0a14'; g.fillRect(0,0,VW,VH);
     for(let i=0;i<24;i++){ rect((i*61)%VW,(i*43)%VH,1,1,'rgba(120,120,180,.4)'); }
   }
-  const page=INTRO_PAGES[game.intro];
+  const page=pg.text;
   const lines=wrap(page, VW-40, panel?9:10);
   const reveal=Math.min(page.length, game.introT/1.2|0);
   let count=reveal, yy = panel? VH-22-(lines.length-1)*12 : VH/2 - lines.length*7;
@@ -5137,7 +5284,7 @@ function introDraw(){
 }
 function introUpdate(dt){
   game.introT+=dt/24;   // half-speed reveal: the background story reads more slowly
-  const page=INTRO_PAGES[game.intro];
+  const page=INTRO_PAGES[game.intro].text;
   if(consume('ok')){
     if(game.introT/1.2 < page.length){ game.introT=page.length*1.2; }
     else { game.intro++; game.introT=0; audio.sfx('select');
@@ -5154,6 +5301,11 @@ const CREDIT_LINES=[
   'from Team Rocket,',
   'Oen began a new journey -',
   'with Sylveon by their side.',
+  '',
+  'By royal decree of the King,',
+  'she will forever be known as',
+  'OEN THE NOOBIE',
+  'Hero of the Three Lights.',
   '',
   'Some adventures begin with power.',
   'Some begin with courage.',
@@ -5218,7 +5370,7 @@ function creditsDraw(){
     let y=(VH+10) - credits.t*14;
     for(const ln of CREDIT_LINES){
       if(y>-10 && y<VH+10){
-        const col = ln==='♥'? '#f6a8c8' : (ln.indexOf('MISSION')>=0||ln.indexOf('Stolen')>=0)? '#f6d62e':'#f8f8f0';
+        const col = ln==='♥'? '#f6a8c8' : (ln.indexOf('MISSION')>=0||ln.indexOf('Stolen')>=0||ln.indexOf('NOOBIE')>=0)? '#f6d62e':'#f8f8f0';
         textShadow(ln,VW/2,y,col,'#1a0a1a', ln==='MISSION COMPLETE'?12:10);
       }
       y+=18;
@@ -5415,6 +5567,8 @@ function loop(now){
 }
 function update(dt){
   updateParticles();
+  if(game.titleCard){ game.titleCard.t+=dt; if(game.titleCard.t>=game.titleCard.dur) game.titleCard=null; }
+  if(game.arriveT>0) game.arriveT-=dt;   // "you are here" marker over Oen after a map change
   // global entity animation
   for(const e of game.entities) updateEntity(e,dt);
 
@@ -5457,6 +5611,25 @@ function update(dt){
   }
   if(game.player && (game.state==='play'||game.state==='cutscene')) updateCamera();
 }
+/* ---- cinematic finish: fine film grain + a whisper of warm light, over every in-world frame.
+   Pre-rendered noise tile, jittered each frame, blended soft-light so it textures without greying. ---- */
+const grainTile=(()=>{ const c=document.createElement('canvas'); c.width=c.height=96; const cg=c.getContext('2d');
+  const id=cg.createImageData(96,96);
+  for(let i=0;i<id.data.length;i+=4){ const v=(180+Math.random()*75)|0; id.data[i]=id.data[i+1]=id.data[i+2]=v; id.data[i+3]=255; }
+  cg.putImageData(id,0,0); return c; })();
+let grainPat=null;
+function cinematicGrade(){
+  if(!grainPat) grainPat=g.createPattern(grainTile,'repeat');
+  g.save();
+  g.globalCompositeOperation='soft-light'; g.globalAlpha=0.18;
+  g.translate(-((anim*7)%37), -((anim*13)%29));                    // jitter so the grain lives
+  g.fillStyle=grainPat; g.fillRect(0,0,VW+40,VH+32);
+  g.restore();
+  const warm=g.createLinearGradient(0,0,0,VH*0.5);                 // a whisper of warm light from above
+  warm.addColorStop(0,'rgba(255,214,150,.045)'); warm.addColorStop(1,'rgba(255,214,150,0)');
+  g.fillStyle=warm; g.fillRect(0,0,VW,VH*0.5);
+}
+const GRADED_STATES={play:1,cutscene:1,battle:1,cinema:1,catch:1,levelup:1,evo:1,vsintro:1};
 function render(){
   g.setTransform(RES,0,0,RES,0,0);   // HD super-sample: draw in logical coords, scaled up
   g.fillStyle='#000'; g.fillRect(0,0,VW,VH);
@@ -5476,6 +5649,8 @@ function render(){
     case 'cinema': cinemaDraw(); break;
     case 'credits': creditsDraw(); break;
   }
+  if(GRADED_STATES[game.state]) cinematicGrade();   // film grain + warm light over every in-world frame
+  if(game.state==='play'||game.state==='cutscene'){ drawConfetti(); drawTitleCard(); }   // coronation celebration overlays
   if(estActive() && (game.state==='play'||game.state==='cutscene')) estDraw();   // never overlay full-screen states (level-up, battle…) or its text doubles up
   if(game.paused) pauseDraw();
   // travel text overlay
