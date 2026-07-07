@@ -3240,10 +3240,11 @@ function setupCoronation(){
   const R=[['man1',26,23],['gal',26,24],['asst',26,25],['woman1',26,26],['kid',26,27]];
   for(const [s,x,y] of L) cheerAt(s,x,y,'right');
   for(const [s,x,y] of R) cheerAt(s,x,y,'left');
-  cheerAt('woman1',21,21,'down'); cheerAt('man1',25,21,'down');   // two more tucked in beside the dais
-  // the dais: the King before the fountain, Prof. Oak at his side
+  // the dais: the King before the fountain, Prof. Oak at his side - and the two rescued
+  // Lights themselves, brought from the lab to flank the ceremony (Sylveon walks in with Oen)
   placeEntity(newEntity({id:'kingC',kind:'char',sub:'king',tx:23,ty:22,dir:'down',solid:true}));
   placeEntity(newEntity({id:'oakC', kind:'char',sub:'oak', tx:25,ty:22,dir:'down',solid:true}));
+  mon('joltC2','jolteon',21,21,6); mon('flaC2','flareon',25,21,6);
   // Sylveon pads in at Oen's side
   const syl=mon('sylvC','sylveon',22,29,6);
   game.objective='';
@@ -3257,10 +3258,33 @@ function setupCoronation(){
     {type:'move',id:'sylvC',path:['up','up','up','up','up']},
     {type:'face',id:'sylvC',dir:'down'},{type:'face',id:'player',dir:'up'},
     {type:'wait',ms:400},
-    {type:'say',name:'The King',text:'People of Pallet Town! For three days our lamps guttered, our hearths grew cold, and our ribbons came untied.'},
-    {type:'say',name:'The King',text:'Then one small trainer - with one very stubborn Eevee - walked into the dark and carried our Three Lights home.'},
-    {type:'say',name:'The King',text:'Joy burns in the station. Courage roars in the warehouse. And Love... Love walks beside her, wearing ribbons.'},
-    {type:'hearts',id:'sylvC'},
+    {type:'say',name:'The King',text:'People of Pallet Town! Three nights ago, thieves crept into our home... and tore out its very heart.'},
+    {type:'flash',col:'#222',ms:500},{type:'shake',ms:300},
+    {type:'say',name:'The King',text:'Our lamps guttered and died. Our hearths went cold. Even the ribbons that tie this town together... came undone.'},
+    {type:'say',name:'The King',text:'And who went into the dark after them? Not an army. Not a champion. One small trainer... and one very stubborn Eevee.'},
+    // ---- JOY: Jolteon's story ----
+    {type:'flash',col:'#f6d62e',ms:450},{type:'sfx',name:'spark'},{type:'spark',id:'joltC2',col:'#f6d62e'},
+    {type:'say',name:'The King',text:'Behold JOLTEON - the GOLD LIGHT OF JOY! They caged it inside its own power station, behind locks and live wires.'},
+    {type:'say',name:'The King',text:'But Oen walked into that crackling dark, befriended a keeper\'s runaway Yamper, and threw the master breaker with her own two hands.'},
+    {type:'spark',id:'joltC2',col:'#fff8b0'},
+    {type:'say',name:'The King',text:'Look around you! Every lamp burning in Pallet Town tonight... burns because of her!'},
+    {type:'func',fn:()=>cheer(false)},
+    // ---- COURAGE: Flareon's story ----
+    {type:'flash',col:'#f08030',ms:450},{type:'sfx',name:'spark'},{type:'spark',id:'flaC2',col:'#f08030'},
+    {type:'say',name:'The King',text:'Behold FLAREON - the RED LIGHT OF COURAGE! It waited in the Ember Warehouse... behind a wall of its own stolen fire.'},
+    {type:'say',name:'The King',text:'Any of us would have turned back. She gathered all five Spring Crystals instead - and walked STRAIGHT THROUGH THE FLAMES.'},
+    {type:'spark',id:'flaC2',col:'#ffd0a0'},
+    {type:'say',name:'The King',text:'Every warm hearth in this town beats like a little heart tonight... because of her!'},
+    {type:'func',fn:()=>cheer(false)},
+    // ---- LOVE: Sylveon's story - the quietest, deepest beat ----
+    {type:'flash',col:'#f6a8c8',ms:450},{type:'hearts',id:'sylvC'},
+    {type:'say',name:'The King',text:'And behold SYLVEON... the PINK LIGHT OF LOVE. The strongest light of all - so they dragged it the furthest down.'},
+    {type:'say',name:'The King',text:'Underground, in the deepest dark beneath our feet, a machine was built to break its bond. It could not be beaten by strength.'},
+    {type:'say',name:'The King',text:'And there, her little Eevee - the one that would never evolve - looked at its trainer... and evolved out of pure LOVE. A light no one had ever seen.'},
+    {type:'hearts',id:'player'},{type:'hearts',id:'sylvC'},{type:'sfx',name:'heal'},
+    {type:'say',name:'The King',text:'The elders made us a promise: "As long as the Three Lights shine, no darkness will ever touch Pallet Town."'},
+    {type:'say',name:'The King',text:'Look up, everyone. Tonight all three lights shine again... because one little noobie refused to give up on them.'},
+    {type:'func',fn:()=>cheer(false)},
     {type:'say',name:'The King',text:'Kneel, young Oen. Every legend must begin somewhere - and every beginner deserves a legend\'s welcome.'},
     {type:'wait',ms:600},
     {type:'say',name:'The King',text:'By the Gold Light of Joy... the Red Light of Courage... and the Pink Light of Love... I hereby dub thee -'},
