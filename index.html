@@ -684,7 +684,8 @@ function drawChar(kind,x,y,dir,mv){
   if(p.cap){
     rrect(hx-5, hy-1, 10, 4, 2, p.cap); rect(hx-5, hy+2, 10, 1, p.capB);
     rect(hx-5, hy-1, 10, 1, 'rgba(255,255,255,.18)');                               // cap sheen
-    if(dir!=='up') rect(hx-1, hy+2, 6, 2, p.cap);                                   // brim
+    if(dir==='down') rect(hx-3.5, hy+2.4, 7, 1.8, p.cap);                           // front brim, centered (portraits look AT you)
+    else if(faceX) rect(hx+(faceX>0?-1:-5), hy+2, 6, 2, p.cap);                     // side brim points the way you face
   } else {
     rrect(hx-5, hy-1, 10, 4, 2, p.hair);
     rect(hx-5, hy-1, 10, 1, 'rgba(255,255,255,.14)');                               // hair sheen
@@ -2076,7 +2077,7 @@ function buildMaps(){
     path(3,34,5,37);
     put([[2,35],[3,35],[5,35],[6,35],[2,36],[6,36]],'h');   // hedge screen, gap at x=4
     M.town = { theme:'town', w, h, tiles:t, styleGrid:sg, spawn:{x:7,y:9,dir:'down'},
-      bare:{'4_36':1},   // decoration-free grass where the SW grunt lurks, so no flower pokes through him
+      bare:{'3_35':1,'4_35':1,'5_35':1,'3_36':1,'4_36':1,'5_36':1,'3_37':1,'4_37':1,'5_37':1},   // the whole SW grunt alcove stays plain grass - nothing pokes through him
       labels:[
         {x:7,y:2,t:'OAK\'S LAB',c:'#2a3a6a'},
         {x:23,y:1,t:'DOWNTOWN',c:'#33414f'},
@@ -2206,6 +2207,57 @@ const MEMORY_CARDS={
            lines:['Sylveon is safe - and the whole town feels it,','like a ribbon gently tied back into its bow.'],
            foot:'All three lights are home. Well done, Oen.  ♥'},
 };
+/* ---- crystal fusion cinematic: five gems spiral inward, flash, and fuse into one great prism ---- */
+function drawCrystalFx(){
+  const c=game.crysFx; if(!c) return;
+  const t=c.t, cx=VW/2, cy=88;
+  const dim=clamp(t/500,0,1);
+  g.globalAlpha=dim*0.88; g.fillStyle='#060a16'; g.fillRect(0,0,VW,VH); g.globalAlpha=1;
+  const gem=(x,y,s,col,a)=>{ g.globalAlpha=a;
+    poly([[x,y-s],[x+s*0.62,y],[x,y+s],[x-s*0.62,y]],col);
+    g.globalAlpha=a*0.55; poly([[x,y-s],[x,y+s],[x-s*0.38,y]],'#ffffff'); g.globalAlpha=1; };
+  if(t<2300){ // PHASE 1: the five spiral inward, trailing light
+    const k=clamp(t/2300,0,1), e=k*k*(3-2*k), rad=80*(1-e)+3;
+    for(let i=0;i<5;i++){ const ang=i*1.2566 - Math.PI/2 + e*5.2;
+      const gx=cx+Math.cos(ang)*rad, gy=cy+Math.sin(ang)*rad*0.72;
+      g.save(); g.globalCompositeOperation='lighter';
+      for(let tr=1;tr<=3;tr++){ const ta=ang-tr*0.24, tx2=cx+Math.cos(ta)*(rad+tr*3), ty2=cy+Math.sin(ta)*(rad+tr*3)*0.72;
+        g.globalAlpha=0.16/tr; circle(tx2,ty2,3.4,CRYSTAL_COL[i]); }
+      g.globalAlpha=0.5; circle(gx,gy,6+Math.sin((anim+i*9)/7)*1.4,CRYSTAL_COL[i]);
+      g.restore(); g.globalAlpha=1;
+      gem(gx,gy,5,CRYSTAL_COL[i],1);
+    }
+    text2Center('The five Spring Crystals resonate as one...', VH-18, '#bcd8ea', dim);
+  } else if(t<2800){ // PHASE 2: convergence FLASH + shockwave ring
+    const f=1-(t-2300)/500;
+    g.globalAlpha=f; g.fillStyle='#eaf8ff'; g.fillRect(0,0,VW,VH); g.globalAlpha=1;
+    const rr=(1-f)*90;
+    g.globalAlpha=f*0.9; g.strokeStyle='#bfeaff'; g.lineWidth=2.2; g.beginPath(); g.arc(cx,cy,rr,0,6.283); g.stroke();
+    g.globalAlpha=f*0.5; g.lineWidth=1; g.beginPath(); g.arc(cx,cy,rr*0.7,0,6.283); g.stroke(); g.globalAlpha=1;
+  } else { // PHASE 3: THE SPRING PRISM - one great crystal, rays wheeling, sparkles orbiting
+    const bob=Math.sin(anim/16)*2, gy=cy+bob;
+    g.save(); g.globalCompositeOperation='lighter';
+    for(let r2=0;r2<6;r2++){ const ra=anim/40+r2*1.047;                        // slow wheeling rays
+      const grd2=g.createLinearGradient(cx,gy,cx+Math.cos(ra)*70,gy+Math.sin(ra)*70);
+      grd2.addColorStop(0,'rgba(190,235,255,.30)'); grd2.addColorStop(1,'rgba(190,235,255,0)');
+      g.strokeStyle=grd2; g.lineWidth=3.4; g.beginPath(); g.moveTo(cx,gy); g.lineTo(cx+Math.cos(ra)*70, gy+Math.sin(ra)*70); g.stroke(); }
+    const halo=g.createRadialGradient(cx,gy,4,cx,gy,44);
+    halo.addColorStop(0,'rgba(170,230,255,.5)'); halo.addColorStop(1,'rgba(170,230,255,0)');
+    g.fillStyle=halo; g.fillRect(cx-48,gy-48,96,96);
+    g.restore();
+    gem(cx,gy,20,'#9ad8ff',1);                                                  // the great prism
+    g.globalAlpha=0.75; poly([[cx,gy-20],[cx+12.4,gy],[cx,gy+20]],'#c8f4ff'); g.globalAlpha=1;   // bright facet
+    for(let i=0;i<5;i++){ const oa=anim/22+i*1.2566, orx=30+Math.sin(anim/30+i)*4;   // the five spirits still orbit inside the light
+      const sx2=cx+Math.cos(oa)*orx, sy2=gy+Math.sin(oa)*orx*0.6;
+      const tw2=(Math.sin((anim+i*25)/11)+1)/2; g.globalAlpha=0.45+tw2*0.5;
+      gem(sx2,sy2,2.2,CRYSTAL_COL[i],0.9); }
+    g.globalAlpha=1;
+    text2Center('THE SPRING PRISM AWAKENS!', VH-30, '#dff4ff', 1, 10);
+    text2Center('Its cold light reaches for the wall of fire...', VH-16, '#9cc4da', 1);
+    if(t>2600 && Math.floor(anim/32)%2) text2Center('SPACE  ▸', VH-6, '#7b8ba0', 1, 7);
+  }
+}
+function text2Center(s,y,col,a,size){ g.globalAlpha=a; g.textAlign='center'; textShadow(s,VW/2,y,col,'#0a1420',size||8); g.textAlign='left'; g.globalAlpha=1; }
 function drawMemoryCard(){
   const m=game.memCard; if(!m) return;
   const a=clamp(m.t/700,0,1), e=a*a*(3-2*a);
@@ -2360,6 +2412,12 @@ class Seq {
     switch(act.type){
       case 'say': this.busy=true; say(act.pages||{name:act.name,text:act.text}, ()=>this.resolve()); break;
       case 'wait': { this.busy=true; let t=act.ms; this.tick=(dt)=>{ t-=dt; if(t<=0) this.resolve(); }; break; }
+      case 'crystalfx': { // the five Spring Crystals spiral together and fuse - a full-screen cinematic
+        this.busy=true; game.crysFx={t:0,flashed:false}; clearPressed(); audio.sfx('heal');
+        this.tick=(dt)=>{ const c=game.crysFx; if(!c){ this.resolve(); return; } c.t+=dt;
+          if(!c.flashed && c.t>=2300){ c.flashed=true; audio.sfx('spark'); audio.sfx('bell'); }
+          if(c.t>5200 || (c.t>2600 && consume('ok'))){ game.crysFx=null; this.resolve(); } };
+        break; }
       case 'memory': { // full-screen keepsake card; holds until the player has read it (SPACE)
         this.busy=true; const mc=MEMORY_CARDS[act.light]; if(!mc){ this.resolve(); break; }
         game.memCard={...mc, t:0}; clearPressed(); audio.sfx('memoryChime');
@@ -2391,9 +2449,12 @@ class Seq {
           if(cy!==target[1]){ const ny=cy+(cy<target[1]?1:-1); if(walkable(game.map,cx,ny)){ path.push(cy<target[1]?'down':'up'); cy=ny; moved=true; } }
           if(!moved && cx!==target[0]){ const nx=cx+(cx<target[0]?1:-1); if(walkable(game.map,nx,cy)){ path.push(cx<target[0]?'right':'left'); cx=nx; moved=true; } }
           if(!moved) break; }
-        e.walkPath=path; this.busy=true;
+        e.walkPath=path; e.dash=true; this.busy=true;                  // it RUNS to its rescuer, not strolls
         this.tick=()=>{ if(!e.stepping && (!e.walkPath||e.walkPath.length===0)){
-          e.tx=target[0]; e.ty=target[1]; e.px=target[0]*TS; e.py=target[1]*TS; e.dir=target[2]; this.resolve(); } }; break; }
+          e.tx=target[0]; e.ty=target[1]; e.px=target[0]*TS; e.py=target[1]*TS; e.dir=target[2]; e.dash=false;
+          const pl=game.player; if(pl){ const ddx=e.tx-pl.tx, ddy=e.ty-pl.ty;   // and Oen turns to meet it, wherever it lands
+            pl.dir = Math.abs(ddx)>=Math.abs(ddy) ? (ddx>0?'right':'left') : (ddy>0?'down':'up'); }
+          this.resolve(); } }; break; }
       case 'flash': { game.flash=1; game.flashCol=act.col||'#fff'; this.busy=true; let t=act.ms||300; this.tick=(dt)=>{ t-=dt; game.flash=clamp(t/(act.ms||300),0,1); if(t<=0){ game.flash=0; this.resolve(); } }; break; }
       case 'shake': { game.shake=act.ms||300; this.busy=true; let t=act.ms||300; this.tick=(dt)=>{ t-=dt; if(t<=0) this.resolve(); }; break; }
       case 'hearts': { const e= act.id==='player'?game.player:findEnt(act.id); if(e) spawnHearts(e.px+8,e.py); break; }
@@ -2433,7 +2494,7 @@ function tryStep(e, dir, ignoreEnt){
   if(!walkable(game.map,ntx,nty)){ if(e===game.player){ e.bumpT=110; e.bumpDir=dir; } return false; }   // silent bump feedback on walls (visual nudge only)
   if(!ignoreEnt && entAt(ntx,nty)) return false;
   e.stepping=true; e.sp=0; e.fromx=e.px; e.fromy=e.py; e.tx=ntx; e.ty=nty;
-  if(e===game.player && game.state==='play'){ audio.sfx('footstep');   // a soft footstep per tile
+  if(e===game.player && game.state==='play'){   // (footstep sound removed by request - dust only)
     if(keys.run){ for(let d=0;d<2;d++) game.particles.push({  // little dust kicks at her heels while sprinting
       x:e.px+6+Math.random()*4, y:e.py+13+Math.random()*2,
       vx:-dx*0.5+(Math.random()-0.5)*0.5, vy:-dy*0.5-0.25-Math.random()*0.25,
@@ -2443,7 +2504,7 @@ function tryStep(e, dir, ignoreEnt){
 function updateEntity(e,dt){
   if(e.bumpT>0) e.bumpT-=dt;
   if(e.stepping){
-    const inc = dt/((e===game.player && keys.run && game.state==='play')?95:158);   // hold Shift to run (a calmer, more natural walk pace)
+    const inc = dt/((e===game.player && keys.run && game.state==='play')?95:(e.dash?100:190));   // hold Shift to run; walking is a gentle stroll; dash = cutscene sprint
     e.sp += inc;
     e.gait = (e.gait||0) + inc*Math.PI;                                              // continuous walk-cycle phase: π advances per footstep
     if(e.sp>=1){ e.sp=1; e.stepping=false; e.px=e.tx*TS; e.py=e.ty*TS; e.frame^=1;
@@ -2701,11 +2762,18 @@ function drawWorld(){
   // tiles
   const x0=Math.floor(game.cam.x/TS), x1=Math.ceil((game.cam.x+VW)/TS);
   const y0=Math.floor(game.cam.y/TS), y1=Math.ceil((game.cam.y+VH)/TS);
+  const lateTrees=[];   // town tree crowns overflow their tile, so they render in a second pass over the finished ground
   for(let ty=y0;ty<=y1;ty++) for(let tx=x0;tx<=x1;tx++){
     if(ty<0||tx<0||ty>=m.h||tx>=m.w){ continue; }
-    drawTile(m.tiles[ty][tx], m.theme, tx*TS+ox, ty*TS+oy, tx, ty);
+    const ch=m.tiles[ty][tx];
+    if(m.theme==='town' && ch==='T'){ drawTile('.', m.theme, tx*TS+ox, ty*TS+oy, tx, ty); lateTrees.push(tx,ty); continue; }
+    drawTile(ch, m.theme, tx*TS+ox, ty*TS+oy, tx, ty);
   }
-  if(m.theme==='town') townShadowPass(m,x0,x1,y0,y1,ox,oy);   // ground buildings/trees with soft cast shadows + kerbs
+  if(m.theme==='town'){
+    townShadowPass(m,x0,x1,y0,y1,ox,oy);                      // ground buildings/trees with soft cast shadows + kerbs
+    for(let li=0;li<lateTrees.length;li+=2){ const ltx=lateTrees[li], lty=lateTrees[li+1];   // crowns overlay neighbours cleanly (no more chopped edges)
+      drawTile('T', m.theme, ltx*TS+ox, lty*TS+oy, ltx, lty); }
+  }
   else interiorShadowPass(m,x0,x1,y0,y1,ox,oy);               // ground interior walls with a soft cast shadow
   // entities sorted by y
   const ents=game.entities.filter(e=>e.visible).slice().sort((a,b)=>(a.py+ (a.kind==='mon'?8:0))-(b.py));
@@ -3092,6 +3160,7 @@ function yamperResult(pts, caught){
     const y=findEnt('yamper'); if(y){ const s=YAMPER_SPOTS[F.yamperSpot]; y.tx=s[0]; y.ty=s[1]; y.px=s[0]*TS; y.py=s[1]*TS; }
     runSeq([
       {type:'say',name:'',text:'Yamper wriggled free and bolted to another corner of Pallet Town!  ('+pts+'/50 left.)  Track it down and try again!'},
+      {type:'objective',text:'Catch the keeper\'s Yamper - it roams Pallet Town ('+pts+'/50). Throw once and it bolts; track it down again!'},
     ],()=>game.state='play');
   }
 }
@@ -3709,6 +3778,19 @@ function setupStation(){
       {type:'flash',col:C.yellow,ms:300},{type:'shake',ms:320},{type:'sfx',name:'spark'},
       {type:'say',name:'Rocket Engineer',text:'Aaagh - too much voltage! I\'m out of here!'},
       {type:'despawn',id:'eng'},
+      // the fleeing Engineer drops an EXP STONE - so the level-up is EARNED, not magic
+      {type:'spawn',entity:{id:'exps',kind:'obj',tx:8,ty:4,dir:'down',solid:false,visible:true,
+        draw:(x,y)=>{ const b=0.5+0.5*Math.sin(anim/9);
+          ellipse(x+8,y+13,4,1.4,'rgba(20,10,4,.3)');
+          g.globalAlpha=0.30+b*0.40; circle(x+8,y+8,6+b*2,'#f6b23e'); g.globalAlpha=1;
+          poly([[x+8,y+4],[x+11,y+8],[x+8,y+12],[x+5,y+8]],'#f6a02e');
+          g.globalAlpha=0.6; poly([[x+8,y+4],[x+8,y+12],[x+6.2,y+8]],'#ffd98a'); g.globalAlpha=1;
+          if(b>0.7) rect(x+9.5,y+5.5,1,1,'#fff'); }}},
+      {type:'sfx',name:'confirm'},
+      {type:'say',name:'',text:'Something clattered from the Engineer\'s pocket as he bolted... a glowing amber EXP STONE!'},
+      {type:'say',name:'',text:'Eevee scampers over, sniffs it - and hugs it tight. The stored battle experience flows into its little body!'},
+      {type:'spark',id:'player',col:'#f6b23e'},
+      {type:'despawn',id:'exps'},
       {type:'levelup',to:12},
       {type:'func',fn:()=>{ F.jolteonFree=true; }},
       {type:'video',key:'jolteon'},
@@ -3783,6 +3865,19 @@ function setupWarehouse(){
       {type:'say',name:'Grunt Cole',text:'Wh-that heat-?! My plan... burned out. I\'m out of here!'},
       {type:'move',id:'cole',path:['right','right','down','down','down']},
       {type:'despawn',id:'cole'},
+      // Cole drops an EXP STONE mid-flight - the level-up is earned loot, not magic
+      {type:'spawn',entity:{id:'exps',kind:'obj',tx:7,ty:7,dir:'down',solid:false,visible:true,
+        draw:(x,y)=>{ const b=0.5+0.5*Math.sin(anim/9);
+          ellipse(x+8,y+13,4,1.4,'rgba(20,10,4,.3)');
+          g.globalAlpha=0.30+b*0.40; circle(x+8,y+8,6+b*2,'#f6b23e'); g.globalAlpha=1;
+          poly([[x+8,y+4],[x+11,y+8],[x+8,y+12],[x+5,y+8]],'#f6a02e');
+          g.globalAlpha=0.6; poly([[x+8,y+4],[x+8,y+12],[x+6.2,y+8]],'#ffd98a'); g.globalAlpha=1;
+          if(b>0.7) rect(x+9.5,y+5.5,1,1,'#fff'); }}},
+      {type:'sfx',name:'confirm'},
+      {type:'say',name:'',text:'In his hurry, Cole dropped something - a glowing amber EXP STONE rolls across the floor!'},
+      {type:'say',name:'',text:'Eevee pounces on it and hugs it tight. The stored battle experience flows into its little body!'},
+      {type:'spark',id:'player',col:'#f6b23e'},
+      {type:'despawn',id:'exps'},
       {type:'levelup',to:13},
       {type:'func',fn:()=>{ F.warehouseSolved=true; F.flareonFree=true; }},
       {type:'flash',col:C.orange,ms:250},
@@ -3791,12 +3886,12 @@ function setupWarehouse(){
       {type:'approach',id:'flaC'},
       {type:'say',name:'Flareon',text:'Fla... flare. (It presses its warm head gently against Oen.)'},
       {type:'hearts',id:'player'},
-      {type:'say',name:'Prof. Oak',text:'Flareon is safe. Returning it to the lab now.'},
+      {type:'say',name:'',text:'Flareon glows warm and bright... and in a flash of light, the EVO TRACKER beams it safely home to the lab.'},
       {type:'flash',col:'#fff',ms:400},{type:'func',fn:()=>audio.fanfare()},
       {type:'despawn',id:'flaC'},
       {type:'flag',set:'flareonRescued'},
       {type:'memory',light:'courage'},
-      {type:'say',name:'Prof. Oak',text:'You\'ve saved Jolteon and Flareon. But Sylveon\'s signal is strange... almost like it\'s calling for help.'},
+      {type:'say',name:'Evo Tracker',text:'Two Lights recovered. But Sylveon\'s signal reads strange... almost like it\'s calling for help.'},
       {type:'say',name:'Evo Tracker',text:'Fairy energy detected back in town - search the Moonlit Garden (south-east).'},
       {type:'objective',text:'Leave the Ember Warehouse - walk out through the door (south).'},
     ], ()=>{ game.state='play'; });
@@ -3815,7 +3910,8 @@ function setupWarehouse(){
       if(F.warehouseSolved){ runSeq([{type:'say',name:'',text:'The flames are out. The altar rests quietly.'}],()=>game.state='play'); return; }
       const n=crystalCount();
       if(n>=5){ runSeq([
-        {type:'say',name:'Cooling Altar',text:'The five Spring Crystals click into place and resonate as one...'},
+        {type:'say',name:'Cooling Altar',text:'The five Spring Crystals click into place...'},
+        {type:'crystalfx'},                                       // the fusion cinematic: five gems spiral, flash, and fuse into the Spring Prism
         {type:'sfx',name:'spark'},{type:'flash',col:'#7fe0ff',ms:320},{type:'shake',ms:300},
         {type:'say',name:'',text:'A wave of cold mist sweeps the warehouse - the wall of fire hisses and dies down!'},
       ],()=>{ rescueFlareon(); }); }
@@ -3930,8 +4026,8 @@ function setupHideout(){
     talk:(e)=>{
       runSeq([
         {type:'say',name:'Admin Rook',text:'You actually made it. I\'m impressed.'},
-        {type:'say',name:'Prof. Oak',text:'That machine is an EVO AMPLIFIER. Rook is trying to force Sylveon\'s power to control other Pokémon.'},
-        {type:'say',name:'Admin Rook',text:'Exactly. Jolteon was the battery. Flareon was the engine. But Sylveon... is the heart.'},
+        {type:'say',name:'Admin Rook',text:'Do you like my masterpiece? This is an EVO AMPLIFIER - it will wring out Sylveon\'s power and force it into every Pokémon I command.'},
+        {type:'say',name:'Admin Rook',text:'Jolteon was the battery. Flareon was the engine. But Sylveon... Sylveon is the heart.'},
         {type:'say',name:'Admin Rook',text:'You rescued the other two - but I no longer need grunts. I have powered up legends of my own.'},
         {type:'face',id:'sylH',dir:'down'},{type:'hearts',id:'sylH'},
         {type:'say',name:'Admin Rook',text:'Charizard. Rayquaza. And the ultimate Pokémon - Mewtwo. This is where your rescue ends!'},
@@ -4403,8 +4499,31 @@ function beginPlayerSend(){
   throwBall('player', 8, VH-34, battle.PX, battle.PY, 28);
   bMsg('Go! '+battle.player.name+'!', ()=>{ showMenu(); }, 0);
 }
-function showMenu(){ battle.phase='mainmenu'; battle.mainSel=0; battle.menuT0=anim; }
-function showFight(){ battle.phase='fightmenu'; battle.menuT0=anim; }
+function showMenu(){ battle.phase='mainmenu'; battle.mainSel=0; battle.menuT0=anim; clearPressed(); }   // swallow held/leftover keys so the cursor always starts on FIGHT
+function showFight(){ battle.phase='fightmenu'; battle.menuT0=anim; clearPressed(); }
+function showBag(){ battle.phase='bagmenu'; battle.bagSel=0; battle.menuT0=anim; clearPressed(); }
+function drawBagMenu(by){
+  by+=menuSlide();
+  uiBox(4,by,VW-8,46);
+  g.textAlign='left'; g.textBaseline='middle';
+  const n=F.maxPotions||0, cb=Math.sin(anim/9)*1.2;
+  // --- MAX POTION row: bottle icon + name + count ---
+  const ix=22, iy=by+15;
+  if(battle.bagSel===0) poly([[ix-12+cb,iy-3.4],[ix-12+cb,iy+3.4],[ix-7+cb,iy]],'#e23b3b');
+  g.globalAlpha = n>0?1:0.42;
+  rrect(ix-3,iy-4.5,7,10,2,'#8a96dc'); rect(ix-3,iy-0.5,7,4,'#6a76c4');        // bottle body (two-tone)
+  rect(ix-1.5,iy-7,4,3,'#f6d62e'); rect(ix-1.5,iy-7,4,1,'#fff3b0');            // gold cap
+  rect(ix-0.6,iy-2.6,2.2,0.9,'#fff'); rect(ix,iy-3.3,0.9,2.3,'#fff');          // little white cross
+  text('MAX POTION', ix+9, iy, '#283048', 8);
+  text('x'+n, ix+72, iy, n>0?'#2e6b38':'#8a4040', 8);
+  text(n>0?'Fully restores HP. Costs the turn.':'None left!', ix+96, iy, '#6a7288', 7);
+  g.globalAlpha=1;
+  // --- BACK row ---
+  const byy=by+32;
+  if(battle.bagSel===1) poly([[ix-12+cb,byy-3.4],[ix-12+cb,byy+3.4],[ix-7+cb,byy]],'#e23b3b');
+  text('BACK', ix+9, byy, '#283048', 8);
+  g.textBaseline='alphabetic';
+}
 function menuSlide(){ const s=clamp((anim-(battle.menuT0||0))/12,0,1); return (1-(1-Math.pow(1-s,3)))*20; }   // panels slide up from below when a menu opens
 function useMaxPotion(){   // BAG -> Max Potion: full heal, costs the turn (enemy then attacks)
   if(!(F.maxPotions>0)){ bMsg('Oen has no items to use right now!', ()=>showMenu(), 0); return; }
@@ -4464,6 +4583,7 @@ function battlePointer(mx,my){
   const b=SKIP_BTN;   // TEMP DEV: skip button hit-test
   if(mx>=b.x && mx<=b.x+b.w && my>=b.y && my<=b.y+b.h){ skipBattle(); return; }
   const by=VH-50, p=battle.phase;
+  if(p==='bagmenu'){ battle.bagSel = my<by+24?0:1; pressed['ok']=true; return; }   // tap a row = choose it
   if(p==='mainmenu'){
     if(mx<157) return;                                   // left "What will…" box, not a command
     const col=mx<195?0:1, row=my<by+21?0:1;
@@ -4747,7 +4867,7 @@ function dblAnim(dt){
     if(battle.fxT>=battle.fxDur){ const cb=battle.fxOnDone; battle.fxOnDone=null; battle.fxOnHit=null; if(cb) cb(); } }
 }
 function dblWaitDrain(cb){ battle.phase='drainwait'; battle.afterDrain=cb; }
-function dblShowMenu(){ battle.player=battle.allies[0]; battle.phase='mainmenu'; battle.mainSel=0; battle.menuT0=anim;
+function dblShowMenu(){ battle.player=battle.allies[0]; battle.phase='mainmenu'; battle.mainSel=0; battle.menuT0=anim; clearPressed();
   const al=battle.foes.findIndex(f=>f.alive); if(al>=0 && (!battle.foes[battle.tgt]||!battle.foes[battle.tgt].alive)) battle.tgt=al; }
 function dblPlayMoveFx(moveName, atk, def, onHit, onDone){
   const cfg=MOVE_FX[moveName]||{dur:880,hitAt:0.45,kind:'lunge',sfx:'mTackle'};
@@ -4980,9 +5100,18 @@ function battleUpdate(dt){
     else if(consume('down')&&battle.mainSel<2){ battle.mainSel+=2; audio.sfx('cursor'); }
     if(consume('ok')){ audio.sfx('confirm');
       if(battle.mainSel===0) showFight();
-      else if(battle.mainSel===1) useMaxPotion();
+      else if(battle.mainSel===1) showBag();
       else if(battle.mainSel===2) bMsg('Eevee is raring to go! There\'s no one else to switch in.', ()=>showMenu(), 0);
       else bMsg('No! There\'s no running from a Trainer battle!', ()=>showMenu(), 0);
+    }
+    return;
+  }
+  if(battle.phase==='bagmenu'){   // the BAG opens to show what's inside - nothing is used until chosen
+    if(consume('up')||consume('down')){ battle.bagSel=battle.bagSel?0:1; audio.sfx('cursor'); }
+    if(consume('menu')){ audio.sfx('cancel'); showMenu(); }
+    else if(consume('ok')){ audio.sfx('confirm');
+      if(battle.bagSel===0 && F.maxPotions>0) useMaxPotion();
+      else showMenu();
     }
     return;
   }
@@ -5267,6 +5396,7 @@ function battleDraw(){
   if(battle.phase==='transform') drawTransformOverlay();
   else if(battle.phase==='mainmenu') drawMainMenu(by);
   else if(battle.phase==='fightmenu') drawFightMenu(by);
+  else if(battle.phase==='bagmenu') drawBagMenu(by);
   else drawBattleMsg(by);
   if(battle.startFx>0) drawBattleIntro();
   g.restore();
@@ -5603,34 +5733,51 @@ function introUpdate(dt){
 
 // credits
 const credits={t:0, cb:null, active:false, phase:'scroll', phaseT:0};
+/* ★★★ EDIT HERE - THE CREDITS SCROLL ★★★
+   Part 1: how Oen the Noobie went on to conquer the whole world of Pokémon.
+   Part 2: how that story is really OUR story. Replace with your own words - keep lines short. */
 const CREDIT_LINES=[
   '',
-  'And so, after saving three stolen Pokémon',
-  'from Team Rocket,',
-  'Oen began a new journey -',
-  'with Sylveon by their side.',
+  'And so, with the Three Lights home',
+  'and a royal title upon her head,',
+  'Oen the Noobie walked out past Route 1',
+  'with Sylveon at her side...',
   '',
-  'By royal decree of the King,',
-  'she will forever be known as',
-  'OEN THE NOOBIE',
-  'Hero of the Three Lights.',
+  '...and conquered the whole',
+  'world of Pokémon.',
   '',
-  'Some adventures begin with power.',
-  'Some begin with courage.',
-  'But the best ones begin',
-  'with love and trust.',
+  'Region by region. Badge by badge.',
+  'Champion after champion fell,',
+  'and every town she passed through',
+  'glowed a little brighter behind her.',
+  '',
+  '♥',
+  '',
+  'But here is a secret, Oen:',
+  '',
+  'long before you conquered that world,',
+  'you had already conquered mine.',
+  '',
+  'You walked into my life the way you',
+  'walked into that dark hideout -',
+  'fearless, glowing,',
+  'impossible to ignore.',
+  '',
+  'Every lamp you lit in Pallet Town,',
+  'you had already lit in me.',
+  '',
+  'My Joy. My Courage. My Love.',
+  'All three of my lights are you.',
   '',
   '♥',
   '',
   'MISSION COMPLETE',
   'The Three Stolen Lights',
   '',
-  'Sylveon joined Oen\'s team.',
-  '',
   '',
   '♥',
   '',
-  'Made with love, for Oen.',
+  'Made with love, only for Oen.',
   '',
 ];
 function startCredits(cb){ credits.active=true; credits.t=0; credits.cb=cb; credits.phase='blank'; credits.phaseT=0; game.state='credits'; audio.play('emotion'); }
@@ -6011,7 +6158,7 @@ function render(){
     case 'credits': creditsDraw(); break;
   }
   if(GRADED_STATES[game.state]) cinematicGrade();   // film grain + warm light over every in-world frame
-  if(game.state==='play'||game.state==='cutscene'){ drawConfetti(); drawTitleCard(); drawMemoryCard(); }   // celebration + keepsake overlays
+  if(game.state==='play'||game.state==='cutscene'){ drawConfetti(); drawTitleCard(); drawMemoryCard(); drawCrystalFx(); }   // celebration + keepsake + fusion overlays
   else if(game.state==='battle') drawTitleCard();   // the Umbreon evolution card pops over the battle
   if(estActive() && (game.state==='play'||game.state==='cutscene')) estDraw();   // never overlay full-screen states (level-up, battle…) or its text doubles up
   if(game.paused) pauseDraw();
