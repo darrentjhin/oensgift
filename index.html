@@ -5537,6 +5537,33 @@ function titleDraw(){
     for(let i=0;i<30;i++){ const sx=(i*53)%VW, sy=(i*37)%80; if((Math.floor(anim/20)+i)%5) rect(sx,sy,1,1,'rgba(255,255,255,.6)'); }
     circle(200,30,16,'#f4f0d0'); circle(194,26,14,'#3a2a5a');
   }
+  if(!titleComplete()){
+    // ---- THE NIGHT OF THE THEFT: the fresh cover falls into uneasy dark, and the three
+    // Lights streak away across the sky as coloured meteors. (Beating the game restores
+    // the daylight reunion cover - the cover itself heals.) ----
+    const nw=g.createLinearGradient(0,0,0,VH);                                    // moonless night wash over the painting
+    nw.addColorStop(0,'rgba(7,9,30,.80)'); nw.addColorStop(0.55,'rgba(10,11,34,.64)'); nw.addColorStop(1,'rgba(5,6,22,.72)');
+    g.fillStyle=nw; g.fillRect(0,0,VW,VH);
+    const cvg=g.createRadialGradient(VW/2,VH*0.45,40,VW/2,VH*0.5,VH*0.95);        // a closing vignette presses in from the corners
+    cvg.addColorStop(0,'rgba(0,0,0,0)'); cvg.addColorStop(1,'rgba(4,2,12,.62)');
+    g.fillStyle=cvg; g.fillRect(0,0,VW,VH);
+    for(let i=0;i<22;i++){ const sx=(i*47)%VW, sy=(i*29)%64;                      // cold sparse stars
+      const tw3=(Math.sin((anim+i*31)/26)+1)/2; g.globalAlpha=0.15+tw3*0.45; rect(sx,sy,1,1,'#cfd8ff'); }
+    g.globalAlpha=1;
+    // the three stolen Lights, streaking away as meteors (gold Joy, ember Courage, pink Love)
+    const METS=[['255,214,20',56,0.62,0],['255,92,30',65,0.5,210],['255,120,196',74,0.72,420]];
+    for(let mi=0;mi<3;mi++){ const [col,baseY,spd,off]=METS[mi];
+      const span=VW+150, hx=((anim*spd+off)%span)-70, hy=baseY+hx*0.04;           // falling gently rightward, in the band between title and town
+      g.save(); g.globalCompositeOperation='lighter';
+      for(let tr2=0;tr2<11;tr2++){ const tx3=hx-tr2*7.5, ty3=hy-tr2*0.30;         // long tapering trail, back along the fall
+        g.globalAlpha=(1-tr2/11)*0.42; circle(tx3,ty3,2.6*(1-tr2/12),'rgb('+col+')'); }
+      const hg=g.createRadialGradient(hx,hy,0.5,hx,hy,11);                        // glowing head
+      hg.addColorStop(0,'rgba(255,255,255,.95)'); hg.addColorStop(0.3,'rgba('+col+',.8)'); hg.addColorStop(1,'rgba('+col+',0)');
+      g.globalAlpha=1; g.fillStyle=hg; g.fillRect(hx-12,hy-12,24,24);
+      if((anim+off)%9<2){ g.globalAlpha=0.7; rect(hx-14-Math.random()*6, hy+1+Math.random()*4, 1.2,1.2,'rgb('+col+')'); }   // a spark shakes loose
+      g.restore(); g.globalAlpha=1;
+    }
+  }
   // title
   g.textAlign='center';
   textShadow('POKéMON',VW/2,30,'#f6d62e','#a06010',16);
@@ -5545,30 +5572,16 @@ function titleDraw(){
   const ph=(Math.sin(anim/20)+1)/2;
   // three lights - painted hi-res sprites (R>=16 uses the PNGs, not the small procedural fallback)
   if(!titleComplete()){
-    // THE COVER: three bodiless lights adrift above the town - gold Joy, ember Courage,
-    // pink Love - while little Eevee, the one who never evolved, watches from below.
-    // The whole premise in one picture, and not a single spoiler.
-    const LIGHTS=[['255,214,20',86,72,0],['255,92,30',128,61,2.1],['255,120,196',170,74,4.2]];
-    for(let li=0;li<3;li++){ const [col,lx,lyBase,off]=LIGHTS[li];
-      const ly=lyBase+Math.sin(anim/(26+li*3)+off)*3.5;                             // each light drifts on its own current
-      const pu=0.5+0.5*Math.sin(anim/15+off);
-      g.save(); g.globalCompositeOperation='lighter';
-      const glo=g.createRadialGradient(lx,ly,1,lx,ly,16+pu*5);
-      glo.addColorStop(0,'rgba('+col+',0.85)');
-      glo.addColorStop(0.35,'rgba('+col+','+(0.30+pu*0.20).toFixed(3)+')');
-      glo.addColorStop(1,'rgba('+col+',0)');
-      g.fillStyle=glo; g.fillRect(lx-24,ly-24,48,48);
-      circle(lx,ly,2.2+pu*0.7,'#ffffff');                                           // white-hot core
-      for(let si=0;si<4;si++){ const a2=anim/30+off+si*1.57, rr=9+si*2.6+pu*2;      // orbiting motes
-        const tw3=(Math.sin(anim/8+si*2+off)+1)/2; g.globalAlpha=0.25+tw3*0.60;
-        rect(lx+Math.cos(a2)*rr, ly+Math.sin(a2)*rr*0.7, 1.1, 1.1, 'rgb('+col+')'); }
-      g.restore(); g.globalAlpha=1;
-    }
-    // Eevee watches from below - small, hopeful, exactly who this story belongs to
-    const eb=Math.sin(anim/26)*1.2;
-    ellipse(128,122,13,3.2,'rgba(20,14,30,.32)');
+    // Eevee watches the meteors go - the one small light that stayed. Its warm glow is
+    // the single point of comfort on the dark cover ("a bit creepy, but not really").
+    const eb=Math.sin(anim/26)*1.2, pu2=0.5+0.5*Math.sin(anim/19);
+    g.save(); g.globalCompositeOperation='lighter';
+    const wg=g.createRadialGradient(128,104,3,128,104,30+pu2*4);
+    wg.addColorStop(0,'rgba(255,196,110,'+(0.30+pu2*0.14).toFixed(3)+')'); wg.addColorStop(1,'rgba(255,196,110,0)');
+    g.fillStyle=wg; g.fillRect(90,66,76,76);
+    g.restore();
+    ellipse(128,122,13,3.2,'rgba(6,6,16,.5)');
     drawMon('eevee',128,105+eb,17);   // R>=16 -> the painted sprite
-    spawnHeartsAuto(140,96);
     if(saveSystem.hasSave()){
       const opts=['New Game','Continue'];
       for(let i=0;i<2;i++){ const ox=VW/2-40+i*70, sel=game.titleSel===i;
