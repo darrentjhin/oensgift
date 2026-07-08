@@ -5304,6 +5304,20 @@ function titleVideoFrame(){   // muted, looping, autoplay-safe animated title ba
   return false;
 }
 function titleComplete(){ try{ return localStorage.getItem('poke3lights_done')==='1'; }catch(e){ return false; } }
+// title-cover silhouettes: the Three Lights are STOLEN, so until the game is beaten the
+// cover shows only their dark shapes wrapped in their signature glow. (Completion swaps
+// to the Poppy & Sylveon reunion photo, so saving them is what reveals the cover.)
+const silCache={};
+function monSilhouette(sp){
+  if(silCache[sp]) return silCache[sp];
+  const im=ASSETS._img['mon:'+sp]; if(!im || !im.naturalWidth) return null;
+  const c=document.createElement('canvas'); c.width=im.naturalWidth; c.height=im.naturalHeight;
+  const cg=c.getContext('2d');
+  cg.drawImage(im,0,0);
+  cg.globalCompositeOperation='source-in';
+  cg.fillStyle='#171226'; cg.fillRect(0,0,c.width,c.height);
+  silCache[sp]=c; return c;
+}
 function titleDraw(){
   const art=sceneImg('town');
   const hasBg = titleVideoFrame() || (art && drawCover(art, 1, Math.sin(anim/600)*4));
@@ -5327,10 +5341,33 @@ function titleDraw(){
   const ph=(Math.sin(anim/20)+1)/2;
   // three lights - painted hi-res sprites (R>=16 uses the PNGs, not the small procedural fallback)
   if(!titleComplete()){
+    // the STOLEN lights: three dark silhouettes, each wrapped in its signature glow -
+    // gold Joy, red Courage, pink Love. Who they are is the story's to tell.
     const bob=Math.sin(anim/22)*1.6, R=19;
-    const trio=[['jolteon',VW/2-54,bob],['flareon',VW/2,-bob],['sylveon',VW/2+54,bob]];
-    for(const m of trio){ ellipse(m[1],118,14,3.6,'rgba(20,14,30,.30)'); drawMon(m[0],m[1],98+m[2],R); }
-    spawnHeartsAuto(VW/2+54,92);
+    const trio=[['jolteon',VW/2-54,bob,'255,214,20'],['flareon',VW/2,-bob,'255,92,30'],['sylveon',VW/2+54,bob,'255,120,196']];
+    for(let ti=0;ti<trio.length;ti++){ const [sp,mx,mb,col]=trio[ti], my=98+mb;
+      ellipse(mx,118,14,3.6,'rgba(20,14,30,.30)');
+      const pu=0.5+0.5*Math.sin(anim/17+ti*2.1);                                    // each light breathes on its own beat
+      const bk=g.createRadialGradient(mx,my-2,4,mx,my-2,30);                        // soft dusk backing so the coloured glow has dark to burn against
+      bk.addColorStop(0,'rgba(22,16,38,.52)'); bk.addColorStop(1,'rgba(22,16,38,0)');
+      g.fillStyle=bk; g.fillRect(mx-36,my-38,72,72);
+      g.save(); g.globalCompositeOperation='lighter';                               // additive so the aura truly GLOWS over the painting
+      const glo=g.createRadialGradient(mx,my-2,3,mx,my-2,30+pu*6);
+      glo.addColorStop(0,'rgba('+col+','+(0.50+pu*0.22).toFixed(3)+')'); glo.addColorStop(1,'rgba('+col+',0)');
+      g.fillStyle=glo; g.fillRect(mx-40,my-42,80,80);
+      g.restore();
+      const sil=monSilhouette(sp), w=R*2.7;
+      if(sil) g.drawImage(sil, mx-w/2, (my+R)-w, w, w);                             // same geometry as the painted sprite
+      g.save(); g.globalCompositeOperation='lighter';                               // faint backlight rims the dark shape
+      const rim=g.createRadialGradient(mx,my-4,2,mx,my-4,15);
+      rim.addColorStop(0,'rgba('+col+','+(0.16+pu*0.10).toFixed(3)+')'); rim.addColorStop(1,'rgba('+col+',0)');
+      g.fillStyle=rim; g.fillRect(mx-20,my-24,40,40);
+      g.restore();
+      for(let si=0;si<3;si++){ const a2=anim/26+ti*2.1+si*2.09, rr=16+si*4;         // slow orbiting motes of its light
+        const tw3=(Math.sin(anim/9+si*1.7+ti)+1)/2; g.globalAlpha=0.35+tw3*0.55;
+        rect(mx+Math.cos(a2)*rr, my-4+Math.sin(a2)*rr*0.55, 1.3, 1.3, 'rgb('+col+')'); }
+      g.globalAlpha=1;
+    }
     if(saveSystem.hasSave()){
       const opts=['New Game','Continue'];
       for(let i=0;i<2;i++){ const ox=VW/2-40+i*70, sel=game.titleSel===i;
