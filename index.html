@@ -2063,6 +2063,7 @@ function buildMaps(){
     put([[20,15],[26,15],[20,26],[26,26]],'u');    // flower beds
     put([[17,18],[29,18],[17,23],[29,23]],'i');    // flowering shrubs
     put([[16,20],[30,20]],'e');                    // market stalls at the side entrances
+    put([[24,16]],'o');                            // the carved Eevee statue, the town's little mascot
     put([[22,13],[23,13],[22,28],[23,28]],'x');    // crosswalks at the N & S plaza gates
     // ---- 8. PARKS & GARDENS filling the open grass (organized clusters) ----
     grassPut([[11,12],[13,12],[32,12],[34,12]],'i');       // shrubs at the downtown base
@@ -2070,7 +2071,7 @@ function buildMaps(){
     grassPut([[11,15],[34,15],[12,16],[33,16]],'f');       // flower patches
     grassPut([[5,12],[41,15],[5,25],[41,26]],'j');         // mailboxes near the homes
     grassPut([[6,14],[39,14],[6,26],[39,26]],'u');         // flower beds by the residences
-    grassPut([[4,36],[6,37],[39,37],[41,36],[3,35],[42,35]],'f');   // south-corner flower gardens
+    grassPut([[6,37],[39,37],[41,36],[3,35],[42,35]],'f');   // south-corner flower gardens ((4,36) stays clear - the hidden grunt stands there)
     grassPut([[16,30],[30,30],[13,33],[33,33]],'T');       // south-district shade trees
     grassPut([[19,30],[27,30]],'i');                       // shrubs by the south homes
     // ---- 9. HIDDEN GRUNT ALCOVE (SW), screened by a hedge (kid tips you off) ----
@@ -2441,6 +2442,7 @@ class Seq {
         for(const c of around){ const tx=c[0],ty=c[1];
           if(!walkable(game.map,tx,ty)) continue;
           if(tx===p.tx&&ty===p.ty) continue;
+          if(game.followerEnt && game.followerEnt.tx===tx && game.followerEnt.ty===ty) continue;   // don't land on the partner
           if(game.entities.some(o=>o!==e&&o.solid&&o.tx===tx&&o.ty===ty)) continue;
           const d=Math.abs(tx-e.tx)+Math.abs(ty-e.ty); if(d<bD){ bD=d; target=c; } }
         if(!target){ break; }                                  // nowhere clean to stand: leave it put
@@ -2928,7 +2930,8 @@ function enterMap(name, tx, ty, dir){
   game.state='play';
   game.arriveT=2400;   // brief "you are here" chevron over Oen so she's easy to spot in a busy scene
   setupScene(name);
-  eeveeCompanionLine(name);   // partner Eevee greets each new area, so Oen never explores alone
+  spawnPartnerFollower();     // HGSS-style: partner Eevee walks at Oen's heel through the whole adventure
+  eeveeCompanionLine(name);   // ...and greets each new area, so Oen never explores alone
   // silent autosave once the area has settled into normal play (never mid-story-cutscene)
   if(game.state==='play' && F && Object.keys(F).length){ saveSystem.save(); game.savedT=80; }
 }
@@ -2963,7 +2966,18 @@ function eeveeCompanionLine(name){
   F['eevSaid_'+name]=true;
   runSeq([{type:'say',name:'Eevee',text:line}], ()=>{ game.state='play'; });
 }
-/* ---- follower: after the hideout, Sylveon literally walks home beside Oen through town ---- */
+/* ---- partner follower: Eevee (later Umbreon) walks at Oen's heel through the whole game,
+   HeartGold-style. After the hideout, rescued Sylveon takes over for the walk home. ---- */
+function spawnPartnerFollower(){
+  if(!F.gotEevee || F.gameWon || F.coronation) return;    // post-game: Sylveon walks home instead (setupTown handles it)
+  if(game.followerEnt) return;                            // a scene already provided a follower
+  const p=game.player; if(!p) return;
+  let sx=p.tx, sy=p.ty;
+  for(const [ax,ay] of [[0,1],[0,-1],[-1,0],[1,0]]){      // prefer a free tile at her heel
+    if(walkable(game.map,p.tx+ax,p.ty+ay) && !entAt(p.tx+ax,p.ty+ay)){ sx=p.tx+ax; sy=p.ty+ay; break; } }
+  const e=mon('eevF', F.partner==='umbreon'?'umbreon':'eevee', sx, sy, 6);
+  e.solid=false; game.followerEnt=e;
+}
 function updateFollower(){
   const f=game.followerEnt; if(!f || !game.player || game.state!=='play') return;
   if(f.stepping) return;
@@ -3015,16 +3029,53 @@ function setupTown(){
     ],()=>game.state='play'); }}));
   spawnFountain();   // big multi-tile plaza fountain (drawn as an entity so it isn't clipped to one tile)
   spawnClockTower(); // downtown clock-tower landmark (caps the central axis)
+  // ---- landmarks that answer when examined: in a proper Pokémon town, everything talks back ----
+  const examine=(id,tx,ty,fn)=>placeEntity(newEntity({id,kind:'obj',tx,ty,dir:'down',solid:true,visible:false,talk:fn}));
+  examine('statueX',24,16,(e)=>runSeq([
+    {type:'say',name:'',text:'A little stone Eevee, worn smooth by years of small hands patting its head.'},
+    {type:'say',name:'Plaque',text:'"To the little one who can become anything - may the Three Lights always guide you home."'},
+  ],()=>game.state='play'));
+  const mailTalk=(e)=>runSeq([{type:'say',name:'',text:'The mailbox is stuffed with festival flyers. One letter pokes out, addressed to "THE BRAVEST TRAINER IN PALLET TOWN".'}],()=>game.state='play');
+  for(const [mx2,my2] of [[5,12],[41,15],[5,25],[41,26]]) examine('mail'+mx2+'_'+my2,mx2,my2,mailTalk);
+  const stallTalk=(e)=>runSeq([{type:'say',name:'Stall Keeper',text:'Warm bread, berry jam, fresh Oran berries! For our town\'s hero - on the house, once every Light is home. Come back hungry!'}],()=>game.state='play');
+  for(const [ex2,ey2] of [[16,20],[30,20]]) examine('stall'+ex2,ex2,ey2,stallTalk);
   const finaleNight = F.gardenCleared && !F.gameWon;   // the ??? act: night has fallen, everyone's shut indoors
   if(!finaleNight){
     // ---- everyday townsfolk: a little life around the plaza (placed clear of warps, crystals & the quest kid) ----
     const stroll=(e,r)=>{ e.wander=true; e.hx=e.tx; e.hy=e.ty; e.wr=r||3; return e; };   // wander within r tiles of home, then pause
-    stroll(npc('towns1','woman1',18,18,'right',[{name:'Townswoman',text:'Pallet Town\'s prettiest in spring. Mind the fountain - the little ones love to splash there!'}]),3);
-    stroll(npc('towns2','man1',  28,18,'left', [{name:'Townsman',text:'You\'re Oen, aren\'t you? The whole town\'s cheering you on. Go bring those Pokemon home.'}]),3);
-    npc('towns3','gal',   24,25,'up',   [{name:'Girl',text:'The downtown lights were strung up for the festival. Aren\'t they pretty when they glow?'}]).idle=true;
-    npc('towns4','oldman',26,16,'down', [{name:'Old Man',text:'That Eevee of yours wouldn\'t take any stone. It simply wants to be itself. There is a quiet courage in that.'}]).idle=true;
-    stroll(npc('towns5','kid',   30,22,'down', [{name:'Townsfolk',text:'I keep walking the same loop hoping the festival lights switch on. Any minute now!'}]),3);
-    stroll(npc('towns6','man1',  16,22,'right',[{name:'Townsfolk',text:'Just stretching my legs round the plaza. Lovely spot, isn\'t it?'}]),3);
+    // townsfolk REACT to the story: their lines change as each Light comes home (like a real Pokémon town)
+    const stg = F.flareonRescued?2 : F.jolteonRescued?1 : 0;   // (gameWon has its own celebratory set below)
+    const say4=(arr)=>arr[Math.min(F.gameWon?3:stg, arr.length-1)];
+    stroll(npc('towns1','woman1',18,18,'right',[{name:'Townswoman',text:say4([
+      'Pallet Town\'s prettiest in spring... though everyone\'s been uneasy since the break-in at the lab.',
+      'The lamps all came back on at once last night - like the whole town took a breath. Was that you, dear?',
+      'My hearth lit itself this morning, warm as a hug. The old lights really are coming home, aren\'t they?',
+      'Sylveon too?! Oh, bless you, child. The whole town wants to thank you!'])}]),3);
+    stroll(npc('towns2','man1',  28,18,'left', [{name:'Townsman',text:say4([
+      'You\'re Oen, aren\'t you? The whole town\'s cheering you on. Go bring those Pokemon home.',
+      'One light home! I knew you could do it. The station\'s humming like a songbird again.',
+      'Two lights home! My grandfather told me the old legend - I never believed it until this week.',
+      'All three lights are home! And listen - word is the KING himself wants a word with you!'])}]),3);
+    npc('towns3','gal',   24,25,'up',   [{name:'Girl',text:say4([
+      'The downtown lights were strung up for the festival. Aren\'t they pretty when they glow?',
+      'The festival lights burn brighter tonight, I swear it. Like they\'re happy.',
+      'Even the fountain seems warmer somehow. Is that silly? It doesn\'t feel silly.',
+      'They\'re saying a coronation is coming... how exciting! A real royal ceremony, here!'])}]).idle=true;
+    npc('towns4','oldman',26,16,'down', [{name:'Old Man',text:say4([
+      'That Eevee of yours wouldn\'t take any stone. It simply wants to be itself. There is a quiet courage in that.',
+      'Joy came home first, did it? Fitting. Joy always finds the way for the others.',
+      'Joy, then Courage. Only Love remains - and Love, little one, is always the hardest and the strongest.',
+      'Joy. Courage. Love. And a fourth light no legend foretold - the one walking beside you. Treasure it.'])}]).idle=true;
+    stroll(npc('towns5','kid',   30,22,'down', [{name:'Townsfolk',text:say4([
+      'I keep walking the same loop hoping the festival lights switch on. Any minute now!',
+      'Did you SEE the power station light up?! ZZZAP! That was so cool!!',
+      'First the lamps, then the warm chimneys! You\'re like a hero straight out of the storybook!',
+      'You saved ALL of them?! When I grow up I want to be a noobie JUST like you!'])}]),3);
+    stroll(npc('towns6','man1',  16,22,'right',[{name:'Townsfolk',text:say4([
+      'Just stretching my legs round the plaza. Lovely spot, isn\'t it?',
+      'Folk are smiling again. Amazing what a few streetlamps can do for the soul.',
+      'Two of the three lights back, they say. I\'ve started leaving my window unshuttered again.',
+      'A parade, a ceremony, the works! Today Pallet Town celebrates its little hero!'])}]),3);
     spawnSoccer();   // two kids kicking a ball around the lower plaza
     spawnBirds();    // ground birds pecking & hopping around the plaza
   } else {
@@ -3171,6 +3222,11 @@ function spawnFountain(){
   for(const [tx,ty] of foot) placeEntity(newEntity({id:'fbk'+tx+'_'+ty,kind:'obj',tx,ty,dir:'down',solid:true,visible:false}));
   // the visible fountain is anchored on the lower-centre tile and drawn ~3 tiles wide
   placeEntity(newEntity({id:'fountain',kind:'obj',tx:23,ty:20,dir:'down',solid:true,visible:true,
+    talk:(e)=>runSeq([
+      {type:'say',name:'',text:'Coins glitter at the bottom of the fountain. They say a wish made here with a kind heart always finds its way.'},
+      {type:'func',fn:()=>{ const p=game.player; if(p) spawnHearts(p.px+8,p.py); audio.sfx('heal'); }},
+      {type:'say',name:'',text:'Oen closes her eyes and makes a wish... You already know what it was.'},
+    ],()=>game.state='play'),
     draw:(ex,ey)=>{
       const cx=ex+8, cy=ey;                                        // centre of the 3x2 footprint
       ellipse(cx,cy+13,17,5,C.shadow);                             // ground shadow
@@ -3214,8 +3270,12 @@ function spawnFountain(){
 }
 /* ---- the town's hero landmark: a stone clock tower capping the downtown axis, clock aglow at night ---- */
 function spawnClockTower(){
-  for(const [tx,ty] of [[17,24],[18,24]]) placeEntity(newEntity({id:'ct'+tx,kind:'obj',tx,ty,dir:'down',solid:true,visible:false}));   // solid base in the lower plaza (so the full tower fits on screen near the fountain)
-  placeEntity(newEntity({id:'clocktower',kind:'obj',tx:17,ty:24,dir:'down',solid:true,visible:true,
+  const towerTalk=(e)=>runSeq([
+    {type:'sfx',name:'bell'},
+    {type:'say',name:'',text:'The great clock chimes softly overhead. Its hands have kept watch over Pallet Town for a hundred years - through every festival, and every storm.'},
+  ],()=>game.state='play');
+  for(const [tx,ty] of [[17,24],[18,24]]) placeEntity(newEntity({id:'ct'+tx,kind:'obj',tx,ty,dir:'down',solid:true,visible:false,talk:towerTalk}));   // solid base in the lower plaza (so the full tower fits on screen near the fountain)
+  placeEntity(newEntity({id:'clocktower',kind:'obj',tx:17,ty:24,dir:'down',solid:true,visible:true,talk:towerTalk,
     draw:(ex,ey)=>{
       const cx=ex+16, gy=ey+14, nk=nightK;
       ellipse(cx,gy+3,16,5,C.shadow);
@@ -4122,6 +4182,7 @@ function vsDraw(){
 /* ---- 10-second Eevee -> Umbreon evolution (light pours from the windows) ---- */
 const evo={ t:0, cb:null };
 function startEvo(cb){ F.partner='umbreon';
+  const fw=game.followerEnt; if(fw && fw.id==='eevF') fw.sub='umbreon';   // the little follower at Oen's heel evolves too
   audio.stopMusic();   // silence the lingering battle/boss theme so the evolution film plays clean & quiet
   // play the cinematic film FIRST, then run the canvas morph that clearly shows
   // Eevee changing INTO Umbreon (so the transformation itself is never missed); the heart theme
