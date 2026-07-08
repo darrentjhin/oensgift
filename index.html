@@ -5522,46 +5522,89 @@ function titleVideoFrame(){   // muted, looping, autoplay-safe animated title ba
   return false;
 }
 function titleComplete(){ try{ return localStorage.getItem('poke3lights_done')==='1'; }catch(e){ return false; } }
-function titleDraw(){
-  const art=sceneImg('town');
-  const hasBg = titleVideoFrame() || (art && drawCover(art, 1, Math.sin(anim/600)*4));
-  if(hasBg){
-    // readability vignette over the animated/painted town
-    const top=g.createLinearGradient(0,0,0,64); top.addColorStop(0,'rgba(20,16,34,.72)'); top.addColorStop(1,'rgba(20,16,34,0)');
-    g.fillStyle=top; g.fillRect(0,0,VW,64);
-    const bot=g.createLinearGradient(0,VH-70,0,VH); bot.addColorStop(0,'rgba(24,14,34,0)'); bot.addColorStop(1,'rgba(24,14,34,.82)');
-    g.fillStyle=bot; g.fillRect(0,VH-70,VW,70);
-  } else {
-    const grd=g.createLinearGradient(0,0,0,VH); grd.addColorStop(0,'#16213e'); grd.addColorStop(0.6,'#3a2a5a'); grd.addColorStop(1,'#6a4a7a');
-    g.fillStyle=grd; g.fillRect(0,0,VW,VH);
-    for(let i=0;i<30;i++){ const sx=(i*53)%VW, sy=(i*37)%80; if((Math.floor(anim/20)+i)%5) rect(sx,sy,1,1,'rgba(255,255,255,.6)'); }
-    circle(200,30,16,'#f4f0d0'); circle(194,26,14,'#3a2a5a');
+/* ---- the fresh-game cover: a deep night sky, and the three stolen Lights blazing across
+   the upper-left like real meteors - heads streaking left->right, fiery flickering cores,
+   turbulent trails that stream back behind them, and embers shedding off into the dark. ---- */
+const coverEmbers=[];
+function cometHD(hx,hy,ddx,ddy,len,col,ph,flick){
+  // the trail streams BACK behind the head (opposite the direction of travel)
+  const tx2=hx-ddx*len, ty2=hy-ddy*len;
+  const px2=-ddy, py2=ddx, bow=6+Math.sin(anim/40+ph*6)*3;                 // trail wobbles like it's burning through air
+  const cx3=hx-ddx*len*0.5+px2*bow, cy3=hy-ddy*len*0.5+py2*bow;
+  const path=()=>{ g.beginPath(); g.moveTo(hx,hy); g.quadraticCurveTo(cx3,cy3,tx2,ty2); };
+  g.save(); g.globalCompositeOperation='lighter'; g.lineCap='round';
+  const lg=g.createLinearGradient(hx,hy,tx2,ty2);                          // fiery tail: white-hot at the head, cooling to colour, then smoke
+  lg.addColorStop(0,'rgba(255,240,200,'+(0.55*flick).toFixed(2)+')'); lg.addColorStop(0.18,'rgba('+col+',.55)'); lg.addColorStop(0.55,'rgba('+col+',.28)'); lg.addColorStop(1,'rgba('+col+',0)');
+  g.strokeStyle=lg;
+  g.globalAlpha=.16*flick; g.lineWidth=9; path(); g.stroke();              // wide soft flame halo
+  g.globalAlpha=.40*flick; g.lineWidth=3.6; path(); g.stroke();           // flame body
+  const lg2=g.createLinearGradient(hx,hy,tx2,ty2);
+  lg2.addColorStop(0,'rgba(255,255,255,.98)'); lg2.addColorStop(0.14,'rgba(255,246,220,.8)'); lg2.addColorStop(0.5,'rgba('+col+',.4)'); lg2.addColorStop(1,'rgba('+col+',0)');
+  g.globalAlpha=.9*flick; g.strokeStyle=lg2; g.lineWidth=1.4; path(); g.stroke();   // blazing filament core
+  const h1=g.createRadialGradient(hx,hy,0.5,hx,hy,15*flick);              // head: colour fireball
+  h1.addColorStop(0,'rgba(255,250,235,.95)'); h1.addColorStop(0.4,'rgba('+col+',.85)'); h1.addColorStop(1,'rgba('+col+',0)');
+  g.globalAlpha=1; g.fillStyle=h1; g.fillRect(hx-18,hy-18,36,36);
+  const h2=g.createRadialGradient(hx,hy,0.2,hx,hy,4.6*flick);             // white-hot nucleus
+  h2.addColorStop(0,'rgba(255,255,255,1)'); h2.addColorStop(1,'rgba(255,255,255,0)');
+  g.fillStyle=h2; g.fillRect(hx-6,hy-6,12,12);
+  g.restore(); g.globalAlpha=1;
+  // shed embers off the head, tumbling back and down
+  if(Math.random()<0.7) coverEmbers.push({x:hx-ddx*3, y:hy-ddy*3, vx:-ddx*(0.6+Math.random()*0.9)+(Math.random()-0.5)*0.4,
+    vy:-ddy*(0.6+Math.random()*0.9)+0.25+Math.random()*0.3, life:26+Math.random()*22, t:0, col});
+}
+function drawTheftSky(){
+  const sky=g.createLinearGradient(0,0,0,VH);                              // deep, cold night
+  sky.addColorStop(0,'#04050e'); sky.addColorStop(0.55,'#0a0c22'); sky.addColorStop(1,'#161231');
+  g.fillStyle=sky; g.fillRect(0,0,VW,VH);
+  g.save(); g.globalCompositeOperation='lighter';                          // a faint milky band across the sky
+  const mw=g.createLinearGradient(0,VH,VW,0);
+  mw.addColorStop(0.25,'rgba(150,160,220,0)'); mw.addColorStop(0.5,'rgba(150,160,220,.05)'); mw.addColorStop(0.75,'rgba(150,160,220,0)');
+  g.fillStyle=mw; g.fillRect(0,0,VW,VH); g.restore();
+  for(let i=0;i<46;i++){ const sx=(i*53+((i*i)%7))%VW, sy=(i*41)%(VH-20);  // twinkling starfield, two sizes
+    const tw3=(Math.sin((anim+i*29)/(22+(i%5)))+1)/2, big=(i%9===0);
+    g.globalAlpha=(big?0.35:0.15)+tw3*(big?0.55:0.40);
+    rect(sx,sy,big?1.4:1,big?1.4:1,'#d8e0ff');
+    if(big&&tw3>0.8){ g.globalAlpha=0.35; rect(sx-1.6,sy+0.2,4.6,0.5,'#d8e0ff'); rect(sx+0.4,sy-1.8,0.5,4.6,'#d8e0ff'); } }
+  g.globalAlpha=1;
+  poly([[0,VH],[0,VH-13],[30,VH-9],[70,VH-15],[120,VH-8],[170,VH-13],[215,VH-7],[VW,VH-12],[VW,VH]],'#020208');   // nameless dark horizon
+  // embers drift and fade (drawn under the meteors)
+  g.save(); g.globalCompositeOperation='lighter';
+  for(let i=coverEmbers.length-1;i>=0;i--){ const e=coverEmbers[i]; e.t++; e.x+=e.vx; e.y+=e.vy; e.vy+=0.012;
+    if(e.t>=e.life){ coverEmbers.splice(i,1); continue; }
+    const a=(1-e.t/e.life), fl=0.6+0.4*Math.sin((anim+e.x)*0.6);
+    g.globalAlpha=a*fl; circle(e.x,e.y,1.1*a+0.3,'rgba('+e.col+',1)'); }
+  g.restore(); g.globalAlpha=1;
+  // the three stolen Lights streaking left->right, held in the upper-LEFT sky: heads sweep
+  // in from off the left edge and burn out before they reach the centre (never near Eevee)
+  const dn=Math.hypot(1,0.16), ddx=1/dn, ddy=0.16/dn;
+  const span=118;                                                          // short sweep band in the top-left, then loop
+  const COMETS=[['255,214,20',-30,40,0,0.5],['255,92,30',-30,60,150,0.62],['255,120,196',-30,80,300,0.78]];
+  for(const [col,startX,startY,off,sp] of COMETS){
+    const trav=((anim*sp+off)%span);                                       // 0..span sweep
+    const hx=startX+trav*ddx, hy=startY+trav*ddy;
+    let flick=0.80+0.20*Math.sin((anim*0.9)+off)*Math.sin(anim*0.31+off*1.7);   // fire flicker
+    const fadeIn=Math.min(1,trav/14), fadeOut=Math.min(1,(span-trav)/30);       // spawn off-screen left, burn out before centre
+    flick*=fadeIn*fadeOut;
+    if(flick>0.05) cometHD(hx,hy, ddx,ddy, 140, col, off, flick);
   }
-  if(!titleComplete()){
-    // ---- THE NIGHT OF THE THEFT: the fresh cover falls into uneasy dark, and the three
-    // Lights streak away across the sky as coloured meteors. (Beating the game restores
-    // the daylight reunion cover - the cover itself heals.) ----
-    const nw=g.createLinearGradient(0,0,0,VH);                                    // moonless night wash over the painting
-    nw.addColorStop(0,'rgba(7,9,30,.80)'); nw.addColorStop(0.55,'rgba(10,11,34,.64)'); nw.addColorStop(1,'rgba(5,6,22,.72)');
-    g.fillStyle=nw; g.fillRect(0,0,VW,VH);
-    const cvg=g.createRadialGradient(VW/2,VH*0.45,40,VW/2,VH*0.5,VH*0.95);        // a closing vignette presses in from the corners
-    cvg.addColorStop(0,'rgba(0,0,0,0)'); cvg.addColorStop(1,'rgba(4,2,12,.62)');
-    g.fillStyle=cvg; g.fillRect(0,0,VW,VH);
-    for(let i=0;i<22;i++){ const sx=(i*47)%VW, sy=(i*29)%64;                      // cold sparse stars
-      const tw3=(Math.sin((anim+i*31)/26)+1)/2; g.globalAlpha=0.15+tw3*0.45; rect(sx,sy,1,1,'#cfd8ff'); }
-    g.globalAlpha=1;
-    // the three stolen Lights, streaking away as meteors (gold Joy, ember Courage, pink Love)
-    const METS=[['255,214,20',56,0.62,0],['255,92,30',65,0.5,210],['255,120,196',74,0.72,420]];
-    for(let mi=0;mi<3;mi++){ const [col,baseY,spd,off]=METS[mi];
-      const span=VW+150, hx=((anim*spd+off)%span)-70, hy=baseY+hx*0.04;           // falling gently rightward, in the band between title and town
-      g.save(); g.globalCompositeOperation='lighter';
-      for(let tr2=0;tr2<11;tr2++){ const tx3=hx-tr2*7.5, ty3=hy-tr2*0.30;         // long tapering trail, back along the fall
-        g.globalAlpha=(1-tr2/11)*0.42; circle(tx3,ty3,2.6*(1-tr2/12),'rgb('+col+')'); }
-      const hg=g.createRadialGradient(hx,hy,0.5,hx,hy,11);                        // glowing head
-      hg.addColorStop(0,'rgba(255,255,255,.95)'); hg.addColorStop(0.3,'rgba('+col+',.8)'); hg.addColorStop(1,'rgba('+col+',0)');
-      g.globalAlpha=1; g.fillStyle=hg; g.fillRect(hx-12,hy-12,24,24);
-      if((anim+off)%9<2){ g.globalAlpha=0.7; rect(hx-14-Math.random()*6, hy+1+Math.random()*4, 1.2,1.2,'rgb('+col+')'); }   // a spark shakes loose
-      g.restore(); g.globalAlpha=1;
+}
+function titleDraw(){
+  const fresh=!titleComplete();
+  if(fresh){ drawTheftSky(); }                                             // pre-victory: the night-sky theft cover
+  else {
+    const art=sceneImg('town');
+    const hasBg = titleVideoFrame() || (art && drawCover(art, 1, Math.sin(anim/600)*4));
+    if(hasBg){
+      // readability vignette over the animated/painted town
+      const top=g.createLinearGradient(0,0,0,64); top.addColorStop(0,'rgba(20,16,34,.72)'); top.addColorStop(1,'rgba(20,16,34,0)');
+      g.fillStyle=top; g.fillRect(0,0,VW,64);
+      const bot=g.createLinearGradient(0,VH-70,0,VH); bot.addColorStop(0,'rgba(24,14,34,0)'); bot.addColorStop(1,'rgba(24,14,34,.82)');
+      g.fillStyle=bot; g.fillRect(0,VH-70,VW,70);
+    } else {
+      const grd=g.createLinearGradient(0,0,0,VH); grd.addColorStop(0,'#16213e'); grd.addColorStop(0.6,'#3a2a5a'); grd.addColorStop(1,'#6a4a7a');
+      g.fillStyle=grd; g.fillRect(0,0,VW,VH);
+      for(let i=0;i<30;i++){ const sx=(i*53)%VW, sy=(i*37)%80; if((Math.floor(anim/20)+i)%5) rect(sx,sy,1,1,'rgba(255,255,255,.6)'); }
+      circle(200,30,16,'#f4f0d0'); circle(194,26,14,'#3a2a5a');
     }
   }
   // title
@@ -6024,6 +6067,7 @@ function newGame(){ // wipe all progress and start fresh from the intro
    ========================================================================= */
 const saveSystem = {
   save(){ // pack all game state into JSON
+    if(window.__noSave) return 'Scene-jump session: saving disabled';   // QA jumps must never clobber the real save
     const state={F,mapName:game.mapName,px:game.player?.px||0,py:game.player?.py||0,dir:game.player?.dir||'down',
       playerHp:game.player?.hp||0,playerMoves:game.player?.moves?.map(m=>({...m}))||[]};
     localStorage.setItem('poke3lights_save', JSON.stringify(state));
@@ -6156,7 +6200,70 @@ function loop(now){
   render();
   requestAnimationFrame(loop);
 }
+/* =========================================================================
+   DEV: SCENE JUMPER  -  a QA tool to leap to any act of the game.
+   Open with the `  key (backtick, top-left of the keyboard) at any time,
+   or load the page with ?scenes in the URL. Arrow keys move, ENTER jumps,
+   ` or ESC closes. Jumping disables saving for the session so it never
+   overwrites a real playthrough.
+   ========================================================================= */
+const sceneMenu={ active:false, sel:0, top:0 };
+function jWipe(){ for(const k in F) delete F[k]; game.followerEnt=null; battle.active=false; if(credits) credits.active=false; game.paused=false; game.titleCard=null; game.memCard=null; game.crysFx=null; activeSeq=null; if(dlg) dlg.active=false; }
+function jBase(lv){ jWipe();   // a clean mid-game baseline: partner in hand, establishing shots already seen
+  F.introDone=true; F.gotTracker=true; F.gotEevee=true; F.eeveeLv=lv||10;
+  F.sawTown=true; F.sawLab=true; F.sawStation=true; F.sawWarehouse=true; F.sawGarden=true; F.sawHideout=true;
+  F.objText='(scene jump)'; }
+const SCENES=[
+  ['Title screen',                 ()=>{ jWipe(); resetToTitle(); }],
+  ['Intro — Legend prologue',      ()=>{ jWipe(); game.state='intro'; game.intro=0; game.introT=0; audio.play('legend'); }],
+  ['Lab — the theft cutscene',     ()=>{ jWipe(); enterMap('lab'); }],
+  ['Town — start (talk to kid)',   ()=>{ jBase(); enterMap('town'); }],
+  ['Town — grunt tipped off',      ()=>{ jBase(); F.gotNote=true; enterMap('town'); }],
+  ['Route 1 — Rocket Grunt',       ()=>{ jBase(); F.gotNote=true; enterMap('route1'); }],
+  ["Keeper's House — Yamper quest",()=>{ jBase(); F.gotNote=true; F.routeClear=true; F.needBreaker=true; enterMap('keeper'); }],
+  ['Town — Yamper roaming',        ()=>{ jBase(); F.routeClear=true; F.needBreaker=true; F.yamperQuest=true; F.yamperPoints=50; F.yamperSpot=0; enterMap('town'); }],
+  ['Station — rescue Jolteon',     ()=>{ jBase(11); F.routeClear=true; F.gotBreaker=true; enterMap('station'); }],
+  ['Town — Flareon crystal hunt',  ()=>{ jBase(12); F.routeClear=true; F.jolteonRescued=true; F.flareonQuest=true; F.readNote=true; enterMap('town'); }],
+  ['Warehouse — read the note',    ()=>{ jBase(12); F.routeClear=true; F.jolteonRescued=true; enterMap('warehouse'); }],
+  ['Warehouse — altar (5 crystals)',()=>{ jBase(12); F.routeClear=true; F.jolteonRescued=true; F.flareonQuest=true; F.readNote=true; F.gotCrystal1=F.gotCrystal2=F.gotCrystal3=F.gotCrystal4=F.gotCrystal5=true; enterMap('warehouse'); }],
+  ['Town — Garden unlocked',       ()=>{ jBase(13); F.routeClear=true; F.jolteonRescued=true; F.flareonRescued=true; enterMap('town'); }],
+  ['Garden — Giovanni & Ariana',   ()=>{ jBase(13); F.routeClear=true; F.jolteonRescued=true; F.flareonRescued=true; enterMap('garden'); }],
+  ['Town — creepy finale night',   ()=>{ jBase(25); F.routeClear=true; F.jolteonRescued=true; F.flareonRescued=true; F.gardenCleared=true; F.gotStone=true; F.maxPotions=5; enterMap('town'); }],
+  ['Hideout — Admin Rook',         ()=>{ jBase(25); F.routeClear=true; F.jolteonRescued=true; F.flareonRescued=true; F.gardenCleared=true; F.gotStone=true; F.maxPotions=5; enterMap('hideout'); }],
+  ['Town — walk home (Sylveon)',   ()=>{ jBase(25); F.partner='umbreon'; F.jolteonRescued=true; F.flareonRescued=true; F.gardenCleared=true; F.sylveonRescued=true; F.gameWon=true; enterMap('town'); }],
+  ['Lab — ending (choose partner)',()=>{ jBase(25); F.partner='umbreon'; F.jolteonRescued=true; F.flareonRescued=true; F.gardenCleared=true; F.sylveonRescued=true; F.gameWon=true; enterMap('lab'); }],
+  ['Coronation — the King',        ()=>{ jBase(25); F.partner='umbreon'; F.jolteonRescued=true; F.flareonRescued=true; F.gardenCleared=true; F.sylveonRescued=true; F.gameWon=true; F.coronation=true; enterMap('town',23,29,'up'); }],
+  ['Credits + final letter',       ()=>{ jBase(25); F.gameWon=true; startCredits(()=>{}); }],
+];
+function openSceneMenu(){ window.__noSave=true; try{ saveSystem.delete(); }catch(e){} sceneMenu.active=true; sceneMenu.sel=0; sceneMenu.top=0; clearPressed(); }
+function sceneMenuUpdate(){
+  if(consume('up')){ sceneMenu.sel=(sceneMenu.sel-1+SCENES.length)%SCENES.length; audio.sfx&&audio.sfx('cursor'); }
+  if(consume('down')){ sceneMenu.sel=(sceneMenu.sel+1)%SCENES.length; audio.sfx&&audio.sfx('cursor'); }
+  const VIS=11; if(sceneMenu.sel<sceneMenu.top) sceneMenu.top=sceneMenu.sel; if(sceneMenu.sel>=sceneMenu.top+VIS) sceneMenu.top=sceneMenu.sel-VIS+1;
+  if(consume('menu')){ sceneMenu.active=false; clearPressed(); return; }
+  if(consume('ok')){ sceneMenu.active=false; clearPressed(); audio.sfx&&audio.sfx('confirm'); estT0(); try{ SCENES[sceneMenu.sel][1](); }catch(e){ console.error('scene jump failed',e); } }
+}
+function estT0(){ game.estT=99999; }   // skip any establishing-shot hold on landing
+function sceneMenuDraw(){
+  g.fillStyle='rgba(6,6,16,.86)'; g.fillRect(0,0,VW,VH);
+  g.textAlign='center'; textShadow('◆ SCENE JUMP ◆', VW/2, 16, '#ffe24a', '#2a2a4a', 10); g.textAlign='left';
+  const VIS=11, bx=20, by=26, rowH=13;
+  for(let r=0;r<VIS;r++){ const idx=sceneMenu.top+r; if(idx>=SCENES.length) break;
+    const yy=by+r*rowH, on=idx===sceneMenu.sel;
+    if(on){ rrect(bx-6,yy-2,VW-2*bx+12,rowH-1,3,'rgba(74,115,192,.55)'); poly([[bx-2,yy+2.5],[bx-2,yy+8],[bx+3,yy+5]],'#ffe24a'); }
+    textShadow((idx+1)+'. '+SCENES[idx][0], bx+6, yy+8, on?'#ffffff':'#c8d0e8', '#1a1a2e', 8);
+  }
+  g.textAlign='center';
+  text('↑↓ choose    ENTER jump    ` / ESC close', VW/2, VH-8, 'rgba(210,214,240,.7)', 7);
+  if(SCENES.length>VIS) text((sceneMenu.sel+1)+' / '+SCENES.length, VW/2, VH-18, 'rgba(210,214,240,.5)', 7);
+  g.textAlign='left';
+}
+addEventListener('keydown', e=>{ if(e.code==='Backquote'){ e.preventDefault(); if(sceneMenu.active){ sceneMenu.active=false; } else { openSceneMenu(); } } });
+if(location.search.indexOf('scenes')>=0){ window.__devScenes=true; }
+
 function update(dt){
+  if(window.__devScenes && !window.__scenesOpened && !boot.active){ window.__scenesOpened=true; openSceneMenu(); }   // ?scenes -> open on load
+  if(sceneMenu.active){ sceneMenuUpdate(); return; }   // dev scene jumper owns input while open
   updateParticles();
   updateFollower();   // Sylveon keeps pace beside Oen on the walk home
   if(game.titleCard){ game.titleCard.t+=dt; if(game.titleCard.t>=game.titleCard.dur) game.titleCard=null; }
@@ -6246,6 +6353,8 @@ function render(){
   else if(game.state==='battle') drawTitleCard();   // the Umbreon evolution card pops over the battle
   if(estActive() && (game.state==='play'||game.state==='cutscene')) estDraw();   // never overlay full-screen states (level-up, battle…) or its text doubles up
   if(game.paused) pauseDraw();
+  if(sceneMenu.active) sceneMenuDraw();   // dev scene jumper overlay (top of everything)
+  else if(window.__devScenes && game.state==='title'){ g.textAlign='right'; text('` = scene jump', VW-6, VH-4, 'rgba(255,226,74,.7)', 7); g.textAlign='left'; }
   // travel text overlay
   if(game.travelText){ g.fillStyle='rgba(0,0,0,.85)'; g.fillRect(0,0,VW,VH); g.textAlign='center'; textShadow(game.travelText,VW/2,VH/2-4,'#f6d62e','#000',9);
     drawMon('eevee',VW/2,VH/2+24,8); g.textAlign='left'; }
