@@ -5907,7 +5907,10 @@ const CREDIT_LINES=[
   'Made with love, only for Oen.',
   '',
 ];
-function startCredits(cb){ credits.active=true; credits.t=0; credits.cb=cb; credits.phase='blank'; credits.phaseT=0; game.state='credits'; audio.play('emotion'); }
+function startCredits(cb){ credits.active=true; credits.t=0; credits.cb=cb; credits.phase='blank'; credits.phaseT=0; game.state='credits'; audio.play('emotion');
+  game.fade=0; game.flash=0;   // THE FIX: the preceding fade-to-black never runs through enterMap() (which normally clears it),
+  // so without this the credits render correctly underneath but stay hidden behind a leftover opaque black overlay forever.
+}
 function markGameComplete(){ try{ localStorage.setItem('poke3lights_done','1'); }catch(e){} }
 function creditsUpdate(dt){
   if(credits.phase==='blank'){                      // 5s of nothing before the text begins
@@ -6196,8 +6199,10 @@ function loop(now){
   animAcc += dt; while(animAcc>=16.667){ anim++; animAcc-=16.667; }   // fixed 60fps animation clock (so 120/144Hz screens don't run everything double-speed)
   if(game.shake>0) game.shake-=dt;
   audio.duckTick();          // dip the music under on-screen dialogue
-  update(dt);
-  render();
+  // a single bad frame must never permanently freeze the game (e.g. mid-cutscene): if update()
+  // or render() throws, log it and keep going instead of silently dying on a black screen forever.
+  try{ update(dt); }catch(e){ console.error('[recovered] update() threw:', e); }
+  try{ render(); }catch(e){ console.error('[recovered] render() threw:', e); }
   requestAnimationFrame(loop);
 }
 /* =========================================================================
