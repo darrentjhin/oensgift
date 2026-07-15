@@ -1215,6 +1215,19 @@ function drawMon(sp,x,y,R){
   if(im && im.naturalWidth>0 && R>=16){ const w=R*2.7, h=R*2.7; g.drawImage(im, x-w/2, (y+R)-h, w, h); return; } // custom PNG at battle/cinema size only (small renders stay crisp procedural). naturalWidth guard: a broken/incomplete image falls through to the procedural sprite so a mon is never invisible.
   const m=MON[sp]; if(m) m.f(x,y,R);
 }
+// overworld mon (follower, story mons): the REAL painted sprite at map scale, with a live
+// walk-hop while stepping so it looks like it's actually walking beside Oen.
+function drawOverworldMon(e, ex, ey){
+  const im=ASSETS._img['mon:'+e.sub], stepping=e.stepping;
+  let hop=0, squash=1;
+  if(stepping){ const ph=Math.sin(clamp(e.sp||0,0,1)*Math.PI); hop=-ph*3.4; squash=1+ph*0.09; }   // rise at mid-step, land flat
+  else { hop=Math.sin((anim+e.bob*10)/16)*1; }                                                    // gentle idle breathing
+  g.globalAlpha=1; ellipse(ex+8, ey+15, 5.4*squash, 2*(2-squash), C.shadow);                      // shadow squashes as it lifts
+  if(im && im.naturalWidth>0){
+    const base=e.owScale||18, w=base*squash, h=base/squash;
+    g.drawImage(im, ex+8-w/2, (ey+15)-h+hop, w, h);                                               // feet on the ground, painted body rising with the hop
+  } else { drawMon(e.sub, ex+8, ey+8+hop, e.R||6); }
+}
 
 /* =========================================================================
    TILE RENDERING per theme
@@ -2846,7 +2859,7 @@ function drawWorld(){
       const sq = e.stepping ? 1+Math.abs(Math.sin(e.gait||0))*0.06 : 1;            // contact shadow swells a touch as the body lifts
       if(e.sub) ellipse(ex+8+bX,ey+14,5*sq,2,C.shadow);
       drawChar(e.sub, ex+bX, ey-4+bY, e.dir, mv); }
-    else if(e.kind==='mon'){ ellipse(ex+8,ey+15,5,2,C.shadow); const bob=Math.sin((anim+e.bob*10)/16)*1; drawMon(e.sub, ex+8, ey+8+bob, e.R||6); }
+    else if(e.kind==='mon'){ drawOverworldMon(e, ex, ey); }
     else if(e.kind==='obj'){ if(e.draw) e.draw(ex,ey); }
   }
   if(m.theme==='town') drawFestivalLights(ox,oy);   // overhead plaza string lights (drawn above the crowd)
@@ -3569,8 +3582,9 @@ function setupCoronation(){
   placeEntity(newEntity({id:'kingC',kind:'char',sub:'king',tx:23,ty:22,dir:'down',solid:true}));
   placeEntity(newEntity({id:'oakC', kind:'char',sub:'oak', tx:25,ty:22,dir:'down',solid:true}));
   mon('joltC2','jolteon',21,21,6); mon('flaC2','flareon',25,21,6);
-  // Sylveon pads in at Oen's side
+  // Sylveon pads in at Oen's side, with Umbreon - her own evolved partner - right beside her
   const syl=mon('sylvC','sylveon',22,29,6);
+  mon('umbC','umbreon',24,29,6);
   game.objective='';
   const cheer=(big)=>{ for(const e of crowd) spawnHearts(e.px+8,e.py,big?3:1); spawnConfetti(big?60:24); audio.sfx('crowd'); };
   runSeq([
@@ -3580,7 +3594,8 @@ function setupCoronation(){
     {type:'func',fn:()=>cheer(false)},{type:'sfx',name:'confirm'},
     {type:'move',id:'player',path:['up','up','up','up','up']},
     {type:'move',id:'sylvC',path:['up','up','up','up','up']},
-    {type:'face',id:'sylvC',dir:'down'},{type:'face',id:'player',dir:'up'},
+    {type:'move',id:'umbC',path:['up','up','up','up','up']},
+    {type:'face',id:'sylvC',dir:'down'},{type:'face',id:'umbC',dir:'down'},{type:'face',id:'player',dir:'up'},
     {type:'wait',ms:400},
     {type:'say',name:'The King',text:'People of Pallet Town! Three nights ago, thieves crept into our home... and tore out its very heart.'},
     {type:'flash',col:'#222',ms:500},{type:'shake',ms:300},
@@ -3627,7 +3642,7 @@ function setupCoronation(){
     {type:'say',name:'The King',text:'And one thing more! Since the dawn of the legend, this plaza has kept a statue of the little one who can become anything...'},
     {type:'say',name:'The King',text:'From this day forward, it does not stand alone. Masons! UNVEIL IT!'},
     {type:'flash',col:'#fff',ms:450},{type:'sfx',name:'bell'},
-    {type:'func',fn:()=>{ spawnOenStatue(20,22); spawnConfetti(50); }},   // clear of Jolteon's spot on the dais flank
+    {type:'func',fn:()=>{ spawnOenStatue(22,22); spawnConfetti(50); }},   // right beside the King (23,22) so it's front-and-centre and clearly visible
     {type:'spark',id:'oenStatue',col:'#ffffff'},
     {type:'say',name:'',text:'A marble statue of OEN now stands beside the dais, facing her town. The gold plaque gleams: "OEN THE NOOBIE - who walked into the dark, so our lights could come home."'},
     {type:'func',fn:()=>cheer(false)},
@@ -5958,10 +5973,19 @@ function creditsUpdate(dt){
     if((anim%40)===0) spawnHearts(Math.random()*VW, VH+6, 1);
     // scroll until the LAST line has travelled all the way up past the top of the screen
     const lastY=(VH+10) - credits.t*14 + (CREDIT_LINES.length-1)*18;
-    if(lastY < -14 || (consume('ok')&&credits.t>0.4)){ audio.sfx('confirm'); markGameComplete(); credits.phase='card1'; credits.phaseT=0; }
+    if(lastY < -14 || (consume('ok')&&credits.t>0.4)){ audio.sfx('confirm'); credits.phase='photofade'; credits.phaseT=0; }
     return;
   }
   credits.phaseT+=dt;
+  if(credits.phase==='photofade'){                   // the picture fades in slowly (skippable)
+    if(credits.phaseT>=3000 || consume('ok')){ credits.phase='photo'; credits.phaseT= consume('ok')?400:0; }
+    return;
+  }
+  if(credits.phase==='photo'){                        // the reunion picture; press SPACE / tap to move on
+    if((anim%34)===0) spawnHearts(Math.random()*VW, VH+6, 1);
+    if(consume('ok')&&credits.phaseT>400){ audio.sfx('confirm'); markGameComplete(); credits.phase='card1'; credits.phaseT=0; }
+    return;
+  }
   if(credits.phase==='card1'){ if(credits.phaseT>=7500){ audio.sfx('confirm'); credits.phase='card2'; credits.phaseT=0; } return; }
   if(credits.phase==='card2'){ if(credits.phaseT>=4000){ audio.fanfare(); credits.phase='thanks'; credits.phaseT=0; } return; }
   if(credits.phase==='thanks'){ if(consume('ok')&&credits.phaseT>700){ audio.sfx('confirm'); credits.active=false; markGameComplete(); resetToTitle(); } return; }
@@ -5983,6 +6007,20 @@ function creditsDraw(){
       y+=18;
     }
     if(Math.floor(anim/64)%2) text('SPACE  ▸  skip', VW/2, VH-8, 'rgba(255,255,255,.55)', 7);
+  } else if(credits.phase==='photofade' || credits.phase==='photo'){
+    g.fillStyle=pink; g.fillRect(0,0,VW,VH);
+    const p = credits.phase==='photo' ? 1 : clamp(credits.phaseT/3000,0,1);   // slow, gentle reveal of the hug
+    const a = p*p*(3-2*p);                                                     // smoothstep ease for a soft fade-in
+    g.globalAlpha=a;
+    const im=sceneImg('poppySylveon');
+    if(im) drawCover(im,1,0);
+    else { drawMon('sylveon',VW/2-22,90,20); drawPoppy(VW/2+18,108,'down',0); }
+    g.globalAlpha=1;
+    if(credits.phase==='photo'){
+      const sc=g.createLinearGradient(0,VH-22,0,VH); sc.addColorStop(0,'rgba(20,10,26,0)'); sc.addColorStop(1,'rgba(20,10,26,.7)');
+      g.fillStyle=sc; g.fillRect(0,VH-22,VW,22);
+      if(Math.floor(anim/52)%2) textShadow('press SPACE to continue', VW/2, VH-8, '#fff', '#2a1020', 8);
+    }
   } else {
     // card-dispenser black screens
     g.fillStyle='#000'; g.fillRect(0,0,VW,VH);
