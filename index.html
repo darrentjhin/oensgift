@@ -5937,31 +5937,9 @@ const CREDIT_LINES=[
   '',
   '♥',
   '',
-  'But here is a secret, Oen:',
-  '',
-  'long before you conquered that world,',
-  'you had already conquered mine.',
-  '',
-  'You walked into my life the way you',
-  'walked into that dark hideout -',
-  'fearless, glowing,',
-  'impossible to ignore.',
-  '',
-  'Every lamp you lit in Pallet Town,',
-  'you had already lit in me.',
-  '',
-  'My Joy. My Courage. My Love.',
-  'All three of my lights are you.',
-  '',
-  '♥',
-  '',
   'MISSION COMPLETE',
   'The Three Stolen Lights',
   '',
-  '',
-  '♥',
-  '',
-  'Made with love, only for Oen.',
   '',
 ];
 function startCredits(cb){ credits.active=true; credits.t=0; credits.cb=cb; credits.phase='blank'; credits.phaseT=0; game.state='credits'; audio.play('emotion');
@@ -5980,63 +5958,19 @@ function creditsUpdate(dt){
     if((anim%40)===0) spawnHearts(Math.random()*VW, VH+6, 1);
     // scroll until the LAST line has travelled all the way up past the top of the screen
     const lastY=(VH+10) - credits.t*14 + (CREDIT_LINES.length-1)*18;
-    if(lastY < -14 || (consume('ok')&&credits.t>0.4)){ credits.phase='hold'; credits.phaseT=0; }
+    if(lastY < -14 || (consume('ok')&&credits.t>0.4)){ audio.sfx('confirm'); markGameComplete(); credits.phase='card1'; credits.phaseT=0; }
     return;
   }
   credits.phaseT+=dt;
-  if(credits.phase==='hold'){                        // text gone; wait 5s on a quiet dark screen
-    if(credits.phaseT>=5000 || consume('ok')){ credits.phase='photofade'; credits.phaseT=0; }
-    return;
-  }
-  if(credits.phase==='photofade'){                   // the picture fades in slowly
-    if(credits.phaseT>=3000){ credits.phase='photo'; credits.phaseT=0; }
-    return;
-  }
-  if(credits.phase==='photo'){
-    if((anim%34)===0) spawnHearts(Math.random()*VW, VH+6, 1);
-    if(consume('ok')&&credits.phaseT>400){ audio.sfx('confirm'); markGameComplete(); credits.phase='card1'; credits.phaseT=0; }
-    return;
-  }
   if(credits.phase==='card1'){ if(credits.phaseT>=7500){ audio.sfx('confirm'); credits.phase='card2'; credits.phaseT=0; } return; }
   if(credits.phase==='card2'){ if(credits.phaseT>=4000){ audio.fanfare(); credits.phase='thanks'; credits.phaseT=0; } return; }
-  if(credits.phase==='thanks'){ if(consume('ok')&&credits.phaseT>700){ audio.sfx('confirm'); credits.phase='letter'; credits.phaseT=0; } return; }
-  if(credits.phase==='letter'){                      // the real goodbye: a slow handwritten letter, revealed line by line
-    const total=FINAL_LETTER.join('').length, reveal=credits.phaseT/26;
-    if(consume('ok')){
-      if(reveal<total){ credits.phaseT=total*26; }               // first press: finish the reveal
-      else if(credits.phaseT>total*26+900){                       // second press (after a beat): back to the title
-        credits.active=false; markGameComplete(); resetToTitle(); }
-    }
-    return;
-  }
+  if(credits.phase==='thanks'){ if(consume('ok')&&credits.phaseT>700){ audio.sfx('confirm'); credits.active=false; markGameComplete(); resetToTitle(); } return; }
 }
-/* ★★★ EDIT HERE - THE FINAL LETTER ★★★
-   This is the very last thing shown after the credits: a quiet letter to Oen.
-   Replace these lines with your own words - keep each line short so it fits the page. */
-const FINAL_LETTER=[
-  'Dear Oen,',
-  '',
-  'This little town is made of pixels,',
-  'but every word in it is true.',
-  '',
-  'You are our three lights in one:',
-  'brighter than Jolteon, braver than',
-  'Flareon, and more loved than Sylveon',
-  'could ever say with all her ribbons.',
-  '',
-  'Whenever the world feels dark,',
-  'remember tonight -',
-  'the lights always find their way home.',
-  '',
-  'And so will you.',
-  '',
-  'With love, always.  ♥',
-];
 function creditsDraw(){
   g.textAlign='center';
   // the same warm pink wash backs every phase, so blank -> scroll -> photo all flow together
   const pink=g.createLinearGradient(0,0,0,VH); pink.addColorStop(0,'#2a1838'); pink.addColorStop(1,'#5a2a4a');
-  if(credits.phase==='blank' || credits.phase==='hold'){
+  if(credits.phase==='blank'){
     g.fillStyle=pink; g.fillRect(0,0,VW,VH);
   } else if(credits.phase==='scroll'){
     g.fillStyle=pink; g.fillRect(0,0,VW,VH);
@@ -6049,41 +5983,6 @@ function creditsDraw(){
       y+=18;
     }
     if(Math.floor(anim/64)%2) text('SPACE  ▸  skip', VW/2, VH-8, 'rgba(255,255,255,.55)', 7);
-  } else if(credits.phase==='photofade' || credits.phase==='photo'){
-    g.fillStyle=pink; g.fillRect(0,0,VW,VH);
-    const p = credits.phase==='photo' ? 1 : clamp(credits.phaseT/3000,0,1);   // slow, gentle reveal of the hug
-    const a = p*p*(3-2*p);                                                     // smoothstep ease for a soft fade-in
-    g.globalAlpha=a;
-    const im=sceneImg('poppySylveon');
-    if(im) drawCover(im,1,0);
-    else { drawMon('sylveon',VW/2-22,90,20); drawPoppy(VW/2+18,108,'down',0); }
-    g.globalAlpha=1;
-    if(credits.phase==='photo'){
-      const sc=g.createLinearGradient(0,VH-22,0,VH); sc.addColorStop(0,'rgba(20,10,26,0)'); sc.addColorStop(1,'rgba(20,10,26,.7)');
-      g.fillStyle=sc; g.fillRect(0,VH-22,VW,22);
-      if(Math.floor(anim/52)%2) textShadow('press SPACE to continue', VW/2, VH-8, '#fff', '#2a1020', 8);
-    }
-  } else if(credits.phase==='letter'){
-    // a quiet candle-lit page, revealed like it's being read aloud
-    const bg=g.createLinearGradient(0,0,0,VH); bg.addColorStop(0,'#191226'); bg.addColorStop(1,'#241a2e');
-    g.fillStyle=bg; g.fillRect(0,0,VW,VH);
-    const px2=28, pw2=VW-56, ph2=VH-18, py2=9;
-    rrect(px2+2,py2+3,pw2,ph2,4,'rgba(0,0,0,.4)');                 // page shadow
-    rrect(px2,py2,pw2,ph2,4,'#f4ecd8'); rrect(px2+2,py2+2,pw2-4,ph2-4,3,'#efe5cc');   // parchment
-    g.globalAlpha=0.25; for(let i=0;i<5;i++) rect(px2+6,py2+10+i*30,pw2-12,0.6,'#c8b890'); g.globalAlpha=1;   // faint paper texture rules
-    const glow=g.createRadialGradient(VW/2,VH*0.45,10,VW/2,VH*0.45,150);              // candle-light pool
-    glow.addColorStop(0,'rgba(255,214,140,.10)'); glow.addColorStop(1,'rgba(255,214,140,0)');
-    g.fillStyle=glow; g.fillRect(0,0,VW,VH);
-    let count=(credits.phaseT/26)|0, yy=py2+13;
-    g.textAlign='center';
-    for(const ln of FINAL_LETTER){
-      const show=ln.slice(0,Math.max(0,count)); count-=ln.length; if(count<0)count=0;
-      if(show) text(show, VW/2, yy, ln.indexOf('♥')>=0?'#b85a7a':'#4a3a2e', 8);
-      yy+= ln===''?5:10;
-    }
-    const total=FINAL_LETTER.join('').length;
-    if((credits.phaseT/26)>=total && Math.floor(anim/34)%2){ drawHeart(VW/2, yy+3, 4, 1); text('press SPACE', VW/2, VH-4, 'rgba(255,255,255,.5)', 7); }
-    g.textAlign='left';
   } else {
     // card-dispenser black screens
     g.fillStyle='#000'; g.fillRect(0,0,VW,VH);
