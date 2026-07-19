@@ -2862,6 +2862,8 @@ function drawWorld(){
     else if(e.kind==='mon'){ drawOverworldMon(e, ex, ey); }
     else if(e.kind==='obj'){ if(e.draw) e.draw(ex,ey); }
   }
+  // front overlay pass: anything that must sit IN FRONT of the entity it surrounds (cage bars)
+  for(const e of ents){ if(e.drawFront) e.drawFront(Math.round(e.px+ox), Math.round(e.py+oy)); }
   if(m.theme==='town') drawFestivalLights(ox,oy);   // overhead plaza string lights (drawn above the crowd)
   // hearts/particles
   for(const h of game.hearts){ drawHeart(h.x+ox, h.y+oy, 3, clamp(1-h.t/h.life,0,1)); }
@@ -3255,6 +3257,33 @@ function npc(id,sub,tx,ty,dir,lines){
     talk:(e)=>{ runSeq([{type:'say',pages:lines}], ()=>{ game.state='play'; }); }}));
 }
 function mon(id,sub,tx,ty,R){ return placeEntity(newEntity({id,kind:'mon',sub,tx,ty,solid:true,R:R||6})); }
+/* ---- a VISIBLE prison for each captive Light. The story keeps saying "caged" / "behind a
+   wall of flame", so the player must actually see it: a glowing floor plate + rails behind
+   the Pokémon (draw), and the energy bars in front of it (drawFront). ---- */
+const CAGE_COL={electric:'246,214,46', fire:'240,124,40', fairy:'246,168,200'};
+function spawnCage(id,tx,ty,kind){
+  const col=CAGE_COL[kind]||CAGE_COL.fairy;
+  return placeEntity(newEntity({id,kind:'obj',tx,ty,dir:'down',solid:false,visible:true,
+    draw:(x,y)=>{                                                   // BEHIND the captive: containment glow + rails
+      const pu=0.5+0.5*Math.sin(anim/14);
+      g.save(); g.globalCompositeOperation='lighter';
+      const gl=g.createRadialGradient(x+8,y+7,2,x+8,y+7,14+pu*2);
+      gl.addColorStop(0,'rgba('+col+','+(0.22+pu*0.14).toFixed(2)+')'); gl.addColorStop(1,'rgba('+col+',0)');
+      g.fillStyle=gl; g.fillRect(x-8,y-8,32,32); g.restore(); g.globalAlpha=1;
+      ellipse(x+8,y+14.5,8,2.8,'rgba(14,12,18,.4)');                // base plate shadow
+      rect(x+0.5,y+13,15,2.4,'#4c4c58'); rect(x+0.5,y+13,15,0.8,'#70707e');   // floor rail
+      rect(x+0.5,y-3.5,15,2.2,'#4c4c58'); rect(x+0.5,y-3.5,15,0.8,'#70707e'); // top rail
+    },
+    drawFront:(x,y)=>{                                              // IN FRONT: the crackling bars
+      g.save(); g.globalCompositeOperation='lighter';
+      for(let b=0;b<5;b++){ const bx=x+2.2+b*2.9, fl=0.5+0.5*Math.sin(anim/7+b*1.3);
+        g.globalAlpha=0.28+fl*0.34; rect(bx,y-2.5,1.3,16,'rgb('+col+')');
+        g.globalAlpha=0.55+fl*0.3;  rect(bx+0.35,y-2.5,0.5,16,'#ffffff'); }
+      g.restore(); g.globalAlpha=1;
+      rect(x+0.4,y-3.5,1.8,18,'#5c5c6a'); rect(x+13.8,y-3.5,1.8,18,'#5c5c6a');   // frame posts
+      rect(x+0.4,y-3.5,0.7,18,'#7e7e8c'); rect(x+13.8,y-3.5,0.7,18,'#7e7e8c');
+    }}));
+}
 
 /* ---- Flareon rescue: 3 Spring Crystals scattered in town, presented at the warehouse altar ---- */
 /* ---- the keeper's wild Yamper: roams town, one throw per encounter, bolts to a new spot until caught ---- */
@@ -3923,12 +3952,15 @@ function setupStation(){
   if(!F.sawStation){ F.sawStation=true; showEstablishing('station','OLD POWER STATION'); }
   // Jolteon in a live electric cage near top centre
   const jolt=mon('joltC','jolteon',6,2,6); jolt.solid=true;
+  if(!F.stationSolved) spawnCage('joltCage',6,2,'electric');   // the live electric cage the breaker kills
   // throw the master breaker -> the cage dies -> the Rocket Engineer storms in -> free Jolteon
   function freeJolteon(){
     F.stationSolved=true;
     runSeq([
       {type:'sfx',name:'spark'},{type:'flash',col:C.yellow,ms:220},{type:'shake',ms:320},
       {type:'say',name:'',text:'Oen slots the MASTER BREAKER home and hauls the switch down. The electric cage dies with a heavy CLUNK!'},
+      {type:'despawn',id:'joltCage'},                              // the bars actually go out
+      {type:'sfx',name:'faint'},
       {type:'func',fn:()=>{ F.engineerHere=true; }},
       {type:'spawn',entity:{id:'eng',kind:'char',sub:'grunt',tx:8,ty:4,dir:'down'}},
       {type:'say',name:'Rocket Engineer',text:'Hey! Who cut my power?! Team Rocket doesn\'t forgive unpaid electricians.'},
@@ -4013,6 +4045,7 @@ function setupWarehouse(){
   audio.play('warehouse');
   if(!F.sawWarehouse){ F.sawWarehouse=true; showEstablishing('warehouse','EMBER WAREHOUSE'); }
   const fla=mon('flaC','flareon',6,2,6); fla.solid=true;
+  if(!F.warehouseSolved) spawnCage('flaCage',6,2,'fire');   // the wall of flame the Spring Crystals quell
   // present the 3 Spring Crystals at the altar -> the flames die -> Grunt Cole -> free Flareon
   function rescueFlareon(){
     runSeq([
@@ -4073,6 +4106,7 @@ function setupWarehouse(){
         {type:'crystalfx'},                                       // the fusion cinematic: five gems spiral, flash, and fuse into the Spring Prism
         {type:'sfx',name:'spark'},{type:'flash',col:'#7fe0ff',ms:320},{type:'shake',ms:300},
         {type:'say',name:'',text:'A wave of cold mist sweeps the warehouse - the wall of fire hisses and dies down!'},
+        {type:'despawn',id:'flaCage'},                             // the flames actually go out
       ],()=>{ rescueFlareon(); }); }
       else { runSeq([
         {type:'say',name:'Cooling Altar',text:'Five Spring Crystals must rest here to quell the flames. '+n+' of 5 are set. The rest are scattered across Pallet Town - go and find them.'},
@@ -4107,6 +4141,7 @@ function setupGarden(){
   audio.play(F.gardenCleared && !F.gameWon ? 'peak' : 'emotion');   // fierce 'peak' theme after the 2v2
   if(!F.sawGarden){ F.sawGarden=true; showEstablishing('garden','MOONLIT GARDEN'); }
   const syl=mon('sylC','sylveon',6,3,6); syl.solid=true;
+  spawnCage('sylCageG',6,3,'fairy');   // the glowing cage Sylveon presses against
   // Rook
   const rook=placeEntity(newEntity({id:'rook',kind:'char',sub:'rook',tx:6,ty:5,dir:'down',solid:true,
     talk:(e)=>{
@@ -4181,6 +4216,7 @@ function setupHideout(){
   audio.play('hideout');   // dark hideout theme; the boss theme kicks in during the fight
   if(!F.sawHideout){ F.sawHideout=true; showEstablishing('hideout','TEAM ROCKET HIDEOUT'); }
   const syl=mon('sylH','sylveon',6,3,6); syl.solid=true;
+  spawnCage('sylCageH',6,3,'fairy');   // the amplifier's containment - it breaks open when Rook falls
   placeEntity(newEntity({id:'rookH',kind:'char',sub:'rook',tx:6,ty:5,dir:'down',solid:true,
     talk:(e)=>{
       runSeq([
@@ -4234,6 +4270,7 @@ function rookVictory(){
     {type:'despawn',id:'rookH'},
     {type:'flash',col:C.pink,ms:300},{type:'shake',ms:300},{type:'sfx',name:'spark'},
     {type:'say',name:'',text:'The Evo Amplifier breaks down. Sylveon\'s cage opens!'},
+    {type:'despawn',id:'sylCageH'},                                // the containment actually opens
     {type:'approach',id:'sylH'},
     {type:'hearts',id:'player'},{type:'hearts',id:'sylH'},
     {type:'func',fn:()=>audio.fanfare()},
