@@ -779,50 +779,86 @@ function drawPoppy(cx,y,dir,mv,p){
    ========================================================================= */
 function eyeSpark(x,y,r){ circle(x,y,r,'#1a1420'); circle(x-r*0.3,y-r*0.3,r*0.4,'#fff'); }
 
+/* ---- crafted overworld mon sprites: every shape gets a dark outline so it reads crisply
+   against any ground, plus lit/shaded passes (sun from the north-west, like the whole world)
+   and proper facial structure. These are the sprites you meet in the world, not photos. ---- */
+function oEll(x,y,rx,ry,fill,ol,w){ ellipse(x,y,rx+(w||0.85),ry+(w||0.85),ol); ellipse(x,y,rx,ry,fill); }
+function oTri(a,b,c,fill,ol){ const cx=(a[0]+b[0]+c[0])/3, cy=(a[1]+b[1]+c[1])/3, e=1.16;
+  tri([cx+(a[0]-cx)*e,cy+(a[1]-cy)*e],[cx+(b[0]-cx)*e,cy+(b[1]-cy)*e],[cx+(c[0]-cx)*e,cy+(c[1]-cy)*e],ol);
+  tri(a,b,c,fill); }
+function monEye(x,y,r,iris,glow){
+  circle(x,y,r*1.25,'#2a2028');                                  // socket/lash
+  circle(x,y,r,iris||'#1a1420');
+  if(glow){ circle(x,y,r*0.62,glow); }
+  circle(x-r*0.32,y-r*0.34,r*0.40,'#ffffff');                     // main catchlight
+  circle(x+r*0.30,y+r*0.28,r*0.18,'rgba(255,255,255,.65)');       // secondary bounce
+}
 function mEevee(x,y,R){
-  const b=C.brown, d=C.dbrown, cr=C.cream;
-  // tail
-  ellipse(x-R*0.85,y+R*0.1,R*0.5,R*0.42,b); ellipse(x-R*1.05,y+R*0.0,R*0.28,R*0.32,cr);
-  // body
-  ellipse(x,y+R*0.45,R*0.7,R*0.6,b);
-  // collar ruff
-  ellipse(x,y+R*0.05,R*0.85,R*0.5,cr);
+  const b='#bb8b52', bd='#8d6234', bl='#d9ad76', cr='#f3e4c6', crd='#d6c09a', ol='#4a3320';
+  // bushy tail (behind everything)
+  oEll(x-R*0.94,y+R*0.06,R*0.50,R*0.44,cr,ol);
+  ellipse(x-R*1.04,y-R*0.04,R*0.28,R*0.24,'#fcf3e0');
+  // hind legs + body
+  oEll(x,y+R*0.46,R*0.70,R*0.58,b,ol);
+  ellipse(x-R*0.18,y+R*0.30,R*0.42,R*0.32,bl);                    // lit shoulder (NW)
+  ellipse(x+R*0.24,y+R*0.64,R*0.38,R*0.26,bd);                    // shaded haunch (SE)
+  // front feet
+  oEll(x-R*0.34,y+R*0.96,R*0.21,R*0.13,cr,ol,0.7);
+  oEll(x+R*0.38,y+R*0.96,R*0.21,R*0.13,cr,ol,0.7);
+  // ears (behind the head so the head overlaps their base)
+  oTri([x-R*0.72,y-R*0.60],[x-R*0.18,y-R*0.56],[x-R*0.94,y-R*1.52],b,ol);
+  oTri([x+R*0.72,y-R*0.60],[x+R*0.18,y-R*0.56],[x+R*0.94,y-R*1.52],b,ol);
+  tri([x-R*0.62,y-R*0.66],[x-R*0.34,y-R*0.62],[x-R*0.78,y-R*1.24],'#7c5531');   // inner ear
+  tri([x+R*0.62,y-R*0.66],[x+R*0.34,y-R*0.62],[x+R*0.78,y-R*1.24],'#7c5531');
+  // cream ruff (the collar that defines Eevee)
+  oEll(x,y+R*0.03,R*0.86,R*0.46,cr,ol);
+  ellipse(x-R*0.22,y-R*0.06,R*0.48,R*0.26,'#fcf3e0');             // lit ruff
+  ellipse(x+R*0.30,y+R*0.15,R*0.40,R*0.20,crd);                   // shaded ruff
   // head
-  ellipse(x,y-R*0.45,R*0.7,R*0.62,b);
-  // ears
-  tri([x-R*0.7,y-R*0.7],[x-R*0.15,y-R*0.6],[x-R*0.85,y-R*1.5],b);
-  tri([x+R*0.7,y-R*0.7],[x+R*0.15,y-R*0.6],[x+R*0.85,y-R*1.5],b);
-  tri([x-R*0.6,y-R*0.75],[x-R*0.3,y-R*0.65],[x-R*0.7,y-R*1.25],d);
-  tri([x+R*0.6,y-R*0.75],[x+R*0.3,y-R*0.65],[x+R*0.7,y-R*1.25],d);
+  oEll(x,y-R*0.48,R*0.70,R*0.60,b,ol);
+  ellipse(x-R*0.20,y-R*0.66,R*0.42,R*0.32,bl);                    // lit brow
   // muzzle
-  ellipse(x,y-R*0.2,R*0.4,R*0.28,cr);
-  // eyes
-  eyeSpark(x-R*0.3,y-R*0.5,R*0.16); eyeSpark(x+R*0.3,y-R*0.5,R*0.16);
-  // nose
-  circle(x,y-R*0.28,R*0.09,'#1a1420');
-  // feet
-  ellipse(x-R*0.35,y+R*0.95,R*0.22,R*0.16,cr); ellipse(x+R*0.35,y+R*0.95,R*0.22,R*0.16,cr);
+  ellipse(x,y-R*0.21,R*0.40,R*0.28,crd);
+  ellipse(x,y-R*0.25,R*0.35,R*0.23,cr);
+  // face
+  monEye(x-R*0.31,y-R*0.54,R*0.155); monEye(x+R*0.31,y-R*0.54,R*0.155);
+  ellipse(x,y-R*0.31,R*0.10,R*0.075,'#2a1c14');                   // nose
+  g.strokeStyle='#6a4a2e'; g.lineWidth=Math.max(0.3,R*0.05); g.beginPath();
+  g.moveTo(x-R*0.13,y-R*0.17); g.quadraticCurveTo(x,y-R*0.09,x+R*0.13,y-R*0.17); g.stroke();   // smile
 }
 function mJolteon(x,y,R){
-  const y1=C.yellow, d=C.dyellow, w=C.lcream;
-  // spiky tail
-  tri([x-R*0.5,y+R*0.2],[x-R*1.3,y-R*0.3],[x-R*0.7,y+R*0.6],y1);
+  const y1='#f2d022', yd='#c8a012', yl='#ffe867', w='#f4f2e6', wd='#cfd0c4', ol='#5a4408';
+  // spiky lightning tail (behind)
+  oTri([x-R*0.48,y+R*0.16],[x-R*1.34,y-R*0.30],[x-R*0.70,y+R*0.62],y1,ol);
+  tri([x-R*0.54,y+R*0.20],[x-R*1.10,y-R*0.14],[x-R*0.68,y+R*0.44],yl);
   // body
-  ellipse(x,y+R*0.45,R*0.62,R*0.55,y1);
-  // spiky collar (white)
-  for(let i=-2;i<=2;i++){ tri([x+i*R*0.3-R*0.15,y+R*0.05],[x+i*R*0.3+R*0.15,y+R*0.05],[x+i*R*0.28,y-R*0.45],w); }
+  oEll(x,y+R*0.48,R*0.62,R*0.54,y1,ol);
+  ellipse(x-R*0.16,y+R*0.34,R*0.38,R*0.30,yl);                       // lit
+  ellipse(x+R*0.22,y+R*0.66,R*0.34,R*0.24,yd);                       // shaded
+  // legs
+  oEll(x-R*0.32,y+R*0.94,R*0.19,R*0.13,y1,ol,0.7);
+  oEll(x+R*0.36,y+R*0.94,R*0.19,R*0.13,y1,ol,0.7);
+  // ears (tall, behind head)
+  oTri([x-R*0.52,y-R*0.56],[x-R*0.12,y-R*0.56],[x-R*0.74,y-R*1.66],y1,ol);
+  oTri([x+R*0.52,y-R*0.56],[x+R*0.12,y-R*0.56],[x+R*0.74,y-R*1.66],y1,ol);
+  tri([x-R*0.46,y-R*0.62],[x-R*0.22,y-R*0.62],[x-R*0.62,y-R*1.34],'#a8850e');
+  tri([x+R*0.46,y-R*0.62],[x+R*0.22,y-R*0.62],[x+R*0.62,y-R*1.34],'#a8850e');
+  // spiky white ruff - the signature collar
+  for(let i=-2;i<=2;i++){ const sx=x+i*R*0.32;
+    oTri([sx-R*0.19,y+R*0.12],[sx+R*0.19,y+R*0.12],[sx+(i*R*0.05),y-R*0.56],w,ol); }
+  for(let i=-1;i<=1;i++){ const sx=x+i*R*0.32;
+    tri([sx-R*0.10,y+R*0.08],[sx+R*0.10,y+R*0.08],[sx+(i*R*0.04),y-R*0.34],'#ffffff'); }
+  ellipse(x+R*0.34,y+R*0.06,R*0.26,R*0.14,wd);                       // ruff shadow
   // head
-  ellipse(x,y-R*0.4,R*0.6,R*0.5,y1);
-  // big spiky ears
-  tri([x-R*0.5,y-R*0.6],[x-R*0.1,y-R*0.6],[x-R*0.7,y-R*1.6],y1);
-  tri([x+R*0.5,y-R*0.6],[x+R*0.1,y-R*0.6],[x+R*0.7,y-R*1.6],y1);
-  // spiky fur on head
-  tri([x-R*0.2,y-R*0.7],[x+R*0.2,y-R*0.7],[x,y-R*1.3],d);
-  // eyes
-  eyeSpark(x-R*0.25,y-R*0.45,R*0.14); eyeSpark(x+R*0.25,y-R*0.45,R*0.14);
-  circle(x,y-R*0.2,R*0.07,'#1a1420');
-  // feet
-  ellipse(x-R*0.3,y+R*0.92,R*0.2,R*0.14,d); ellipse(x+R*0.3,y+R*0.92,R*0.2,R*0.14,d);
+  oEll(x,y-R*0.44,R*0.60,R*0.50,y1,ol);
+  ellipse(x-R*0.18,y-R*0.58,R*0.36,R*0.26,yl);
+  // spiky brow tuft
+  oTri([x-R*0.24,y-R*0.66],[x+R*0.24,y-R*0.66],[x-R*0.04,y-R*1.30],y1,ol);
+  // face
+  monEye(x-R*0.26,y-R*0.48,R*0.14); monEye(x+R*0.26,y-R*0.48,R*0.14);
+  ellipse(x,y-R*0.22,R*0.085,R*0.065,'#3a2a08');
+  g.strokeStyle='#8a6a10'; g.lineWidth=Math.max(0.3,R*0.05); g.beginPath();
+  g.moveTo(x-R*0.11,y-R*0.10); g.quadraticCurveTo(x,y-R*0.03,x+R*0.11,y-R*0.10); g.stroke();
 }
 function mYamper(x,y,R){   // the Puppy Pokemon - a cheerful electric corgi
   const br='#a4824c', yl='#f4d23a', wh='#f6f1e2', pk='#e87a8a';
@@ -851,54 +887,77 @@ function mYamper(x,y,R){   // the Puppy Pokemon - a cheerful electric corgi
   ellipse(x+R*0.34,y+R*0.12,R*0.1,R*0.08,pk);
 }
 function mFlareon(x,y,R){
-  const o=C.orange, d=C.dred, fl=C.yellow;
-  // fluffy tail
-  ellipse(x-R*0.9,y-R*0.1,R*0.5,R*0.45,fl); ellipse(x-R*1.05,y-R*0.25,R*0.3,R*0.3,'#fff0b0');
+  const o='#ef8a3c', od='#c25f1e', olt='#ffab63', fl='#fbe07a', fld='#e0bc4e', flt='#fff4c0', ol='#6a3208';
+  // big fluffy tail (behind)
+  oEll(x-R*0.94,y-R*0.06,R*0.50,R*0.46,fl,ol);
+  ellipse(x-R*1.06,y-R*0.22,R*0.30,R*0.26,flt);
+  ellipse(x-R*0.80,y+R*0.16,R*0.26,R*0.20,fld);
   // body
-  ellipse(x,y+R*0.45,R*0.66,R*0.58,o);
-  // fluffy mane collar
-  ellipse(x,y+R*0.0,R*0.82,R*0.48,fl);
-  ellipse(x,y-R*0.1,R*0.55,R*0.4,'#fff0b0');
+  oEll(x,y+R*0.48,R*0.64,R*0.56,o,ol);
+  ellipse(x-R*0.16,y+R*0.34,R*0.38,R*0.30,olt);
+  ellipse(x+R*0.22,y+R*0.66,R*0.34,R*0.24,od);
+  // legs
+  oEll(x-R*0.32,y+R*0.94,R*0.19,R*0.13,o,ol,0.7);
+  oEll(x+R*0.36,y+R*0.94,R*0.19,R*0.13,o,ol,0.7);
+  // ears (behind head)
+  oTri([x-R*0.60,y-R*0.62],[x-R*0.12,y-R*0.58],[x-R*0.80,y-R*1.44],o,ol);
+  oTri([x+R*0.60,y-R*0.62],[x+R*0.12,y-R*0.58],[x+R*0.80,y-R*1.44],o,ol);
+  tri([x-R*0.52,y-R*0.68],[x-R*0.26,y-R*0.64],[x-R*0.66,y-R*1.18],'#b4551a');
+  tri([x+R*0.52,y-R*0.68],[x+R*0.26,y-R*0.64],[x+R*0.66,y-R*1.18],'#b4551a');
+  // fluffy flame mane
+  oEll(x,y+R*0.00,R*0.84,R*0.46,fl,ol);
+  ellipse(x-R*0.24,y-R*0.10,R*0.48,R*0.28,flt);
+  ellipse(x+R*0.34,y+R*0.12,R*0.36,R*0.20,fld);
   // head
-  ellipse(x,y-R*0.45,R*0.62,R*0.55,o);
-  // fluffy head tuft
-  ellipse(x,y-R*0.95,R*0.45,R*0.3,fl);
-  // ears
-  tri([x-R*0.6,y-R*0.7],[x-R*0.1,y-R*0.6],[x-R*0.75,y-R*1.4],o);
-  tri([x+R*0.6,y-R*0.7],[x+R*0.1,y-R*0.6],[x+R*0.75,y-R*1.4],o);
-  // eyes
-  eyeSpark(x-R*0.27,y-R*0.5,R*0.15); eyeSpark(x+R*0.27,y-R*0.5,R*0.15);
-  circle(x,y-R*0.25,R*0.08,'#1a1420');
-  ellipse(x-R*0.32,y+R*0.92,R*0.2,R*0.14,d); ellipse(x+R*0.32,y+R*0.92,R*0.2,R*0.14,d);
+  oEll(x,y-R*0.48,R*0.62,R*0.54,o,ol);
+  ellipse(x-R*0.18,y-R*0.62,R*0.36,R*0.28,olt);
+  // flame tuft on the brow
+  oEll(x-R*0.02,y-R*0.96,R*0.42,R*0.26,fl,ol);
+  ellipse(x-R*0.14,y-R*1.00,R*0.24,R*0.15,flt);
+  // face
+  monEye(x-R*0.27,y-R*0.52,R*0.145); monEye(x+R*0.27,y-R*0.52,R*0.145);
+  ellipse(x,y-R*0.26,R*0.09,R*0.07,'#4a2008');
+  g.strokeStyle='#9a4a12'; g.lineWidth=Math.max(0.3,R*0.05); g.beginPath();
+  g.moveTo(x-R*0.12,y-R*0.13); g.quadraticCurveTo(x,y-R*0.05,x+R*0.12,y-R*0.13); g.stroke();
 }
 function mSylveon(x,y,R){
-  const cr='#f3e7dd', pk=C.pink, dp=C.dpink, bl=C.blue;
-  // ribbons / feelers behind
-  ellipse(x-R*0.95,y-R*0.6,R*0.22,R*0.16,pk); ellipse(x-R*1.05,y-R*0.45,R*0.16,R*0.5,pk);
-  ellipse(x+R*0.95,y-R*0.6,R*0.22,R*0.16,pk); ellipse(x+R*1.05,y-R*0.45,R*0.16,R*0.5,pk);
+  const cr='#f6ece0', crd='#dcc9b8', pk='#f7b0c8', pkd='#e0839f', bl='#5fc2e8', ol='#8a5a68';
+  // ribbon feelers (behind) - Sylveon's signature
+  const rb=(sx,dir)=>{ const sw=Math.sin(anim/26+dir)*R*0.10;
+    oEll(x+dir*R*0.92+sw, y-R*0.62, R*0.13, R*0.34, pk, ol, 0.6);
+    oEll(x+dir*R*1.06+sw*1.4, y-R*0.16, R*0.16, R*0.16, bl, ol, 0.6);
+    ellipse(x+dir*R*0.90+sw, y-R*0.74, R*0.07, R*0.16, '#ffd2e0'); };
+  rb(0,-1); rb(0,1);
   // tail
-  ellipse(x-R*0.8,y+R*0.15,R*0.45,R*0.35,cr); ellipse(x-R*0.95,y+R*0.05,R*0.22,R*0.2,pk);
+  oEll(x-R*0.86,y+R*0.14,R*0.44,R*0.32,cr,ol);
+  ellipse(x-R*0.98,y+R*0.06,R*0.24,R*0.18,pk);
   // body
-  ellipse(x,y+R*0.45,R*0.64,R*0.56,cr);
-  ellipse(x,y+R*0.55,R*0.5,R*0.4,pk); // pink lower
+  oEll(x,y+R*0.48,R*0.62,R*0.54,cr,ol);
+  ellipse(x-R*0.16,y+R*0.34,R*0.36,R*0.28,'#fffaf2');
+  ellipse(x+R*0.10,y+R*0.66,R*0.44,R*0.28,pk);                    // pink hindquarters
+  ellipse(x+R*0.28,y+R*0.74,R*0.28,R*0.16,pkd);
+  // legs
+  oEll(x-R*0.32,y+R*0.94,R*0.18,R*0.13,pk,ol,0.7);
+  oEll(x+R*0.36,y+R*0.94,R*0.18,R*0.13,pk,ol,0.7);
+  // long ears (behind head)
+  oEll(x-R*0.44,y-R*1.02,R*0.17,R*0.48,cr,ol);
+  oEll(x+R*0.44,y-R*1.02,R*0.17,R*0.48,cr,ol);
+  ellipse(x-R*0.44,y-R*1.10,R*0.09,R*0.32,pk);
+  ellipse(x+R*0.44,y-R*1.10,R*0.09,R*0.32,pk);
   // head
-  ellipse(x,y-R*0.42,R*0.62,R*0.55,cr);
-  // long ears
-  ellipse(x-R*0.45,y-R*1.0,R*0.18,R*0.5,cr); ellipse(x+R*0.45,y-R*1.0,R*0.18,R*0.5,cr);
-  ellipse(x-R*0.45,y-R*1.1,R*0.1,R*0.35,pk); ellipse(x+R*0.45,y-R*1.1,R*0.1,R*0.35,pk);
-  // face accent (pink around one eye)
-  ellipse(x+R*0.28,y-R*0.5,R*0.22,R*0.18,pk);
-  // big blue eyes
-  circle(x-R*0.27,y-R*0.45,R*0.18,bl); circle(x+R*0.27,y-R*0.45,R*0.18,bl);
-  circle(x-R*0.32,y-R*0.5,R*0.07,'#fff'); circle(x+R*0.22,y-R*0.5,R*0.07,'#fff');
-  circle(x,y-R*0.2,R*0.06,dp);
-  // ribbon bow on neck (cute)
-  tri([x,y+R*0.05],[x-R*0.4,y-R*0.1],[x-R*0.4,y+R*0.2],pk);
-  tri([x,y+R*0.05],[x+R*0.4,y-R*0.1],[x+R*0.4,y+R*0.2],pk);
-  circle(x,y+R*0.05,R*0.1,dp);
-  // jewel
-  poly([[x,y+R*0.25],[x-R*0.08,y+R*0.33],[x,y+R*0.42],[x+R*0.08,y+R*0.33]], bl);
-  ellipse(x-R*0.3,y+R*0.92,R*0.18,R*0.12,cr); ellipse(x+R*0.3,y+R*0.92,R*0.18,R*0.12,cr);
+  oEll(x,y-R*0.46,R*0.62,R*0.54,cr,ol);
+  ellipse(x-R*0.18,y-R*0.60,R*0.36,R*0.28,'#fffaf2');
+  ellipse(x+R*0.30,y-R*0.52,R*0.24,R*0.20,pk);                    // pink cheek mask
+  // neck bow
+  oEll(x,y+R*0.06,R*0.13,R*0.11,pkd,ol,0.6);
+  oTri([x-R*0.06,y+R*0.06],[x-R*0.44,y-R*0.10],[x-R*0.42,y+R*0.22],pk,ol);
+  oTri([x+R*0.06,y+R*0.06],[x+R*0.44,y-R*0.10],[x+R*0.42,y+R*0.22],pk,ol);
+  // face - big gentle blue eyes
+  monEye(x-R*0.27,y-R*0.50,R*0.165,'#2a4a66',bl);
+  monEye(x+R*0.27,y-R*0.50,R*0.165,'#2a4a66',bl);
+  ellipse(x,y-R*0.24,R*0.075,R*0.06,pkd);
+  g.strokeStyle='#b07a8a'; g.lineWidth=Math.max(0.3,R*0.05); g.beginPath();
+  g.moveTo(x-R*0.10,y-R*0.12); g.quadraticCurveTo(x,y-R*0.05,x+R*0.10,y-R*0.12); g.stroke();
 }
 function mRattata(x,y,R){
   const p=C.purple, pd=C.dpurple, cr=C.cream;
@@ -1135,31 +1194,34 @@ function mPersian(x,y,R){
   ellipse(x-R*0.32,y+R*0.92,R*0.2,R*0.12,td); ellipse(x+R*0.32,y+R*0.92,R*0.2,R*0.12,td);
 }
 function mUmbreon(x,y,R){
-  const b='#26262e', d='#16161c', yl='#f4d11e', ey=C.red;
-  // tail (with yellow ring)
-  ellipse(x-R*0.85,y+R*0.1,R*0.5,R*0.42,b); ellipse(x-R*1.0,y+R*0.05,R*0.16,R*0.22,yl);
+  const b='#2b2b36', bl2='#3e3e4e', bd='#17171e', yl='#f6d422', yld='#c8a712', ol='#0c0c12';
+  const pul=0.55+0.45*Math.sin(anim/18);                            // its rings breathe with moonlight
+  const ring=(cx,cy,rx,ry)=>{ g.save(); g.globalCompositeOperation='lighter';
+    g.globalAlpha=0.20+pul*0.24; ellipse(cx,cy,rx*2.0,ry*2.4,'rgba(246,212,34,1)'); g.restore(); g.globalAlpha=1;
+    ellipse(cx,cy,rx,ry,yl); ellipse(cx,cy-ry*0.28,rx*0.7,ry*0.4,'#fff09a'); };
+  // sleek tail (behind) with its ring
+  oEll(x-R*0.90,y+R*0.08,R*0.44,R*0.36,b,ol);
+  ring(x-R*1.00,y+R*0.04,R*0.15,R*0.19);
   // body
-  ellipse(x,y+R*0.45,R*0.7,R*0.6,b);
-  // collar ruff (darker, not cream)
-  ellipse(x,y+R*0.05,R*0.82,R*0.45,d);
+  oEll(x,y+R*0.48,R*0.64,R*0.55,b,ol);
+  ellipse(x-R*0.18,y+R*0.33,R*0.36,R*0.28,bl2);                     // moon-lit back
+  ellipse(x+R*0.22,y+R*0.66,R*0.34,R*0.24,bd);
+  // legs + leg rings
+  oEll(x-R*0.32,y+R*0.94,R*0.19,R*0.13,b,ol,0.7);
+  oEll(x+R*0.36,y+R*0.94,R*0.19,R*0.13,b,ol,0.7);
+  ring(x-R*0.33,y+R*0.74,R*0.16,R*0.075); ring(x+R*0.37,y+R*0.74,R*0.16,R*0.075);
+  // ears (behind head) with their bands
+  oTri([x-R*0.64,y-R*0.60],[x-R*0.14,y-R*0.58],[x-R*0.84,y-R*1.56],b,ol);
+  oTri([x+R*0.64,y-R*0.60],[x+R*0.14,y-R*0.58],[x+R*0.84,y-R*1.56],b,ol);
+  ring(x-R*0.56,y-R*1.02,R*0.11,R*0.06); ring(x+R*0.56,y-R*1.02,R*0.11,R*0.06);
   // head
-  ellipse(x,y-R*0.45,R*0.7,R*0.62,b);
-  // ears
-  tri([x-R*0.7,y-R*0.7],[x-R*0.15,y-R*0.6],[x-R*0.85,y-R*1.5],b);
-  tri([x+R*0.7,y-R*0.7],[x+R*0.15,y-R*0.6],[x+R*0.85,y-R*1.5],b);
-  tri([x-R*0.62,y-R*0.78],[x-R*0.32,y-R*0.68],[x-R*0.72,y-R*1.28],d);
-  tri([x+R*0.62,y-R*0.78],[x+R*0.32,y-R*0.68],[x+R*0.72,y-R*1.28],d);
-  // forehead yellow ring
-  ellipse(x,y-R*0.85,R*0.16,R*0.1,yl);
-  // glowing red eyes
-  circle(x-R*0.3,y-R*0.5,R*0.16,ey); circle(x+R*0.3,y-R*0.5,R*0.16,ey);
-  circle(x-R*0.34,y-R*0.54,R*0.05,'#ffd0d0'); circle(x+R*0.26,y-R*0.54,R*0.05,'#ffd0d0');
-  // nose
-  circle(x,y-R*0.24,R*0.08,'#0c0c10');
-  // leg rings
-  ellipse(x-R*0.35,y+R*0.78,R*0.16,R*0.08,yl); ellipse(x+R*0.35,y+R*0.78,R*0.16,R*0.08,yl);
-  // feet
-  ellipse(x-R*0.35,y+R*0.95,R*0.22,R*0.16,d); ellipse(x+R*0.35,y+R*0.95,R*0.22,R*0.16,d);
+  oEll(x,y-R*0.48,R*0.64,R*0.55,b,ol);
+  ellipse(x-R*0.18,y-R*0.62,R*0.36,R*0.27,bl2);
+  ring(x,y-R*0.90,R*0.17,R*0.10);                                   // forehead ring
+  // glowing crimson eyes
+  monEye(x-R*0.28,y-R*0.52,R*0.15,'#8a1420','#ef3a4a');
+  monEye(x+R*0.28,y-R*0.52,R*0.15,'#8a1420','#ef3a4a');
+  ellipse(x,y-R*0.26,R*0.085,R*0.065,'#08080c');
 }
 // ---- legendary bosses (Admin Rook) ----
 function mCharizard(x,y,R){
@@ -1218,15 +1280,16 @@ function drawMon(sp,x,y,R){
 // overworld mon (follower, story mons): the REAL painted sprite at map scale, with a live
 // walk-hop while stepping so it looks like it's actually walking beside Oen.
 function drawOverworldMon(e, ex, ey){
-  const im=ASSETS._img['mon:'+e.sub], stepping=e.stepping;
+  const stepping=e.stepping;
   let hop=0, squash=1;
-  if(stepping){ const ph=Math.sin(clamp(e.sp||0,0,1)*Math.PI); hop=-ph*3.4; squash=1+ph*0.09; }   // rise at mid-step, land flat
-  else { hop=Math.sin((anim+e.bob*10)/16)*1; }                                                    // gentle idle breathing
+  if(stepping){ const ph=Math.sin(clamp(e.sp||0,0,1)*Math.PI); hop=-ph*3.0; squash=1+ph*0.08; }   // rise at mid-step, land flat
+  else { hop=Math.sin((anim+e.bob*10)/16)*0.9; }                                                  // gentle idle breathing
   g.globalAlpha=1; ellipse(ex+8, ey+15, 5.4*squash, 2*(2-squash), C.shadow);                      // shadow squashes as it lifts
-  if(im && im.naturalWidth>0){
-    const base=e.owScale||18, w=base*squash, h=base/squash;
-    g.drawImage(im, ex+8-w/2, (ey+15)-h+hop, w, h);                                               // feet on the ground, painted body rising with the hop
-  } else { drawMon(e.sub, ex+8, ey+8+hop, e.R||6); }
+  // the CRAFTED sprite (not the painted photo) so overworld mons belong to the pixel world
+  const R=e.owR||6.3;   // a shade shorter than a person - Eevee is a small companion, not a rival
+  g.save(); g.translate(ex+8, (ey+15)-R*1.13+hop); g.scale(squash, 1/squash);
+  drawMon(e.sub, 0, 0, R);
+  g.restore();
 }
 
 /* =========================================================================
@@ -2649,6 +2712,7 @@ function drawWipe(){ const W=game.wipe; if(!W) return;
    ========================================================================= */
 function playUpdate(dt){
   const p=game.player;
+  if(!p) return;   // no player yet (mid map-swap / fresh boot): nothing to drive this frame
   if(consume('menu')){ game.paused=true; pause.confirmQuit=false; return; }
   if(!p.stepping){
     let dir=null;
