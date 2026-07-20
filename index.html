@@ -2474,13 +2474,23 @@ function speakerFace(name){
 }
 function drawDlgPortrait(face, x, y, S){
   rrect(x-1,y-1,S+2,S+2,5,'#1d2336');                       // dark frame
-  rrect(x,y,S,S,4, face.mon?'#d2e2f2':'#dbe4f2');           // face backing
+  // deeper twilight backing + a vignette: pale subjects (white-haired Oak in a white coat,
+  // Ariana's white jacket) used to vanish into a near-white plate. Now everyone reads.
+  const bg=g.createLinearGradient(x,y,x,y+S);
+  bg.addColorStop(0, face.mon?'#7f9ec4':'#8496bc'); bg.addColorStop(1, face.mon?'#4c6486':'#515f80');
+  rrect(x,y,S,S,4,bg);
   g.save(); g.beginPath(); g.rect(x+1,y+1,S-2,S-2); g.clip();
+  const vg=g.createRadialGradient(x+S/2,y+S*0.45,S*0.18,x+S/2,y+S*0.5,S*0.72);   // corner vignette pushes the head forward
+  vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(14,18,32,.45)');
+  g.fillStyle=vg; g.fillRect(x,y,S,S);
   if(face.mon){ drawMon(face.mon, x+S/2, y+S/2+2, 11); }
   else { // zoom on the FACE (classic mugshot framing) - the head fills the frame, shoulders just visible below
-    g.translate(x+S/2, y+S/2); g.scale(2.6,2.6); drawChar(face.char, -8, -6.2, 'down', {idle:anim*0.03}); }
+    g.save(); g.translate(x+S/2, y+S/2); g.scale(2.6,2.6);
+    g.shadowColor='rgba(10,14,26,.55)'; g.shadowBlur=2.2;                        // soft separation halo behind pale heads
+    drawChar(face.char, -8, -6.2, 'down', {idle:anim*0.03});
+    g.restore(); }
   g.restore();
-  g.globalAlpha=0.5; rrect(x,y,S,1.6,4,'#ffffff'); g.globalAlpha=1;   // top sheen
+  g.globalAlpha=0.42; rrect(x,y,S,1.6,4,'#ffffff'); g.globalAlpha=1;   // top sheen
 }
 function dlgDraw(){
   if(!dlg.active) return;
@@ -3044,10 +3054,12 @@ function drawObjectiveHUD(){
   setFont(8);
   const widest=Math.max.apply(null, lines.map((l,i)=> tw((i?'  ':'▸ ')+l)));
   const bw=Math.min(VW-8, widest+20), bh=lines.length*11+8;
-  rrect(4,4,bw,bh,3,'rgba(20,18,30,.85)');
-  g.strokeStyle='#f6d62e'; g.lineWidth=1; g.strokeRect(4.5,4.5,bw-1,bh-1);
+  // translucent panel: in interiors the room's top row (where the captive Pokémon is) sits
+  // right behind this bar, so it must never fully block the scene
+  rrect(4,4,bw,bh,3,'rgba(20,18,30,.62)');
+  g.strokeStyle='rgba(246,214,46,.85)'; g.lineWidth=1; g.strokeRect(4.5,4.5,bw-1,bh-1);
   g.textBaseline='top';
-  for(let i=0;i<lines.length;i++) text((i?'  ':'▸ ')+lines[i], 9, 9+i*11, '#f6d62e', 8);
+  for(let i=0;i<lines.length;i++) textShadow((i?'  ':'▸ ')+lines[i], 9, 9+i*11, '#f6d62e', 'rgba(8,6,14,.9)', 8);   // shadow keeps it crisp over art
   g.textBaseline='alphabetic';
   g.fillStyle='#f6d62e'; g.fillRect(4+bw-12, 8, 7, 1.6);   // "–" minimize affordance (top-right)
   objGlow(bw,bh);
@@ -4169,7 +4181,7 @@ function setupWarehouse(){
         {type:'say',name:'Cooling Altar',text:'The five Spring Crystals click into place...'},
         {type:'crystalfx'},                                       // the fusion cinematic: five gems spiral, flash, and fuse into the Spring Prism
         {type:'sfx',name:'spark'},{type:'flash',col:'#7fe0ff',ms:320},{type:'shake',ms:300},
-        {type:'say',name:'',text:'A wave of cold mist sweeps the warehouse - the wall of fire hisses and dies down!'},
+        {type:'say',name:'',text:'A wave of cold mist sweeps the warehouse - the cage of fire hisses and gutters out!'},
         {type:'despawn',id:'flaCage'},                             // the flames actually go out
       ],()=>{ rescueFlareon(); }); }
       else { runSeq([
@@ -4193,7 +4205,7 @@ function setupWarehouse(){
   if(!F.warehouseIntro){ F.warehouseIntro=true; F.flareonQuest=true;
     runSeq([
       {type:'say',name:'Evo Tracker',text:'Fire energy very close. This is the Ember Warehouse.'},
-      {type:'say',name:'',text:'Flareon is trapped behind a roaring wall of flame. Before it stands a cold stone ALTAR with five empty crystal slots - and a small TABLE with a hand-written NOTE sits beside Flareon.'},
+      {type:'say',name:'',text:'Flareon is penned inside a roaring cage of flame, its back to the furnace. Before it stands a cold stone ALTAR with five empty crystal slots - and a small TABLE with a hand-written NOTE sits beside Flareon.'},
       {type:'objective',text:'Read the NOTE on the table beside Flareon.'},
     ],()=>{ game.state='play'; });
   } else if(!F.readNote){ game.objective='Read the NOTE on the table beside Flareon.'; }
