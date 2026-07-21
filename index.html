@@ -1122,13 +1122,13 @@ const EEVI={
            bw:0.64,bh:0.52,lg:0.20,hy:-0.46,nk:0.10},
   jolteon:{b:'#f2d022',lt:'#fff08a',dk:'#b8900c',ol:'#5a4408',ruff:'#f4f2e6',ruffLt:'#ffffff',ruffDk:'#c6c7bb',
            earIn:'#a8850e',muz:'#f2d022',nose:'#3a2a08',eye:'#1a1420',ear:'tall',tail:'bolt',rf:'spike',
-           bw:0.56,bh:0.46,lg:0.30,hy:-0.60,nk:0.16},
+           bw:0.56,bh:0.46,lg:0.30,hy:-0.60,nk:0.16,still:1},
   flareon:{b:'#ef8a3c',lt:'#ffb877',dk:'#b25314',ol:'#6a3208',ruff:'#fbe07a',ruffLt:'#fff8cc',ruffDk:'#d6b043',
            earIn:'#b4551a',muz:'#ef8a3c',nose:'#4a2008',eye:'#1a1420',ear:'point',tail:'flame',rf:'mane',
-           bw:0.72,bh:0.58,lg:0.16,hy:-0.40,nk:0.06},
+           bw:0.72,bh:0.58,lg:0.16,hy:-0.40,nk:0.06,still:1},
   sylveon:{b:'#f6ece0',lt:'#fffdf8',dk:'#d2bda9',ol:'#8a5a68',ruff:'#f7b0c8',ruffLt:'#ffd8e6',ruffDk:'#d9788f',
            earIn:'#f7b0c8',muz:'#f6ece0',nose:'#e0839f',eye:'#2a4a66',eyeGlow:'#5fc2e8',ear:'long',tail:'slim',rf:'bow',
-           bw:0.58,bh:0.46,lg:0.30,hy:-0.58,nk:0.16},
+           bw:0.58,bh:0.46,lg:0.30,hy:-0.58,nk:0.16,still:1},
   umbreon:{b:'#2b2b36',lt:'#474758',dk:'#111117',ol:'#0c0c12',ruff:'#2b2b36',ruffLt:'#474758',ruffDk:'#111117',
            earIn:'#17171e',muz:'#2b2b36',nose:'#08080c',eye:'#8a1420',eyeGlow:'#ef3a4a',ear:'point',tail:'slim',rings:1,rf:'none',
            bw:0.70,bh:0.48,lg:0.26,hy:-0.48,nk:0.12},
@@ -1237,7 +1237,7 @@ function eviFace(hx,hy,R,c,side){
   g.moveTo(hx-R*0.11,hy+R*0.30); g.quadraticCurveTo(hx,hy+R*0.37,hx+R*0.11,hy+R*0.30); g.stroke();
 }
 function eviFront(x,y,R,c,ph){
-  const sw = ph==null?0:Math.sin(ph*Math.PI*2), hy=y+(c.hy||-0.44)*R;
+  const sw = (c.still||ph==null)?0:Math.sin(ph*Math.PI*2), hy=y+(c.hy||-0.44)*R;   // still:1 keeps the legs planted
   eviTail(x,y,R,c,'front');
   eviLeg(x-R*0.36,y+R*(0.70+ (c.lg||0.2)*0.5),R,-sw*0.55,c,true);      // hind (far) legs
   eviLeg(x+R*0.38,y+R*(0.70+ (c.lg||0.2)*0.5),R,+sw*0.55,c,true);
@@ -1257,7 +1257,7 @@ function eviFront(x,y,R,c,ph){
   eviFace(x,hy,R,c,false);
 }
 function eviSide(x,y,R,c,ph){                                     // profile, facing RIGHT
-  const sw = ph==null?0:Math.sin(ph*Math.PI*2);
+  const sw = (c.still||ph==null)?0:Math.sin(ph*Math.PI*2);   // still:1 keeps the legs planted
   const rear=x-R*0.80, fwd=R*0.26, ly=y+R*(0.72+(c.lg||0.2)*0.5);
   eviTail(rear,y,R,c,'side');
   eviLeg(x-R*0.30+fwd,ly,R,-sw,c,true);                            // far hind + far fore
@@ -1284,7 +1284,7 @@ function eviSide(x,y,R,c,ph){                                     // profile, fa
   eviFace(hx,hy,R,c,true);
 }
 function eviBack(x,y,R,c,ph){                                     // from behind - no face
-  const sw = ph==null?0:Math.sin(ph*Math.PI*2), hy=y+(c.hy||-0.44)*R;
+  const sw = (c.still||ph==null)?0:Math.sin(ph*Math.PI*2), hy=y+(c.hy||-0.44)*R;   // still:1 keeps the legs planted
   eviEars(x,hy,R,c,'back');
   volEll(x,hy,R*0.62,R*0.52,c.b,c.lt,c.dk,c.ol);                   // back of the skull
   rim(x,hy,R*0.62,R*0.52);
