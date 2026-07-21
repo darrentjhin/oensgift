@@ -1272,6 +1272,120 @@ const MON = {
   persian:{f:mPersian,name:'Persian'},
   charizard:{f:mCharizard,name:'Charizard'}, rayquaza:{f:mRayquaza,name:'Rayquaza'}, mewtwo:{f:mMewtwo,name:'Mewtwo'},
 };
+/* =========================================================================
+   DIRECTIONAL EEVEELUTION RIG
+   The front (down) poses are the hand-built mXxx sprites. This adds true SIDE
+   and BACK poses so a mon turns to face the way it walks, exactly like Oen.
+   Volume comes from stacked lit/shaded passes + a rim light, so they read as
+   rounded forms rather than flat cut-outs.
+   ========================================================================= */
+const EEVI={
+  eevee:  {b:'#bb8b52',lt:'#d9ad76',dk:'#8d6234',ol:'#4a3320',ruff:'#f3e4c6',ruffLt:'#fcf3e0',ruffDk:'#d6c09a',
+           earIn:'#7c5531',muz:'#f3e4c6',nose:'#2a1c14',eye:'#1a1420',ear:'point',tail:'bushy',rf:'fluff'},
+  jolteon:{b:'#f2d022',lt:'#ffe867',dk:'#c8a012',ol:'#5a4408',ruff:'#f4f2e6',ruffLt:'#ffffff',ruffDk:'#cfd0c4',
+           earIn:'#a8850e',muz:'#f2d022',nose:'#3a2a08',eye:'#1a1420',ear:'tall',tail:'bolt',rf:'spike'},
+  flareon:{b:'#ef8a3c',lt:'#ffab63',dk:'#c25f1e',ol:'#6a3208',ruff:'#fbe07a',ruffLt:'#fff4c0',ruffDk:'#e0bc4e',
+           earIn:'#b4551a',muz:'#ef8a3c',nose:'#4a2008',eye:'#1a1420',ear:'point',tail:'flame',rf:'mane'},
+  sylveon:{b:'#f6ece0',lt:'#fffaf2',dk:'#dcc9b8',ol:'#8a5a68',ruff:'#f7b0c8',ruffLt:'#ffd2e0',ruffDk:'#e0839f',
+           earIn:'#f7b0c8',muz:'#f6ece0',nose:'#e0839f',eye:'#2a4a66',eyeGlow:'#5fc2e8',ear:'long',tail:'slim',rf:'bow'},
+  umbreon:{b:'#2b2b36',lt:'#3e3e4e',dk:'#17171e',ol:'#0c0c12',ruff:'#2b2b36',ruffLt:'#3e3e4e',ruffDk:'#17171e',
+           earIn:'#17171e',muz:'#2b2b36',nose:'#08080c',eye:'#8a1420',eyeGlow:'#ef3a4a',ear:'point',tail:'slim',rings:1,rf:'none'},
+};
+function eviRing(cx,cy,rx,ry){                                   // Umbreon's moon-rings, breathing
+  const p=0.55+0.45*Math.sin(anim/18);
+  g.save(); g.globalCompositeOperation='lighter'; g.globalAlpha=0.20+p*0.24;
+  ellipse(cx,cy,rx*2.0,ry*2.4,'rgba(246,212,34,1)'); g.restore(); g.globalAlpha=1;
+  ellipse(cx,cy,rx,ry,'#f6d422'); ellipse(cx,cy-ry*0.28,rx*0.7,ry*0.4,'#fff09a');
+}
+function eviTailSide(x,y,R,c,bx){                                 // tail at the rear (bx = rear x)
+  if(c.tail==='bushy'){ oEll(bx,y+R*0.10,R*0.46,R*0.42,c.ruff,c.ol); ellipse(bx-R*0.10,y-R*0.04,R*0.26,R*0.22,c.ruffLt); }
+  else if(c.tail==='bolt'){ oTri([bx+R*0.34,y+R*0.14],[bx-R*0.46,y-R*0.34],[bx+R*0.14,y+R*0.58],c.b,c.ol);
+    tri([bx+R*0.26,y+R*0.16],[bx-R*0.24,y-R*0.14],[bx+R*0.12,y+R*0.40],c.lt); }
+  else if(c.tail==='flame'){ oEll(bx,y-R*0.04,R*0.46,R*0.42,c.ruff,c.ol); ellipse(bx-R*0.10,y-R*0.18,R*0.28,R*0.24,c.ruffLt); }
+  else { oEll(bx+R*0.06,y+R*0.14,R*0.34,R*0.24,c.b,c.ol); ellipse(bx,y+R*0.08,R*0.20,R*0.14,c.lt);
+    if(c.rings) eviRing(bx-R*0.06,y+R*0.12,R*0.13,R*0.16); }
+}
+function eviSide(x,y,R,c){                                        // profile, facing RIGHT
+  const rear=x-R*0.86, fwd=R*0.30;
+  eviTailSide(x,y,R,c,rear);
+  // hind leg (further, darker) then body then fore leg
+  oEll(x-R*0.34,y+R*0.86,R*0.17,R*0.15,c.dk,c.ol,0.7);
+  oEll(x+fwd,y+R*0.50,R*0.66,R*0.52,c.b,c.ol);
+  ellipse(x+fwd-R*0.16,y+R*0.34,R*0.40,R*0.28,c.lt);              // lit spine
+  ellipse(x+fwd+R*0.14,y+R*0.70,R*0.38,R*0.22,c.dk);              // belly shade
+  oEll(x+fwd+R*0.26,y+R*0.88,R*0.18,R*0.15,c.b,c.ol,0.7);
+  if(c.rings){ eviRing(x-R*0.34,y+R*0.68,R*0.14,R*0.07); eviRing(x+fwd+R*0.26,y+R*0.70,R*0.14,R*0.07); }
+  // ruff / mane at the neck
+  if(c.rf==='fluff'||c.rf==='mane'){ oEll(x+fwd+R*0.10,y+R*0.06,R*0.60,R*0.40,c.ruff,c.ol);
+    ellipse(x+fwd-R*0.04,y-R*0.04,R*0.34,R*0.22,c.ruffLt); }
+  else if(c.rf==='spike'){ for(let i=-1;i<=2;i++){ const sx=x+fwd+i*R*0.26;
+      oTri([sx-R*0.16,y+R*0.16],[sx+R*0.16,y+R*0.16],[sx-R*0.06,y-R*0.44],c.ruff,c.ol); } }
+  // head
+  const hx=x+fwd+R*0.44, hy=y-R*0.40;
+  oEll(hx,hy,R*0.56,R*0.50,c.b,c.ol);
+  ellipse(hx-R*0.10,hy-R*0.14,R*0.34,R*0.26,c.lt);
+  // muzzle juts forward
+  oEll(hx+R*0.40,hy+R*0.14,R*0.26,R*0.19,c.muz,c.ol,0.7);
+  ellipse(hx+R*0.62,hy+R*0.10,R*0.075,R*0.06,c.nose);
+  // ears: far ear first (darker), then near ear
+  if(c.ear==='tall'){ oTri([hx-R*0.30,hy-R*0.30],[hx+R*0.02,hy-R*0.30],[hx-R*0.44,hy-R*1.36],c.dk,c.ol);
+    oTri([hx-R*0.10,hy-R*0.34],[hx+R*0.26,hy-R*0.34],[hx-R*0.02,hy-R*1.40],c.b,c.ol); }
+  else if(c.ear==='long'){ oEll(hx-R*0.16,hy-R*0.78,R*0.14,R*0.40,c.dk,c.ol); oEll(hx+R*0.14,hy-R*0.82,R*0.15,R*0.42,c.b,c.ol);
+    ellipse(hx+R*0.14,hy-R*0.88,R*0.08,R*0.28,c.earIn); }
+  else { oTri([hx-R*0.34,hy-R*0.26],[hx+R*0.04,hy-R*0.28],[hx-R*0.46,hy-R*1.06],c.dk,c.ol);
+    oTri([hx-R*0.06,hy-R*0.30],[hx+R*0.32,hy-R*0.30],[hx+R*0.06,hy-R*1.10],c.b,c.ol);
+    tri([hx+R*0.02,hy-R*0.34],[hx+R*0.24,hy-R*0.34],[hx+R*0.06,hy-R*0.88],c.earIn); }
+  if(c.rings) eviRing(hx-R*0.02,hy-R*0.62,R*0.14,R*0.08);
+  if(c.rf==='bow'){ // Sylveon's ribbon streaming back + bow at the neck
+    const sw=Math.sin(anim/26)*R*0.10;
+    oEll(x+fwd-R*0.18+sw,y-R*0.34,R*0.12,R*0.30,c.ruff,c.ol,0.6);
+    oEll(x+fwd+R*0.06,y+R*0.02,R*0.11,R*0.09,c.ruffDk,c.ol,0.6); }
+  if(c.rf==='mane'){ oEll(hx-R*0.04,hy-R*0.62,R*0.34,R*0.22,c.ruff,c.ol); ellipse(hx-R*0.12,hy-R*0.66,R*0.20,R*0.13,c.ruffLt); }
+  if(c.rf==='spike'){ oTri([hx-R*0.20,hy-R*0.42],[hx+R*0.18,hy-R*0.42],[hx+R*0.04,hy-R*1.00],c.b,c.ol); }
+  // single visible eye, looking the way it walks
+  monEye(hx+R*0.20,hy-R*0.04,R*0.145,c.eye,c.eyeGlow);
+}
+function eviBack(x,y,R,c){                                        // seen from behind - no face, tail toward us
+  // ears (backs)
+  if(c.ear==='tall'){ oTri([x-R*0.52,y-R*0.56],[x-R*0.12,y-R*0.56],[x-R*0.74,y-R*1.66],c.b,c.ol);
+    oTri([x+R*0.52,y-R*0.56],[x+R*0.12,y-R*0.56],[x+R*0.74,y-R*1.66],c.b,c.ol); }
+  else if(c.ear==='long'){ oEll(x-R*0.44,y-R*1.00,R*0.16,R*0.46,c.b,c.ol); oEll(x+R*0.44,y-R*1.00,R*0.16,R*0.46,c.b,c.ol); }
+  else { oTri([x-R*0.70,y-R*0.58],[x-R*0.16,y-R*0.56],[x-R*0.90,y-R*1.50],c.b,c.ol);
+    oTri([x+R*0.70,y-R*0.58],[x+R*0.16,y-R*0.56],[x+R*0.90,y-R*1.50],c.b,c.ol); }
+  if(c.rings){ eviRing(x-R*0.56,y-R*1.00,R*0.11,R*0.06); eviRing(x+R*0.56,y-R*1.00,R*0.11,R*0.06); }
+  // head (back of skull)
+  oEll(x,y-R*0.46,R*0.64,R*0.54,c.b,c.ol);
+  ellipse(x-R*0.18,y-R*0.60,R*0.36,R*0.26,c.lt);
+  if(c.rings) eviRing(x,y-R*0.86,R*0.16,R*0.09);
+  // ruff seen as a collar behind the neck
+  if(c.rf==='fluff'||c.rf==='mane'){ oEll(x,y+R*0.02,R*0.80,R*0.40,c.ruff,c.ol); ellipse(x-R*0.20,y-R*0.06,R*0.42,R*0.22,c.ruffLt); }
+  else if(c.rf==='spike'){ for(let i=-2;i<=2;i++){ const sx=x+i*R*0.30;
+      oTri([sx-R*0.17,y+R*0.10],[sx+R*0.17,y+R*0.10],[sx+i*R*0.05,y-R*0.46],c.ruff,c.ol); } }
+  // body + hind legs
+  oEll(x,y+R*0.50,R*0.64,R*0.52,c.b,c.ol);
+  ellipse(x-R*0.16,y+R*0.36,R*0.36,R*0.26,c.lt);
+  oEll(x-R*0.34,y+R*0.92,R*0.18,R*0.14,c.b,c.ol,0.7);
+  oEll(x+R*0.36,y+R*0.92,R*0.18,R*0.14,c.b,c.ol,0.7);
+  if(c.rings){ eviRing(x-R*0.34,y+R*0.72,R*0.15,R*0.075); eviRing(x+R*0.36,y+R*0.72,R*0.15,R*0.075); }
+  // tail points toward the viewer, over the body
+  if(c.tail==='bushy'){ oEll(x+R*0.06,y+R*0.42,R*0.36,R*0.44,c.ruff,c.ol); ellipse(x,y+R*0.28,R*0.22,R*0.26,c.ruffLt); }
+  else if(c.tail==='bolt'){ oTri([x-R*0.22,y+R*0.20],[x+R*0.30,y+R*0.16],[x+R*0.06,y+R*0.96],c.b,c.ol);
+    tri([x-R*0.12,y+R*0.26],[x+R*0.18,y+R*0.24],[x+R*0.04,y+R*0.76],c.lt); }
+  else if(c.tail==='flame'){ oEll(x+R*0.04,y+R*0.36,R*0.38,R*0.42,c.ruff,c.ol); ellipse(x-R*0.04,y+R*0.24,R*0.22,R*0.24,c.ruffLt); }
+  else { oEll(x+R*0.04,y+R*0.46,R*0.24,R*0.34,c.b,c.ol); ellipse(x,y+R*0.36,R*0.14,R*0.20,c.lt);
+    if(c.rings) eviRing(x+R*0.04,y+R*0.48,R*0.13,R*0.15); }
+  if(c.rf==='bow'){ const sw=Math.sin(anim/26)*R*0.10;              // Sylveon's ribbons trailing behind her
+    oEll(x-R*0.86+sw,y-R*0.30,R*0.12,R*0.30,c.ruff,c.ol,0.6);
+    oEll(x+R*0.86-sw,y-R*0.30,R*0.12,R*0.30,c.ruff,c.ol,0.6); }
+}
+// front stays the hand-built sprite; side/back use the rig
+function drawMonDir(sp,x,y,R,dir){
+  const c=EEVI[sp];
+  if(c && dir==='up'){ eviBack(x,y,R,c); return; }
+  if(c && dir==='left'){ g.save(); g.translate(2*x,0); g.scale(-1,1); eviSide(x,y,R,c); g.restore(); return; }
+  if(c && dir==='right'){ eviSide(x,y,R,c); return; }
+  drawMon(sp,x,y,R);
+}
 function drawMon(sp,x,y,R){
   const im=ASSETS._img['mon:'+sp];
   if(im && im.naturalWidth>0 && R>=16){ const w=R*2.7, h=R*2.7; g.drawImage(im, x-w/2, (y+R)-h, w, h); return; } // custom PNG at battle/cinema size only (small renders stay crisp procedural). naturalWidth guard: a broken/incomplete image falls through to the procedural sprite so a mon is never invisible.
@@ -1288,7 +1402,7 @@ function drawOverworldMon(e, ex, ey){
   // the CRAFTED sprite (not the painted photo) so overworld mons belong to the pixel world
   const R=e.owR||6.3;   // a shade shorter than a person - Eevee is a small companion, not a rival
   g.save(); g.translate(ex+8, (ey+15)-R*1.13+hop); g.scale(squash, 1/squash);
-  drawMon(e.sub, 0, 0, R);
+  drawMonDir(e.sub, 0, 0, R, e.dir||'down');   // turns to face the way it walks, like Oen
   g.restore();
 }
 
