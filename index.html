@@ -6125,8 +6125,8 @@ function creditsUpdate(dt){
     return;
   }
   credits.phaseT+=dt;
-  if(credits.phase==='photofade'){                   // the picture fades in slowly (skippable)
-    if(credits.phaseT>=3000 || consume('ok')){ credits.phase='photo'; credits.phaseT= consume('ok')?400:0; }
+  if(credits.phase==='photofade'){                   // the reunion photo assembles tile-by-tile (skippable)
+    if(credits.phaseT>=PHOTO_REVEAL.duration || consume('ok')){ credits.phase='photo'; credits.phaseT= consume('ok')?400:0; }
     return;
   }
   if(credits.phase==='photo'){                        // the reunion picture; press SPACE / tap to move on
@@ -6137,6 +6137,37 @@ function creditsUpdate(dt){
   if(credits.phase==='card1'){ if(credits.phaseT>=7500){ audio.sfx('confirm'); credits.phase='card2'; credits.phaseT=0; } return; }
   if(credits.phase==='card2'){ if(credits.phaseT>=4000){ audio.fanfare(); credits.phase='thanks'; credits.phaseT=0; } return; }
   if(credits.phase==='thanks'){ if(consume('ok')&&credits.phaseT>700){ audio.sfx('confirm'); credits.active=false; markGameComplete(); resetToTitle(); } return; }
+}
+/* ---- final reunion-photo reveal: a warm MOSAIC that assembles the picture tile-by-tile,
+   matching the game's pixel-world art. The real image is drawn once at full quality; pink
+   tiles fade away in the chosen order (each with a soft gold shimmer as it snaps into place),
+   so the finished frame is pixel-identical to the untouched photo. ★ TUNE HERE ★ ---- */
+const PHOTO_REVEAL={
+  duration: 2600,      // ms for the whole picture to finish assembling (raise = slower/gentler)
+  order:    'center',  // reveal order: 'center' (out from the hug) | 'ltr' | 'rtl' | 'ttb' | 'random'
+  tile:     11,        // mosaic tile size in logical pixels (smaller = finer grain)
+  stagger:  0.30,      // 0..1: how much a single tile's fade overlaps its neighbours' (bigger = softer front)
+};
+function mosaicHash01(a,b){ let h=((a*73856093)^(b*19349663))>>>0; return (h%1000)/1000; }
+function drawPhotoMosaic(prog, pinkFill){          // prog 0..1; pinkFill = the credits background gradient
+  const P=PHOTO_REVEAL, T=Math.max(2,P.tile), cols=Math.ceil(VW/T), rows=Math.ceil(VH/T);
+  const cxg=(cols-1)/2, cyg=(rows-1)/2, maxD=Math.hypot(cxg,cyg)||1, w=clamp(P.stagger,0.02,0.95);
+  for(let gy=0; gy<rows; gy++) for(let gx=0; gx<cols; gx++){
+    let k;                                          // 0 = reveals first, 1 = reveals last
+    if(P.order==='ltr')      k = cols>1 ? gx/(cols-1) : 0;
+    else if(P.order==='rtl') k = cols>1 ? 1-gx/(cols-1) : 0;
+    else if(P.order==='ttb') k = rows>1 ? gy/(rows-1) : 0;
+    else if(P.order==='random') k = mosaicHash01(gx,gy);
+    else                     k = Math.hypot(gx-cxg,gy-cyg)/maxD;   // 'center' (outward from the embrace)
+    const tp=clamp((prog - k*(1-w))/w, 0, 1);
+    if(tp>=1) continue;                             // tile fully revealed -> draw nothing (real pixels show)
+    const rev=tp*tp*(3-2*tp), x=gx*T, y=gy*T;
+    g.globalAlpha=1-rev;                            // pink cover fades out as the tile appears
+    g.fillStyle=pinkFill; g.fillRect(x,y,T+0.6,T+0.6);
+    const fl=Math.sin(tp*Math.PI);                  // warm gold shimmer, peaking mid-reveal
+    if(fl>0.03){ g.globalAlpha=fl*0.26; g.fillStyle='#ffe6ac'; g.fillRect(x,y,T+0.6,T+0.6); }
+  }
+  g.globalAlpha=1;
 }
 function creditsDraw(){
   g.textAlign='center';
@@ -6157,14 +6188,14 @@ function creditsDraw(){
     if(Math.floor(anim/64)%2) text('SPACE  ▸  skip', VW/2, VH-8, 'rgba(255,255,255,.55)', 7);
   } else if(credits.phase==='photofade' || credits.phase==='photo'){
     g.fillStyle=pink; g.fillRect(0,0,VW,VH);
-    const p = credits.phase==='photo' ? 1 : clamp(credits.phaseT/3000,0,1);   // slow, gentle reveal of the hug
-    const a = p*p*(3-2*p);                                                     // smoothstep ease for a soft fade-in
-    g.globalAlpha=a;
     const im=sceneImg('poppySylveon');
+    // draw the reunion photo ONCE at its true cover size/position (quality untouched)...
     if(im) drawCover(im,1,0);
     else { drawMon('sylveon',VW/2-22,90,20); drawPoppy(VW/2+18,108,'down',0); }
-    g.globalAlpha=1;
-    if(credits.phase==='photo'){
+    if(credits.phase==='photofade'){
+      // ...then the mosaic assembles it: pink tiles clear away in order, gold shimmer as each lands
+      drawPhotoMosaic(clamp(credits.phaseT/PHOTO_REVEAL.duration,0,1), pink);
+    } else {   // 'photo' hold: fully revealed, clean pixels + scrim + prompt
       const sc=g.createLinearGradient(0,VH-22,0,VH); sc.addColorStop(0,'rgba(20,10,26,0)'); sc.addColorStop(1,'rgba(20,10,26,.7)');
       g.fillStyle=sc; g.fillRect(0,VH-22,VW,22);
       if(Math.floor(anim/52)%2) textShadow('press SPACE to continue', VW/2, VH-8, '#fff', '#2a1020', 8);
