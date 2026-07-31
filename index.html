@@ -145,6 +145,7 @@ function loadImg(key,src){ const im=new Image(); im.onload=()=>{ASSETS._img[key]
 function loadAssetImages(){
   for(const sp in ASSETS.mon){ if(ASSETS.mon[sp]) loadImg('mon:'+sp, ASSETS.mon[sp]); }
   for(const k in ASSETS.char){ if(ASSETS.char[k]) loadImg('char:'+k, ASSETS.char[k]); }
+  loadImg('spidey2d', 'assets/spidey2d.png');   // user-supplied chibi Spider-Man sprite (cropped at draw time)
   for(const k in ASSETS.scene){ if(ASSETS.scene[k]) loadImg('scene:'+k, ASSETS.scene[k]); }
 }
 function sceneImg(name){ return ASSETS._img['scene:'+name]; }
@@ -269,6 +270,8 @@ cv.addEventListener('pointerdown', (ev)=>{
   // tapping the objective bar collapses/expands it (don't also fire an interact)
   if(game.objRect){ const r=game.objRect;
     if(mx>=r.x && mx<=r.x+r.w && my>=r.y && my<=r.y+r.h){ settings.objMin=!settings.objMin; saveSettings(); audio.sfx('cursor'); return; } }
+  // Spider-Man's CLAIM button intercepts the tap (so it doesn't just advance the dialogue)
+  if(claimBtn.active && !claimBtn.claimed && mx>=claimBtn.x && mx<=claimBtn.x+claimBtn.w && my>=claimBtn.y && my<=claimBtn.y+claimBtn.h){ claimTickets(); return; }
   // dialogue, cutscenes, intro pages, story videos, cinema, credits: a click = SPACE (advance / skip)
   pressed['ok']=true;
 });
@@ -2465,44 +2468,101 @@ function spideyUpdate(dt){ if(!spidey.active) return; spidey.t+=dt;
     if(t>=SPIDEY_IN_DUR){ spidey.phase='stand'; spidey.t=0; spidey.done=true; audio.sfx&&audio.sfx('bump'); }
   } else if(spidey.phase==='swingout' && spidey.t>=SPIDEY_OUT_DUR){ spidey.active=false; spidey.phase=''; spidey.done=true; }
 }
+// content crops (measured from the alpha channel of assets/spidey2d.png)
+const SPIDEY_BODY={x:296,y:148,w:629,h:925}, SPIDEY_HEAD={x:323,y:140,w:574,h:519};
+// draw the chibi sprite cropped to its body, scaled to `h` px tall, centred at cx with feet at footY
+function drawSpidey2D(cx, footY, h, flip){
+  const im=ASSETS._img['spidey2d']; if(!im||!im.naturalWidth) return false;
+  const c=SPIDEY_BODY, w=h*c.w/c.h;
+  g.save(); if(flip){ g.translate(2*cx,0); g.scale(-1,1); }
+  g.drawImage(im, c.x,c.y,c.w,c.h, cx-w/2, footY-h, w, h); g.restore();
+  return true;
+}
 function drawSpidey(ox,oy){
   const p=game.player; if(!p) return;
   const gx=p.px+ox+8+30, gy=p.py+oy;                          // his landing spot: just to Oen's right, on her tile line
   const L=-40, Rt=VW+40;                                      // just off the left / right screen edges
-  const eio=u=>u<0.5?2*u*u:1-Math.pow(-2*u+2,2)/2, eiq=u=>u*u;
+  const eio=u=>u<0.5?2*u*u:1-Math.pow(-2*u+2,2)/2;           // ease in-out: fast through the middle (pendulum feel)
+  const sm=u=>u*u*u*(u*(u*6-15)+10);                         // smootherstep: buttery, zero velocity at both ends
   let cx=gx, cy=gy, dir='right', tilt=0, web=null, mode='stand', arm='r';
   if(spidey.phase==='swingin'){
     const P=SPIDEY_PASS,W=SPIDEY_WAIT,t=spidey.t;
     const seg = t<P?0 : t<P+W?1 : t<2*P+W?2 : t<2*P+2*W?3 : 4;
     if(seg===1||seg===3) return;                              // between passes he's off-screen: draw nothing
     mode='swing'; dir='right'; arm='r';
-    const swingTop=gy-118, dip=74;
-    if(seg===0||seg===2){                                     // full fly-through: left edge -> off the right edge
+    const swingTop=gy-120, dip=90;
+    if(seg===0||seg===2){                                     // one long, smooth pendulum swing right across the plaza
       const u=(seg===0? t : t-(P+W))/P;
-      cx=L + eio(u)*(Rt-L);
-      cy=swingTop + dip*Math.abs(Math.sin(u*Math.PI*2));      // two graceful dips across the plaza
-      tilt=-0.30 - 0.12*Math.cos(u*Math.PI*2);
-      web={ ax:cx+52, ay:cy-64 };
-    } else {                                                  // landing pass: left edge -> centre, then settle to the ground
-      const u=clamp((t-(2*P+2*W))/P,0,1);
-      cx=L + eio(u)*(gx-L);
-      const base=swingTop + dip*Math.abs(Math.sin(u*Math.PI));
-      const s=clamp((u-0.55)/0.45,0,1), ss=s*s*(3-2*s);       // smoothstep down onto her tile line
-      cy=base + (gy-base)*ss;
+      cx=L + eio(u)*(Rt-L);                                   // fastest mid-screen, easing at both edges
+      cy=swingTop + dip*Math.sin(u*Math.PI);                  // single clean arc, lowest mid-screen - no cusp
+      tilt=-0.34 + 0.20*Math.sin(u*Math.PI);                  // hangs forward, rides upright through the low point
+      web={ ax:cx+46, ay:cy-72 };
+    } else {                                                  // landing swing: swoop to centre, settle softly onto her tile line
+      const u=clamp((t-(2*P+2*W))/P,0,1), e=sm(u);
+      cx=L + e*(gx-L);
+      cy=swingTop + (gy-swingTop)*e;                          // smooth continuous descent (no snap)
       if(u>0.9){ mode='stand'; dir='left'; cx=gx; cy=gy; tilt=0; web=null; }
-      else { tilt=(-0.30)*(1-ss); web=(s<0.85)?{ ax:cx+50, ay:cy-62 }:null; }
+      else { tilt=-0.30*(1-e); web=(u<0.82)?{ ax:cx+46, ay:cy-70 }:null; }
     }
   } else if(spidey.phase==='swingout'){
     mode='swing'; dir='right'; arm='r';
-    const k=clamp(spidey.t/SPIDEY_OUT_DUR,0,1), e=eiq(k);
-    cx=gx + Math.sin(k*Math.PI*1.4)*34 + e*(Rt-gx);           // one last dip, then arc up and off the right edge
-    cy=gy - e*185 - Math.sin(k*Math.PI)*26;
-    tilt=0.30*(1-k); web={ ax:cx+56, ay:cy-96 };
+    const k=clamp(spidey.t/SPIDEY_OUT_DUR,0,1), e=sm(k);
+    cx=gx + e*(Rt-gx);                                        // smooth arc up and off the right edge
+    cy=gy - e*182 - Math.sin(k*Math.PI)*30;                   // dips into the launch, then sweeps up and away
+    tilt=0.18 - 0.5*e; web={ ax:cx+48, ay:cy-86 };
   }
   if(web){ g.strokeStyle='rgba(255,255,255,.92)'; g.lineWidth=0.8;
     g.beginPath(); g.moveTo(web.ax,web.ay); g.lineTo(cx + (dir==='right'?5:-5), cy-8); g.stroke(); }
-  if(mode==='stand'){ ellipse(cx, cy+15, 5, 2, 'rgba(0,0,0,.3)'); drawChar('spidey', cx-8, cy-4, dir, {idle:anim*0.03}); }
-  else { g.save(); g.translate(cx, cy); g.rotate(tilt); drawChar('spidey', -8, -4, dir, {idle:anim*0.03}); g.restore(); }
+  if(mode==='stand'){ ellipse(cx, cy+15, 5, 2, 'rgba(0,0,0,.3)');
+    if(!drawSpidey2D(cx, cy+14, 19, dir==='left')) drawChar('spidey', cx-8, cy-4, dir, {idle:anim*0.03}); }
+  else { g.save(); g.translate(cx, cy); g.rotate(tilt);
+    if(!drawSpidey2D(0, 9.5, 19, dir==='left')) drawChar('spidey', -8, -4, dir, {idle:anim*0.03}); g.restore(); }
+}
+/* =========================================================================
+   SPIDER-MAN'S TICKETS — when Oen taps CLAIM, the order link + a sweet note
+   are emailed (via EmailJS) to the address below.
+   ★ EDIT the sweet note (TICKET_SWEET) here.
+   ★ TO MAKE THE EMAIL ACTUALLY SEND: make a free EmailJS account, add an email
+     service + a template whose fields use {{to_email}} {{subject}} {{message}},
+     then paste your Service ID / Template ID / Public Key into EMAILJS below.
+     Until those are filled the CLAIM button still works - it just won't send.
+   ========================================================================= */
+const TICKET_LINK='https://web.cinemawest.com/completed-order?orderId=159b3ea4a4eb4076b4d36e248ecb38d2';
+const TICKET_TO='christopher.darrentjhin@gmail.com';
+const TICKET_SWEET="You did it, Oen - three lights, one very lucky town, and I had the best seat in the house watching you shine. So tonight is on me: take the one who loves you most and go make a little more magic together. You've always been someone's whole world - and always will be.";
+const EMAILJS={ service:'YOUR_SERVICE_ID', template:'YOUR_TEMPLATE_ID', publicKey:'YOUR_PUBLIC_KEY' };
+const claimBtn={ active:false, claimed:false, doneT:0, x:VW/2-58, y:150, w:116, h:22 };
+let ticketsSent=false;
+function claimTickets(){
+  if(claimBtn.claimed) return;
+  claimBtn.claimed=true; claimBtn.doneT=0;
+  audio.sfx&&audio.sfx('confirm'); if(game.player) spawnHearts(game.player.px+8, game.player.py-4, 8);
+  const params={ to_email:TICKET_TO, from_name:'Spider-Man',
+    subject:'A gift from your friendly neighborhood Spider-Man',
+    message:TICKET_SWEET+'\n\nYour tickets: '+TICKET_LINK+'\n\n- Spider-Man',
+    link:TICKET_LINK };
+  if(EMAILJS.publicKey.indexOf('YOUR_')<0){                       // real keys present -> actually send it
+    try{ fetch('https://api.emailjs.com/api/v1.0/email/send',{ method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ service_id:EMAILJS.service, template_id:EMAILJS.template, user_id:EMAILJS.publicKey, template_params:params })
+    }).then(r=>{ ticketsSent=r.ok; }).catch(()=>{}); }catch(e){}
+  }
+}
+function drawClaimButton(){
+  if(!claimBtn.active) return;
+  const b=claimBtn, pulse=0.5+0.5*Math.sin(anim/16);
+  g.textAlign='center'; g.textBaseline='alphabetic';
+  textShadow(claimBtn.claimed?'Tickets claimed - check your email!':'Two tickets, just for you.', VW/2, b.y-5, '#ffe9c8', '#201830', 8);
+  const grd=g.createLinearGradient(b.x,b.y,b.x,b.y+b.h);
+  if(claimBtn.claimed){ grd.addColorStop(0,'#5bbf6a'); grd.addColorStop(1,'#2f8f47'); }
+  else { grd.addColorStop(0,'#e8443b'); grd.addColorStop(1,'#b81f1f'); }
+  g.save(); if(!claimBtn.claimed){ g.shadowColor='rgba(232,68,59,'+(0.55*pulse).toFixed(2)+')'; g.shadowBlur=7; }
+  rrect(b.x,b.y,b.w,b.h,6,'#1d1526'); g.restore();
+  rrect(b.x+1.5,b.y+1.5,b.w-3,b.h-3,5,grd);
+  g.globalAlpha=0.28; rrect(b.x+1.5,b.y+1.5,b.w-3,2,4,'#fff'); g.globalAlpha=1;
+  g.textBaseline='middle';
+  textShadow(claimBtn.claimed?'✓  CLAIMED':'CLAIM YOUR TICKETS', VW/2, b.y+b.h/2, '#fff', 'rgba(0,0,0,.45)', 9);
+  g.textAlign='left'; g.textBaseline='alphabetic';
 }
 /* ---- MEMORY FRAGMENTS: a quiet full-screen keepsake card the moment each Light comes home.
    ★ EDIT HERE if you want your own words on these cards - change `lines` (2 short lines) and `foot`. ---- */
@@ -2660,7 +2720,9 @@ function drawDlgPortrait(face, x, y, S){
   const vg=g.createRadialGradient(x+S/2,y+S*0.45,S*0.18,x+S/2,y+S*0.5,S*0.72);   // corner vignette pushes the head forward
   vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(14,18,32,.45)');
   g.fillStyle=vg; g.fillRect(x,y,S,S);
-  if(face.spidey){ drawSpideyPortrait(x+S/2, y+S*0.52, S*0.4); }
+  if(face.spidey){ const im=ASSETS._img['spidey2d'];
+    if(im&&im.naturalWidth){ const hd=SPIDEY_HEAD; g.drawImage(im, hd.x,hd.y,hd.w,hd.h, x+1, y+1, S-2, S-2); }
+    else drawSpideyPortrait(x+S/2, y+S*0.52, S*0.4); }
   else if(face.mon){ drawMon(face.mon, x+S/2, y+S/2+2, 11); }
   else { // zoom on the FACE (classic mugshot framing) - the head fills the frame, shoulders just visible below
     g.save(); g.translate(x+S/2, y+S/2); g.scale(2.6,2.6);
@@ -2735,6 +2797,8 @@ class Seq {
       case 'say': this.busy=true; say(act.pages||{name:act.name,text:act.text}, ()=>this.resolve()); break;
       case 'wait': { this.busy=true; let t=act.ms; this.tick=(dt)=>{ t-=dt; if(t<=0) this.resolve(); }; break; }
       case 'spidey': { this.busy=true; spideyStart(act.mode); this.tick=()=>{ if(spidey.done){ spidey.done=false; this.resolve(); } }; break; }
+      case 'claim': { this.busy=true; claimBtn.active=true; claimBtn.claimed=false; claimBtn.doneT=0; clearPressed();
+        this.tick=(dt)=>{ if(claimBtn.claimed){ claimBtn.doneT+=dt; if(claimBtn.doneT>1200){ claimBtn.active=false; this.resolve(); } } }; break; }
       case 'crystalfx': { // the five Spring Crystals spiral together and fuse - a full-screen cinematic
         this.busy=true; game.crysFx={t:0,flashed:false}; clearPressed(); audio.sfx('heal');
         this.tick=(dt)=>{ const c=game.crysFx; if(!c){ this.resolve(); return; } c.t+=dt;
@@ -3932,7 +3996,8 @@ function setupCoronation(){
     {type:'say',name:'Spider-Man',text:'...but looking around - a king, talking Pokemon, magic lights? Yeah. I think we\'re in totally different worlds. My bad.'},
     {type:'say',name:'Spider-Man',text:'Doctor Strange cracked a portal open and I sort of tumbled through. Since I\'m here anyway - congratulations, your majesty-in-training. You earned this.'},
     {type:'func',fn:()=>{ showTitleCard('2x SPIDER-MAN TICKETS','Tonight, 11:30 - Veranda Luxe',4400); audio.sfx('confirm'); spawnHearts(game.player.px+8,game.player.py,4); }},
-    {type:'say',name:'Spider-Man',text:'Oh - here. Two tickets, on me. SPIDER-MAN, tonight, 11:30, at the Veranda Luxe. Bring someone you love.'},
+    {type:'say',name:'Spider-Man',text:'Oh - here. Two tickets, on me. SPIDER-MAN, tonight, 11:30, at the Veranda Luxe. Bring someone you love. Go on - claim them.'},
+    {type:'claim'},
     {type:'say',name:'Spider-Man',text:'...Actually, I suppose that\'s him right there beside you, huh? Good. Surprise him with it tonight.'},
     {type:'say',name:'Spider-Man',text:'Just - do me one favor. Don\'t tell him I\'m the one who swung by and dropped these off. Tell him YOU got the tickets for him. Trust me, kid - it means way more coming from you.'},
     {type:'say',name:'Spider-Man',text:'That\'s my swing out of here. Stay super, kid!'},
@@ -6689,7 +6754,7 @@ function render(){
     case 'credits': creditsDraw(); break;
   }
   if(GRADED_STATES[game.state]) cinematicGrade();   // film grain + warm light over every in-world frame
-  if(game.state==='play'||game.state==='cutscene'){ drawConfetti(); drawTitleCard(); drawMemoryCard(); drawCrystalFx(); }   // celebration + keepsake + fusion overlays
+  if(game.state==='play'||game.state==='cutscene'){ drawConfetti(); drawTitleCard(); drawMemoryCard(); drawCrystalFx(); drawClaimButton(); }   // celebration + keepsake + fusion + tickets overlays
   else if(game.state==='battle') drawTitleCard();   // the Umbreon evolution card pops over the battle
   if(estActive() && (game.state==='play'||game.state==='cutscene')) estDraw();   // never overlay full-screen states (level-up, battle…) or its text doubles up
   if(game.paused) pauseDraw();
