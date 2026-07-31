@@ -692,11 +692,15 @@ function drawChar(kind,x,y,dir,mv){
     rect(hx-5, hy-1, 10, 1, 'rgba(255,255,255,.18)');                               // cap sheen
     if(dir==='down') rect(hx-3.5, hy+2.4, 7, 1.8, p.cap);                           // front brim, centered (portraits look AT you)
     else if(faceX) rect(hx+(faceX>0?-1:-5), hy+2, 6, 2, p.cap);                     // side brim points the way you face
-  } else if(p.mask){   // Spider-Man mask: red skull-cap crown + webbing (no hair)
-    rrect(hx-5, hy-1, 10, 4, 2, p.shirt);
-    rect(hx-5, hy-1, 10, 1, 'rgba(255,255,255,.14)');
-    g.strokeStyle='rgba(70,8,12,.6)'; g.lineWidth=0.4; g.beginPath();
-    g.moveTo(hx,hy-1); g.lineTo(hx,hy+5); g.moveTo(hx-4,hy+1.6); g.lineTo(hx+4,hy+1.6); g.stroke();   // web lines
+  } else if(p.mask){   // Spider-Man hood over the civilian head shape + radial webbing
+    rrect(hx-5, hy-1, 10, 4, 2, p.shirt);                            // red crown (same silhouette as the townsfolk hair-cap)
+    rect(hx-5, hy-1, 10, 1, 'rgba(255,255,255,.16)');                // sheen
+    g.save(); rpath(hx-4.9, hy-1, 9.8, 7, 2.6); g.clip();            // keep the webbing on the mask
+    const wox=hx, woy=hy-1.5;
+    g.strokeStyle='rgba(34,4,8,.55)'; g.lineWidth=0.3; g.lineCap='round'; g.lineJoin='round'; g.beginPath();
+    for(let i=0;i<=4;i++){ const th=0.55+(Math.PI-1.1)*i/4; g.moveTo(wox,woy); g.lineTo(wox+Math.cos(th)*9, woy+Math.sin(th)*9); }   // spokes + centre seam
+    for(const rad of [3.1, 4.7, 6.2]){ g.moveTo(wox+Math.cos(0.55)*rad, woy+Math.sin(0.55)*rad); g.arc(wox,woy,rad,0.55,Math.PI-0.55); }   // concentric arcs
+    g.stroke(); g.restore();
   } else {
     rrect(hx-5, hy-1, 10, 4, 2, p.hair);
     rect(hx-5, hy-1, 10, 1, 'rgba(255,255,255,.14)');                               // hair sheen
@@ -714,12 +718,11 @@ function drawChar(kind,x,y,dir,mv){
   }
   // face features (eyes blink occasionally while idle)
   const blink = (!walking) && (Math.floor(idlePh*0.6)%7===0) && (idlePh*0.6%1<0.12);
-  if(p.mask){   // Spider-Man's big white eyes, black-rimmed, angled
-    const E='#eef4f4', O='#0e1418';
-    if(dir==='down'){ poly([[hx-3.4,hy+2.6],[hx-0.8,hy+2],[hx-1.1,hy+4.4]],O); poly([[hx+3.4,hy+2.6],[hx+0.8,hy+2],[hx+1.1,hy+4.4]],O);
-      poly([[hx-3.1,hy+2.8],[hx-1.1,hy+2.3],[hx-1.3,hy+4.1]],E); poly([[hx+3.1,hy+2.8],[hx+1.1,hy+2.3],[hx+1.3,hy+4.1]],E); }
-    else if(dir==='left'){ poly([[hx-3.6,hy+2.6],[hx-0.6,hy+2.1],[hx-1.1,hy+4.3]],O); poly([[hx-3.3,hy+2.8],[hx-0.9,hy+2.4],[hx-1.3,hy+4.0]],E); }
-    else if(dir==='right'){ poly([[hx+3.6,hy+2.6],[hx+0.6,hy+2.1],[hx+1.1,hy+4.3]],O); poly([[hx+3.3,hy+2.8],[hx+0.9,hy+2.4],[hx+1.3,hy+4.0]],E); }
+  if(p.mask){   // Spider-Man's iconic white teardrop eyes (matches the dialogue portrait)
+    const ey=hy+2.9;
+    if(dir==='down'){ spideyEye(hx-1.9,ey,1.3,1.28,-1,0.24,false); spideyEye(hx+1.9,ey,1.3,1.28,1,0.24,false); }
+    else if(dir==='left'){ spideyEye(hx-1.2,ey,1.5,1.34,-1,0.24,false); }
+    else if(dir==='right'){ spideyEye(hx+1.2,ey,1.5,1.34,1,0.24,false); }
   }
   else if(dir==='down'){
     if(blink){ rect(hx-3,hy+3.6,1,0.7,C.black); rect(hx+2,hy+3.6,1,0.7,C.black); }
@@ -2449,65 +2452,6 @@ function drawSpideyPortrait(px,py,r){
   g.save(); g.beginPath(); maskPath(px,py,r); g.clip(); drawWebFan(px,py-1.16*r,r); g.restore();
   spideyEyePair(px, py-0.10*r, r);
 }
-// the overworld figure's iconic teardrop eyes, matching the portrait at sprite scale
-function figEye(ex,ey,ew,eh,side){
-  g.save(); g.translate(ex,ey); g.rotate(-side*0.22); g.scale(side,1);
-  const p=()=>{ g.beginPath();
-    g.moveTo(-ew, eh*0.32);
-    g.quadraticCurveTo(-ew*0.1,-eh*0.95, ew*0.6,-eh*0.70);
-    g.quadraticCurveTo(ew*1.15,-eh*0.35, ew*1.0, eh*0.15);
-    g.quadraticCurveTo(ew*0.9, eh*0.62, ew*0.3, eh*0.60);
-    g.quadraticCurveTo(-ew*0.45, eh*0.64, -ew, eh*0.32);
-    g.closePath(); };
-  g.save(); g.scale(1.24,1.2); g.fillStyle=SPX.eyeO; p(); g.fill(); g.restore();   // black rim
-  g.fillStyle=SPX.eye; p(); g.fill();
-  g.restore();
-}
-function figEyes(hx,hcy){ figEye(hx-1.7,hcy,1.12,1.32,-1); figEye(hx+1.7,hcy,1.12,1.32,1); }
-// draws at drawChar's (x,y) convention (x = tile left, y = tile top) so it drops
-// straight into the old call sites. mode 'swing' = airborne pose, else standing.
-function drawSpideyFigure(x,y,dir,mode,arm){
-  const S=SPX, cx=x+8, faceX=dir==='right'?1:dir==='left'?-1:0, swing=(mode==='swing');
-  const limb=(x1,y1,x2,y2,w,col)=>{ const dx=x2-x1,dy=y2-y1,l=Math.hypot(dx,dy)||1,nx=-dy/l*(w/2),ny=dx/l*(w/2);
-    poly([[x1+nx,y1+ny],[x2+nx,y2+ny],[x2-nx,y2-ny],[x1-nx,y1-ny]],col); circle(x2,y2,w/2,col); };
-  const upR=(arm!=='l'), F=faceX||1;
-  // ---- legs (blue) + red boots ----
-  const hipL=cx-1.8, hipR=cx+1.8, hipY=y+11;
-  if(swing){
-    limb(hipR, hipY, cx+F*5.4, y+13, 2.6, S.blue); circle(cx+F*5.4, y+13, 1.5, S.redD);   // lead boot forward
-    limb(hipL, hipY, cx-F*2.2, y+16.5, 2.6, S.blue); circle(cx-F*2.2, y+16.5, 1.5, S.redD); // trail boot tucked
-  } else {
-    rect(hipL-1, hipY, 2.3, 3.4, S.blue); rect(hipR-1.3, hipY, 2.3, 3.4, S.blue);
-    rrect(hipL-1.5, y+13.6, 3, 2, 0.8, S.redD); rrect(hipR-1.6, y+13.6, 3, 2, 0.8, S.redD);
-  }
-  // ---- far arm (behind the torso) ----
-  const shL=cx-3.6, shR=cx+3.6, shY=y+6;
-  if(swing){ if(upR){ limb(shL, shY, cx-5.6, y+10, 2.2, S.red); } else { limb(shR, shY, cx+5.6, y+10, 2.2, S.red); } }
-  // ---- torso: red chest + blue pelvis ----
-  const tx=cx;
-  rrect(tx-4, y+4.5, 8, 6.5, 2, S.red);
-  rect(tx-3.6, y+10.5, 7.2, 2.6, S.blue);
-  g.globalAlpha=0.18; rect(tx-4,y+9,8,2,'#000'); g.globalAlpha=0.20; rect(tx-3.4,y+4.5,6.8,1.1,'#fff'); g.globalAlpha=1;
-  g.strokeStyle=S.web; g.lineWidth=0.33; g.beginPath();
-  g.moveTo(tx,y+4.5); g.lineTo(tx,y+10.5); g.moveTo(tx-4,y+6.4); g.lineTo(tx+4,y+6.4); g.moveTo(tx-3.8,y+8.6); g.lineTo(tx+3.8,y+8.6);
-  g.moveTo(tx-3.6,y+5); g.lineTo(tx-1.4,y+10.2); g.moveTo(tx+3.6,y+5); g.lineTo(tx+1.4,y+10.2); g.stroke();
-  const sy=y+7.6;   // black spider emblem on the chest
-  poly([[tx,sy-1.5],[tx-0.9,sy-0.2],[tx-0.5,sy+1.9],[tx+0.5,sy+1.9],[tx+0.9,sy-0.2]], S.spider);
-  g.strokeStyle=S.spider; g.lineWidth=0.5; g.beginPath();
-  g.moveTo(tx-0.4,sy-0.4); g.lineTo(tx-2.7,sy-1.3); g.moveTo(tx-0.4,sy+0.3); g.lineTo(tx-2.9,sy+0.3); g.moveTo(tx-0.4,sy+0.9); g.lineTo(tx-2.4,sy+1.7);
-  g.moveTo(tx+0.4,sy-0.4); g.lineTo(tx+2.7,sy-1.3); g.moveTo(tx+0.4,sy+0.3); g.lineTo(tx+2.9,sy+0.3); g.moveTo(tx+0.4,sy+0.9); g.lineTo(tx+2.4,sy+1.7); g.stroke();
-  // ---- near arm (in front) ----
-  if(swing){ if(upR){ limb(shR, shY, cx+6.6, y-1.8, 2.3, S.red); } else { limb(shL, shY, cx-6.6, y-1.8, 2.3, S.red); } }
-  else { limb(shL, shY, cx-4.7, y+10.6, 2.2, S.red); limb(shR, shY, cx+4.7, y+10.6, 2.2, S.red); }
-  // ---- head: smooth red mask, webbing, iconic teardrop eyes ----
-  const hx=cx+faceX*0.8, hy=y, hcy=y+2.6;
-  rrect(hx-4.4, hy-1, 8.8, 7.4, 3, S.red);
-  g.globalAlpha=0.18; rect(hx-4.4,hy+4.2,8.8,1.8,'#000'); g.globalAlpha=0.20; rect(hx-4,hy-1,8,1,'#fff'); g.globalAlpha=1;
-  g.strokeStyle=S.web; g.lineWidth=0.3; g.beginPath();
-  g.moveTo(hx,hy-1); g.lineTo(hx,hy+6); g.moveTo(hx-4.2,hy+1.2); g.lineTo(hx+4.2,hy+1.2);
-  g.moveTo(hx-3.7,hy-0.3); g.lineTo(hx-1.1,hy+6); g.moveTo(hx+3.7,hy-0.3); g.lineTo(hx+1.1,hy+6); g.stroke();
-  figEyes(hx, hcy);
-}
 const spidey={ active:false, phase:'', t:0, done:false, _seg:-1 };
 const SPIDEY_PASS=900, SPIDEY_WAIT=1000;                     // fly-through | pause | fly-through | pause | landing
 const SPIDEY_IN_DUR=SPIDEY_PASS*3 + SPIDEY_WAIT*2, SPIDEY_OUT_DUR=1150;
@@ -2557,8 +2501,8 @@ function drawSpidey(ox,oy){
   }
   if(web){ g.strokeStyle='rgba(255,255,255,.92)'; g.lineWidth=0.8;
     g.beginPath(); g.moveTo(web.ax,web.ay); g.lineTo(cx + (dir==='right'?5:-5), cy-8); g.stroke(); }
-  if(mode==='stand'){ ellipse(cx, cy+15, 5, 2, 'rgba(0,0,0,.3)'); drawSpideyFigure(cx-8, cy-4, dir, 'stand', arm); }
-  else { g.save(); g.translate(cx, cy); g.rotate(tilt); drawSpideyFigure(-8, -4, dir, 'swing', arm); g.restore(); }
+  if(mode==='stand'){ ellipse(cx, cy+15, 5, 2, 'rgba(0,0,0,.3)'); drawChar('spidey', cx-8, cy-4, dir, {idle:anim*0.03}); }
+  else { g.save(); g.translate(cx, cy); g.rotate(tilt); drawChar('spidey', -8, -4, dir, {idle:anim*0.03}); g.restore(); }
 }
 /* ---- MEMORY FRAGMENTS: a quiet full-screen keepsake card the moment each Light comes home.
    ★ EDIT HERE if you want your own words on these cards - change `lines` (2 short lines) and `foot`. ---- */
@@ -3983,20 +3927,18 @@ function setupCoronation(){
     {type:'wait',ms:400},
     {type:'sfx',name:'battlestart'},
     {type:'spidey',mode:'in'},
-    {type:'say',name:'',text:'Out of nowhere, a white line snaps down from the sky - and a figure in red and blue swings clear across the plaza, once, twice, before dropping into a crouch right in the middle of the ceremony!'},
     {type:'say',name:'Spider-Man',text:'Whoa - sorry to crash the party! I heard through the grapevine that a brand-new hero was just crowned down here.'},
     {type:'say',name:'Spider-Man',text:'Honestly, I came to see if I could bring you up to meet the Avengers...'},
     {type:'say',name:'Spider-Man',text:'...but looking around - a king, talking Pokemon, magic lights? Yeah. I think we\'re in totally different worlds. My bad.'},
     {type:'say',name:'Spider-Man',text:'Doctor Strange cracked a portal open and I sort of tumbled through. Since I\'m here anyway - congratulations, your majesty-in-training. You earned this.'},
     {type:'func',fn:()=>{ showTitleCard('2x SPIDER-MAN TICKETS','Tonight, 11:30 - Veranda Luxe',4400); audio.sfx('confirm'); spawnHearts(game.player.px+8,game.player.py,4); }},
     {type:'say',name:'Spider-Man',text:'Oh - here. Two tickets, on me. SPIDER-MAN, tonight, 11:30, at the Veranda Luxe. Bring someone you love.'},
-    {type:'say',name:'Spider-Man',text:'...Actually, I suppose that\'s him right there beside you, huh? Good. The two of you should surprise him with it tonight.'},
+    {type:'say',name:'Spider-Man',text:'...Actually, I suppose that\'s him right there beside you, huh? Good. Surprise him with it tonight.'},
     {type:'say',name:'Spider-Man',text:'Just - do me one favor. Don\'t tell him I\'m the one who swung by and dropped these off. Tell him YOU got the tickets for him. Trust me, kid - it means way more coming from you.'},
     {type:'say',name:'Spider-Man',text:'That\'s my swing out of here. Stay super, kid!'},
     {type:'sfx',name:'throw'},
     {type:'spidey',mode:'out'},
-    {type:'say',name:'',text:'He fires a web to a rooftop and swings up over the skyline, gone as fast as he came. The plaza buzzes for a moment... and then the King raises his hand for quiet once more.'},
-    {type:'wait',ms:300},
+    {type:'wait',ms:500},
     // ---- the unveiling: the King's masons worked through the night ----
     {type:'say',name:'The King',text:'And one thing more! Since the dawn of the legend, this plaza has kept a statue of the little one who can become anything...'},
     {type:'say',name:'The King',text:'From this day forward, it does not stand alone. Masons! UNVEIL IT!'},
