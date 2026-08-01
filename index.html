@@ -2529,7 +2529,14 @@ function drawSpidey(ox,oy){
    ========================================================================= */
 const TICKET_LINK='https://web.cinemawest.com/completed-order?orderId=159b3ea4a4eb4076b4d36e248ecb38d2';
 const TICKET_TO='christopher.darrentjhin@gmail.com';
-const TICKET_SWEET="You did it, Oen - three lights, one very lucky town, and I had the best seat in the house watching you shine. So tonight is on me: take the one who loves you most and go make a little more magic together. You've always been someone's whole world - and always will be.";
+const TICKET_SWEET="Hey kid,\n\n"
+  +"I'm guessing you're the one I ran into back there. Not gonna lie, I had zero idea what was actually going on. A king, a crown, something about three lights... I just nodded along and hoped nobody asked me to fight anything.\n\n"
+  +"Truth is, I bought these tickets for myself. Figured it'd be fun to watch myself save the day on the big screen, popcorn, the whole thing. Was gonna bring MJ too. Then Doctor Strange did his whole spell thing, everyone forgot I existed, and yeah. That includes movie plans. So now I've got two tickets and no MJ.\n\n"
+  +"Anyway, they're yours now. Go be ridiculous together tonight. You saved a town today. That's more than I can say for most Tuesdays.\n\n"
+  +"Your tickets: "+TICKET_LINK+"\n\n"
+  +"Stay super, kid. You earned every bit of that title.\n\n"
+  +"Best,\nYour Friendly Neighborhood Spider-Man\n\n"
+  +"P.S. Funny story, I swing by that neighborhood pretty often, you know, friendly neighborhood and all that. Caught him through the window more nights than I can count, completely fried, staring down a maxed out Claude Code token limit like it owed him money. Never stopped though. Not once, even on the nights it clearly would've been easier to just quit. Hours and hours, over and over, just to get every little piece of this right for you. That's not effort, kid. That's love.";
 const EMAILJS={ service:'service_x4hdgkt', template:'template_5o0d1nh', publicKey:'ojOgdzvccPzLAsAva' };
 const claimBtn={ active:false, claimed:false, doneT:0, x:VW/2-58, y:150, w:116, h:22 };
 let ticketsSent=false;
@@ -2539,7 +2546,7 @@ function claimTickets(){
   audio.sfx&&audio.sfx('confirm'); if(game.player) spawnHearts(game.player.px+8, game.player.py-4, 8);
   const params={ to_email:TICKET_TO, from_name:'Spider-Man',
     subject:'A gift from your friendly neighborhood Spider-Man',
-    message:TICKET_SWEET+'\n\nYour tickets: '+TICKET_LINK+'\n\n- Spider-Man',
+    message:TICKET_SWEET,
     link:TICKET_LINK };
   if(EMAILJS.publicKey.indexOf('YOUR_')<0){                       // real keys present -> actually send it
     try{ fetch('https://api.emailjs.com/api/v1.0/email/send',{ method:'POST',
