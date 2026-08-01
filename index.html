@@ -2552,7 +2552,7 @@ function drawClaimButton(){
   if(!claimBtn.active) return;
   const b=claimBtn, pulse=0.5+0.5*Math.sin(anim/16);
   g.textAlign='center'; g.textBaseline='alphabetic';
-  textShadow(claimBtn.claimed?'Tickets claimed - check your email!':'Two tickets, just for you.', VW/2, b.y-5, '#ffe9c8', '#201830', 8);
+  textShadow(claimBtn.claimed?'Tickets claimed!':'Two tickets, just for you.', VW/2, b.y-5, '#ffe9c8', '#201830', 8);
   const grd=g.createLinearGradient(b.x,b.y,b.x,b.y+b.h);
   if(claimBtn.claimed){ grd.addColorStop(0,'#5bbf6a'); grd.addColorStop(1,'#2f8f47'); }
   else { grd.addColorStop(0,'#e8443b'); grd.addColorStop(1,'#b81f1f'); }
@@ -2562,6 +2562,7 @@ function drawClaimButton(){
   g.globalAlpha=0.28; rrect(b.x+1.5,b.y+1.5,b.w-3,2,4,'#fff'); g.globalAlpha=1;
   g.textBaseline='middle';
   textShadow(claimBtn.claimed?'✓  CLAIMED':'CLAIM YOUR TICKETS', VW/2, b.y+b.h/2, '#fff', 'rgba(0,0,0,.45)', 9);
+  if(claimBtn.claimed) textShadow('Check your email - and spam, just in case!', VW/2, b.y+b.h+13, '#cfe8d4', '#14201a', 7);
   g.textAlign='left'; g.textBaseline='alphabetic';
 }
 /* ---- MEMORY FRAGMENTS: a quiet full-screen keepsake card the moment each Light comes home.
@@ -2798,7 +2799,7 @@ class Seq {
       case 'wait': { this.busy=true; let t=act.ms; this.tick=(dt)=>{ t-=dt; if(t<=0) this.resolve(); }; break; }
       case 'spidey': { this.busy=true; spideyStart(act.mode); this.tick=()=>{ if(spidey.done){ spidey.done=false; this.resolve(); } }; break; }
       case 'claim': { this.busy=true; claimBtn.active=true; claimBtn.claimed=false; claimBtn.doneT=0; clearPressed();
-        this.tick=(dt)=>{ if(claimBtn.claimed){ claimBtn.doneT+=dt; if(claimBtn.doneT>1200){ claimBtn.active=false; this.resolve(); } } }; break; }
+        this.tick=(dt)=>{ if(claimBtn.claimed){ claimBtn.doneT+=dt; if(claimBtn.doneT>2500){ claimBtn.active=false; this.resolve(); } } }; break; }
       case 'crystalfx': { // the five Spring Crystals spiral together and fuse - a full-screen cinematic
         this.busy=true; game.crysFx={t:0,flashed:false}; clearPressed(); audio.sfx('heal');
         this.tick=(dt)=>{ const c=game.crysFx; if(!c){ this.resolve(); return; } c.t+=dt;
