@@ -2529,7 +2529,7 @@ function drawSpidey(ox,oy){
      Until those are filled the CLAIM button still works - it just won't send.
    ========================================================================= */
 const TICKET_LINK='https://web.cinemawest.com/completed-order?orderId=159b3ea4a4eb4076b4d36e248ecb38d2';
-const TICKET_TO='christopher.darrentjhin@gmail.com';
+const TICKET_TO='joannesaputra@gmail.com';
 const TICKET_SWEET="Hey kid,\n\n"
   +"I'm guessing you're the one I ran into back there. Not gonna lie, I had zero idea what was actually going on. A king, a crown, something about three lights... I just nodded along and hoped nobody asked me to fight anything.\n\n"
   +"Truth is, I bought these tickets for myself. Figured it'd be fun to watch myself save the day on the big screen, popcorn, the whole thing. Was gonna bring MJ too. Then Doctor Strange did his whole spell thing, everyone forgot I existed, and yeah. That includes movie plans. So now I've got two tickets and no MJ.\n\n"
@@ -5135,8 +5135,6 @@ function drawFloaters(){
 }
 // translate a battle-screen click into the same selection+confirm the keyboard would make
 function battlePointer(mx,my){
-  const b=SKIP_BTN;   // TEMP DEV: skip button hit-test
-  if(mx>=b.x && mx<=b.x+b.w && my>=b.y && my<=b.y+b.h){ skipBattle(); return; }
   const by=VH-50, p=battle.phase;
   if(p==='bagmenu'){ battle.bagSel = my<by+24?0:1; pressed['ok']=true; return; }   // tap a row = choose it
   if(p==='mainmenu'){
@@ -5352,29 +5350,6 @@ function winBattle(){
     if(cb) cb();
   }, 0);
 }
-/* ===== TEMP DEV: skip-battle button (top-right) - delete this block + its draw/click calls to remove ===== */
-const SKIP_BTN = { x:VW-46, y:4, w:42, h:13 };
-function skipBattle(){
-  if(!battle.active) return;
-  audio.sfx('confirm');
-  // cancel any in-flight animation/message callbacks so nothing fires after we bail out
-  battle.fxOnHit=battle.fxOnDone=null; battle.pauseCb=null; battle.afterDrain=null; battle.msgCb=null;
-  const rook1 = battle.cfg && battle.cfg.rookBattle1;   // scripted: this fight is meant to be LOST (-> evolution)
-  battle.active=false; battle.double=false; game.state='cutscene';
-  game.hearts=[]; game.particles=[]; game.flash=0; game.shake=0;
-  audio.play(battle.prevTrack||'route'); clearPressed();
-  if(rook1){ const cb=battle.onLose; battle.onLose=battle.onWin=null; if(cb) cb(); }
-  else { const cb=battle.onWin; battle.onWin=battle.onLose=null; if(cb) cb(); }
-}
-function drawSkipBtn(){
-  const b=SKIP_BTN;
-  rrect(b.x,b.y,b.w,b.h,3,'rgba(18,14,26,.72)');
-  g.strokeStyle='#e8b84a'; g.lineWidth=1; g.strokeRect(b.x+0.5,b.y+0.5,b.w-1,b.h-1);
-  g.textAlign='center'; g.textBaseline='middle';
-  text('SKIP ▸', b.x+b.w/2, b.y+b.h/2+0.5, '#ffd86a', 7);
-  g.textBaseline='alphabetic'; g.textAlign='left';
-}
-/* ===== end TEMP DEV ===== */
 // pulsing red danger vignette when the player's Pokémon is critically low (pairs with the lowhp beep)
 function drawLowHpVignette(){
   const p=battle.player; if(!p || p.hp<=0 || p.hp>p.max*0.2 || battle.pFaint!==0) return;
@@ -5585,7 +5560,6 @@ function dblDraw(){
   else drawBattleMsg(by);
   if(battle.startFx>0) drawBattleIntro();
   drawLowHpVignette();
-  drawSkipBtn();   // TEMP DEV
 }
 function drainTo(cur,target,max){ const sp=Math.max(0.14,(max||40)*0.003); const d=target-cur; if(Math.abs(d)<sp) return target; return cur + Math.sign(d)*Math.min(Math.abs(d), sp); } // gradual, visible HP drain (gentle scale so big bars aren't glacial)
 function battleAnim(dt){
@@ -5957,7 +5931,6 @@ function battleDraw(){
   g.restore();
   drawFloaters();
   drawLowHpVignette();
-  drawSkipBtn();   // TEMP DEV
 }
 function drawTransformOverlay(){
   const t=battle.transT, cx=battle.PX, cy=battle.PY-2;
@@ -6625,70 +6598,7 @@ function loop(now){
   try{ render(); }catch(e){ console.error('[recovered] render() threw:', e); }
   requestAnimationFrame(loop);
 }
-/* =========================================================================
-   DEV: SCENE JUMPER  -  a QA tool to leap to any act of the game.
-   Open with the `  key (backtick, top-left of the keyboard) at any time,
-   or load the page with ?scenes in the URL. Arrow keys move, ENTER jumps,
-   ` or ESC closes. Jumping disables saving for the session so it never
-   overwrites a real playthrough.
-   ========================================================================= */
-const sceneMenu={ active:false, sel:0, top:0 };
-function jWipe(){ for(const k in F) delete F[k]; game.followerEnt=null; battle.active=false; if(credits) credits.active=false; game.paused=false; game.titleCard=null; game.memCard=null; game.crysFx=null; activeSeq=null; if(dlg) dlg.active=false; }
-function jBase(lv){ jWipe();   // a clean mid-game baseline: partner in hand, establishing shots already seen
-  F.introDone=true; F.gotTracker=true; F.gotEevee=true; F.eeveeLv=lv||10;
-  F.sawTown=true; F.sawLab=true; F.sawStation=true; F.sawWarehouse=true; F.sawGarden=true; F.sawHideout=true;
-  F.objText='(scene jump)'; }
-const SCENES=[
-  ['Title screen',                 ()=>{ jWipe(); resetToTitle(); }],
-  ['Intro — Legend prologue',      ()=>{ jWipe(); game.state='intro'; game.intro=0; game.introT=0; audio.play('legend'); }],
-  ['Lab — the theft cutscene',     ()=>{ jWipe(); enterMap('lab'); }],
-  ['Town — start (talk to kid)',   ()=>{ jBase(); enterMap('town'); }],
-  ['Town — grunt tipped off',      ()=>{ jBase(); F.gotNote=true; enterMap('town'); }],
-  ['Route 1 — Rocket Grunt',       ()=>{ jBase(); F.gotNote=true; enterMap('route1'); }],
-  ["Keeper's House — Yamper quest",()=>{ jBase(); F.gotNote=true; F.routeClear=true; F.needBreaker=true; enterMap('keeper'); }],
-  ['Town — Yamper roaming',        ()=>{ jBase(); F.routeClear=true; F.needBreaker=true; F.yamperQuest=true; F.yamperPoints=50; F.yamperSpot=0; enterMap('town'); }],
-  ['Station — rescue Jolteon',     ()=>{ jBase(11); F.routeClear=true; F.gotBreaker=true; enterMap('station'); }],
-  ['Town — Flareon crystal hunt',  ()=>{ jBase(12); F.routeClear=true; F.jolteonRescued=true; F.flareonQuest=true; F.readNote=true; enterMap('town'); }],
-  ['Warehouse — read the note',    ()=>{ jBase(12); F.routeClear=true; F.jolteonRescued=true; enterMap('warehouse'); }],
-  ['Warehouse — altar (5 crystals)',()=>{ jBase(12); F.routeClear=true; F.jolteonRescued=true; F.flareonQuest=true; F.readNote=true; F.gotCrystal1=F.gotCrystal2=F.gotCrystal3=F.gotCrystal4=F.gotCrystal5=true; enterMap('warehouse'); }],
-  ['Town — Garden unlocked',       ()=>{ jBase(13); F.routeClear=true; F.jolteonRescued=true; F.flareonRescued=true; enterMap('town'); }],
-  ['Garden — Giovanni & Ariana',   ()=>{ jBase(13); F.routeClear=true; F.jolteonRescued=true; F.flareonRescued=true; enterMap('garden'); }],
-  ['Town — creepy finale night',   ()=>{ jBase(25); F.routeClear=true; F.jolteonRescued=true; F.flareonRescued=true; F.gardenCleared=true; F.gotStone=true; F.maxPotions=5; enterMap('town'); }],
-  ['Hideout — Admin Rook',         ()=>{ jBase(25); F.routeClear=true; F.jolteonRescued=true; F.flareonRescued=true; F.gardenCleared=true; F.gotStone=true; F.maxPotions=5; enterMap('hideout'); }],
-  ['Town — walk home (Sylveon)',   ()=>{ jBase(25); F.partner='umbreon'; F.jolteonRescued=true; F.flareonRescued=true; F.gardenCleared=true; F.sylveonRescued=true; F.gameWon=true; enterMap('town'); }],
-  ['Lab — ending (choose partner)',()=>{ jBase(25); F.partner='umbreon'; F.jolteonRescued=true; F.flareonRescued=true; F.gardenCleared=true; F.sylveonRescued=true; F.gameWon=true; enterMap('lab'); }],
-  ['Coronation — the King',        ()=>{ jBase(25); F.partner='umbreon'; F.jolteonRescued=true; F.flareonRescued=true; F.gardenCleared=true; F.sylveonRescued=true; F.gameWon=true; F.coronation=true; enterMap('town',23,29,'up'); }],
-  ['Credits + final letter',       ()=>{ jBase(25); F.gameWon=true; startCredits(()=>{}); }],
-];
-function openSceneMenu(){ window.__noSave=true; try{ saveSystem.delete(); }catch(e){} sceneMenu.active=true; sceneMenu.sel=0; sceneMenu.top=0; clearPressed(); }
-function sceneMenuUpdate(){
-  if(consume('up')){ sceneMenu.sel=(sceneMenu.sel-1+SCENES.length)%SCENES.length; audio.sfx&&audio.sfx('cursor'); }
-  if(consume('down')){ sceneMenu.sel=(sceneMenu.sel+1)%SCENES.length; audio.sfx&&audio.sfx('cursor'); }
-  const VIS=11; if(sceneMenu.sel<sceneMenu.top) sceneMenu.top=sceneMenu.sel; if(sceneMenu.sel>=sceneMenu.top+VIS) sceneMenu.top=sceneMenu.sel-VIS+1;
-  if(consume('menu')){ sceneMenu.active=false; clearPressed(); return; }
-  if(consume('ok')){ sceneMenu.active=false; clearPressed(); audio.sfx&&audio.sfx('confirm'); estT0(); try{ SCENES[sceneMenu.sel][1](); }catch(e){ console.error('scene jump failed',e); } }
-}
-function estT0(){ game.estT=99999; }   // skip any establishing-shot hold on landing
-function sceneMenuDraw(){
-  g.fillStyle='rgba(6,6,16,.86)'; g.fillRect(0,0,VW,VH);
-  g.textAlign='center'; textShadow('◆ SCENE JUMP ◆', VW/2, 16, '#ffe24a', '#2a2a4a', 10); g.textAlign='left';
-  const VIS=11, bx=20, by=26, rowH=13;
-  for(let r=0;r<VIS;r++){ const idx=sceneMenu.top+r; if(idx>=SCENES.length) break;
-    const yy=by+r*rowH, on=idx===sceneMenu.sel;
-    if(on){ rrect(bx-6,yy-2,VW-2*bx+12,rowH-1,3,'rgba(74,115,192,.55)'); poly([[bx-2,yy+2.5],[bx-2,yy+8],[bx+3,yy+5]],'#ffe24a'); }
-    textShadow((idx+1)+'. '+SCENES[idx][0], bx+6, yy+8, on?'#ffffff':'#c8d0e8', '#1a1a2e', 8);
-  }
-  g.textAlign='center';
-  text('↑↓ choose    ENTER jump    ` / ESC close', VW/2, VH-8, 'rgba(210,214,240,.7)', 7);
-  if(SCENES.length>VIS) text((sceneMenu.sel+1)+' / '+SCENES.length, VW/2, VH-18, 'rgba(210,214,240,.5)', 7);
-  g.textAlign='left';
-}
-addEventListener('keydown', e=>{ if(e.code==='Backquote'){ e.preventDefault(); if(sceneMenu.active){ sceneMenu.active=false; } else { openSceneMenu(); } } });
-if(location.search.indexOf('scenes')>=0){ window.__devScenes=true; }
-
 function update(dt){
-  if(window.__devScenes && !window.__scenesOpened && !boot.active){ window.__scenesOpened=true; openSceneMenu(); }   // ?scenes -> open on load
-  if(sceneMenu.active){ sceneMenuUpdate(); return; }   // dev scene jumper owns input while open
   updateParticles();
   updateFollower();   // Sylveon keeps pace beside Oen on the walk home
   if(spidey.active) spideyUpdate(dt);   // the coronation Spider-Man cameo
@@ -6781,8 +6691,6 @@ function render(){
   else if(game.state==='battle') drawTitleCard();   // the Umbreon evolution card pops over the battle
   if(estActive() && (game.state==='play'||game.state==='cutscene')) estDraw();   // never overlay full-screen states (level-up, battle…) or its text doubles up
   if(game.paused) pauseDraw();
-  if(sceneMenu.active) sceneMenuDraw();   // dev scene jumper overlay (top of everything)
-  else if(window.__devScenes && game.state==='title'){ g.textAlign='right'; text('` = scene jump', VW-6, VH-4, 'rgba(255,226,74,.7)', 7); g.textAlign='left'; }
   // travel text overlay
   if(game.travelText){ g.fillStyle='rgba(0,0,0,.85)'; g.fillRect(0,0,VW,VH); g.textAlign='center'; textShadow(game.travelText,VW/2,VH/2-4,'#f6d62e','#000',9);
     drawMon('eevee',VW/2,VH/2+24,8); g.textAlign='left'; }
