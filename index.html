@@ -3491,20 +3491,20 @@ function setupTown(){
   spawnYamper();   // the keeper's Yamper roams town until caught
   // Flareon rescue: 5 Spring Crystals scattered across town
   if(F.flareonQuest && !F.flareonRescued){
-    spawnCrystal('cryst1','gotCrystal1', 26, 22, 0);   // central plaza
-    spawnCrystal('cryst2','gotCrystal2', 12, 20, 1);   // west plaza connector
-    spawnCrystal('cryst3','gotCrystal3', 34, 30, 2);   // south-east
-    spawnCrystal('cryst4','gotCrystal4', 40, 22, 3);   // east residences
-    spawnCrystal('cryst5','gotCrystal5', 18, 30, 4);   // south district
+    spawnCrystal('cryst1','gotCrystal1', 3, 6, 0);     // tucked down the hidden NW alley beside the Lab
+    spawnCrystal('cryst2','gotCrystal2', 39, 14, 1);   // buried in the flowerbed by the upper-east home
+    spawnCrystal('cryst3','gotCrystal3', 6, 26, 2);    // resting in the flowerbed by the lower-west home
+    spawnCrystal('cryst4','gotCrystal4', 39, 26, 3);   // in the flowerbed by the lower-east home
+    spawnCrystal('cryst5','gotCrystal5', 40, 37, 4);   // rolled all the way to the far southern fields
     // a girl by the plaza turns the hunt into a riddle game - she hints at whichever crystal is still missing
     placeEntity(newEntity({id:'crystgal',kind:'char',sub:'gal',tx:21,ty:16,dir:'down',solid:true,
       talk:(e)=>{
         const hints=[
-          ['gotCrystal1','One sleeps almost under your nose... look right beside the big fountain!'],
-          ['gotCrystal2','One rolled off to the WEST, where the plaza squeezes into the avenue.'],
-          ['gotCrystal3','One glitters far to the SOUTH-EAST, out by the garden district.'],
-          ['gotCrystal4','One is hiding among the little houses on the EAST side of town.'],
-          ['gotCrystal5','One fell in the SOUTH district - I saw it shining between the flowers!'],
+          ['gotCrystal1','One\'s tucked down a hidden side-alley near the old Lab, off the main road, to the FAR NORTHWEST.'],
+          ['gotCrystal2','One\'s buried in a flowerbed by a house on the EAST side, north of the plaza.'],
+          ['gotCrystal3','One\'s resting among the blossoms by a home on the WEST side, south of the plaza.'],
+          ['gotCrystal4','One\'s glimmering in a flowerbed further south, on the EAST side of town.'],
+          ['gotCrystal5','One rolled all the way down to the SOUTHERN fields, past the boulevard.'],
         ];
         const missing=hints.filter(h=>!F[h[0]]);
         const text = missing.length===0
@@ -3621,7 +3621,7 @@ function spawnCage(id,tx,ty,kind){
 
 /* ---- Flareon rescue: 3 Spring Crystals scattered in town, presented at the warehouse altar ---- */
 /* ---- the keeper's wild Yamper: roams town, one throw per encounter, bolts to a new spot until caught ---- */
-const YAMPER_SPOTS=[[26,16],[10,20],[34,30],[18,30],[40,22],[30,24]];
+const YAMPER_SPOTS=[[26,16],[10,20],[34,30],[18,30],[40,22],[30,24],[3,4],[10,6],[40,26],[23,36]];
 // pick the next Yamper spot that no NPC/object (or the player) is standing on, so the pup never overlaps anyone
 function freeYamperSpot(startIdx){
   for(let i=0;i<YAMPER_SPOTS.length;i++){
@@ -3641,7 +3641,8 @@ function yamperResult(pts, caught){
     ],()=>game.state='play');
   } else {
     F.yamperSpot=freeYamperSpot(((F.yamperSpot||0)+1)%YAMPER_SPOTS.length);
-    const y=findEnt('yamper'); if(y){ const s=YAMPER_SPOTS[F.yamperSpot]; y.tx=s[0]; y.ty=s[1]; y.px=s[0]*TS; y.py=s[1]*TS; }
+    const y=findEnt('yamper'); if(y){ const s=YAMPER_SPOTS[F.yamperSpot]; y.tx=s[0]; y.ty=s[1]; y.px=s[0]*TS; y.py=s[1]*TS;
+      y.hx=s[0]; y.hy=s[1]; y.wT=null; }   // re-centre its wander patch on the new spot and reset its pacing timer
     runSeq([
       {type:'say',name:'',text:'Yamper wriggled free and bolted to another corner of Pallet Town!  ('+pts+'/50 left.)  Track it down and try again!'},
       {type:'objective',text:'Catch the keeper\'s Yamper - it roams Pallet Town ('+pts+'/50). Throw once and it bolts; track it down again!'},
@@ -3805,6 +3806,7 @@ function spawnYamper(){
   F.yamperSpot=freeYamperSpot(F.yamperSpot%YAMPER_SPOTS.length);   // never spawn on top of an NPC
   const s=YAMPER_SPOTS[F.yamperSpot];
   const y=mon('yamper','yamper',s[0],s[1],6); y.solid=true;
+  y.wander=true; y.hx=s[0]; y.hy=s[1]; y.wr=4;   // never stands still - patrols a wide patch around its spot, so it's genuinely harder to spot and pin down
   y.talk=(e)=>{ if(F.yamperPoints==null) F.yamperPoints=50; startCatch(F.yamperPoints, yamperResult); };
 }
 function crystalCount(){ return (F.gotCrystal1?1:0)+(F.gotCrystal2?1:0)+(F.gotCrystal3?1:0)+(F.gotCrystal4?1:0)+(F.gotCrystal5?1:0); }
