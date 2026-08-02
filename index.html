@@ -2365,10 +2365,11 @@ function drawConfetti(){
   g.globalAlpha=1;
 }
 // a big golden banner card announcing Oen's new royal title (drawn over the world during the ceremony)
-function showTitleCard(main,sub,ms){ game.titleCard={main,sub,t:0,dur:ms||5200}; }
+function showTitleCard(main,sub,ms,hold){ game.titleCard=hold? {main,sub,t:0,dur:Infinity,hold:true,dismiss:false,dismissT:0} : {main,sub,t:0,dur:ms||5200}; }
+function dismissTitleCard(){ const tc=game.titleCard; if(tc && tc.hold && !tc.dismiss){ tc.dismiss=true; tc.dismissT=0; } }
 function drawTitleCard(){
   const tc=game.titleCard; if(!tc) return;
-  const inK=clamp(tc.t/450,0,1), outK=clamp((tc.dur-tc.t)/450,0,1), k=Math.min(inK,outK);
+  const inK=clamp(tc.t/450,0,1), outK=tc.hold?(tc.dismiss?clamp(1-tc.dismissT/450,0,1):1):clamp((tc.dur-tc.t)/450,0,1), k=Math.min(inK,outK);
   const ease=k*k*(3-2*k);
   const y=34 - (1-ease)*26;
   g.globalAlpha=ease;
@@ -2806,7 +2807,12 @@ class Seq {
       case 'wait': { this.busy=true; let t=act.ms; this.tick=(dt)=>{ t-=dt; if(t<=0) this.resolve(); }; break; }
       case 'spidey': { this.busy=true; spideyStart(act.mode); this.tick=()=>{ if(spidey.done){ spidey.done=false; this.resolve(); } }; break; }
       case 'claim': { this.busy=true; claimBtn.active=true; claimBtn.claimed=false; claimBtn.doneT=0; clearPressed();
-        this.tick=(dt)=>{ if(claimBtn.claimed){ claimBtn.doneT+=dt; if(claimBtn.doneT>2500){ claimBtn.active=false; this.resolve(); } } }; break; }
+        this.tick=(dt)=>{ if(claimBtn.claimed){ claimBtn.doneT+=dt; if(claimBtn.doneT>3500){ claimBtn.active=false; this.resolve(); } } }; break; }
+      case 'titlecard': { this.busy=true; showTitleCard(act.main,act.sub,0,true); clearPressed();
+        this.tick=()=>{ const tc=game.titleCard;
+          if(!tc){ this.resolve(); return; }                                  // safety: card already gone
+          if(!tc.dismiss){ if(tc.t>500 && consume('ok')) dismissTitleCard(); }
+          else if(!game.titleCard){ this.resolve(); } }; break; }
       case 'crystalfx': { // the five Spring Crystals spiral together and fuse - a full-screen cinematic
         this.busy=true; game.crysFx={t:0,flashed:false}; clearPressed(); audio.sfx('heal');
         this.tick=(dt)=>{ const c=game.crysFx; if(!c){ this.resolve(); return; } c.t+=dt;
@@ -4003,7 +4009,8 @@ function setupCoronation(){
     {type:'say',name:'Spider-Man',text:'Honestly, I came to see if I could bring you up to meet the Avengers...'},
     {type:'say',name:'Spider-Man',text:'...but looking around - a king, talking Pokemon, magic lights? Yeah. I think we\'re in totally different worlds. My bad.'},
     {type:'say',name:'Spider-Man',text:'Doctor Strange cracked a portal open and I sort of tumbled through. Since I\'m here anyway - congratulations, your majesty-in-training. You earned this.'},
-    {type:'func',fn:()=>{ showTitleCard('2x SPIDER-MAN TICKETS','Tonight, 11:30 - Veranda Luxe',4400); audio.sfx('confirm'); spawnHearts(game.player.px+8,game.player.py,4); }},
+    {type:'func',fn:()=>{ audio.sfx('confirm'); spawnHearts(game.player.px+8,game.player.py,4); }},
+    {type:'titlecard',main:'2x SPIDER-MAN TICKETS',sub:'Tonight, 11:30 - Veranda Luxe'},
     {type:'say',name:'Spider-Man',text:'Oh - here. Two tickets, on me. SPIDER-MAN, tonight, 11:30, at the Veranda Luxe. Bring someone you love. Go on - claim them.'},
     {type:'claim'},
     {type:'say',name:'Spider-Man',text:'...Actually, I suppose that\'s him right there beside you, huh? Good. Surprise him with it tonight.'},
@@ -6683,7 +6690,9 @@ function update(dt){
   updateParticles();
   updateFollower();   // Sylveon keeps pace beside Oen on the walk home
   if(spidey.active) spideyUpdate(dt);   // the coronation Spider-Man cameo
-  if(game.titleCard){ game.titleCard.t+=dt; if(game.titleCard.t>=game.titleCard.dur) game.titleCard=null; }
+  if(game.titleCard){ const tc=game.titleCard; tc.t+=dt;
+    if(tc.hold){ if(tc.dismiss){ tc.dismissT+=dt; if(tc.dismissT>=450) game.titleCard=null; } }
+    else if(tc.t>=tc.dur) game.titleCard=null; }
   if(game.arriveT>0) game.arriveT-=dt;   // "you are here" marker over Oen after a map change
   // global entity animation
   for(const e of game.entities) updateEntity(e,dt);
